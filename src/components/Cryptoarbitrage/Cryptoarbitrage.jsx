@@ -83,26 +83,30 @@ const CryptoArbitrage = () => {
     setSuccessMsg('Manual refresh triggered. New data will be ready in 2-5 minutes...');
   };
 
-  // Filter and sort opportunities
+  // Filter and sort opportunities (compatible with new Order Book-based system)
   const filteredOpportunities = (opportunities || [])
     .filter(opp => {
-      const matchesSearch = opp.coin?.toLowerCase().includes(filters.search.toLowerCase()) ||
+      // Get coin from symbol (e.g., "BTC/USDT" -> "BTC")
+      const coin = opp.coin || opp.symbol?.split('/')[0] || '';
+      const matchesSearch = coin.toLowerCase().includes(filters.search.toLowerCase()) ||
                           opp.symbol?.toLowerCase().includes(filters.search.toLowerCase());
       if (!matchesSearch) return false;
-      
-      if (filters.showOnlyProfitable && !opp.isProfitableAfterFees) return false;
-      
+
+      // Check profitability (new system uses netProfitPercent > 0)
+      const isProfitable = opp.isProfitableAfterFees ?? (opp.netProfitPercent > 0);
+      if (filters.showOnlyProfitable && !isProfitable) return false;
+
       const riskLevels = { 'Low': 1, 'Medium': 2, 'High': 3 };
       const maxRiskLevel = riskLevels[filters.maxRisk];
-      const oppRiskLevel = riskLevels[opp.riskLevel];
+      const oppRiskLevel = riskLevels[opp.riskLevel] || 2;
       if (oppRiskLevel > maxRiskLevel) return false;
-      
+
       return true;
     })
     .sort((a, b) => {
-      if (filters.sortBy === 'profitPercent') return b.profitPercent - a.profitPercent;
-      if (filters.sortBy === 'netProfitPercent') return b.netProfitPercent - a.netProfitPercent;
-      if (filters.sortBy === 'volume') return b.tradeableVolume - a.tradeableVolume;
+      if (filters.sortBy === 'profitPercent') return (b.netProfitPercent || b.profitPercent || 0) - (a.netProfitPercent || a.profitPercent || 0);
+      if (filters.sortBy === 'netProfitPercent') return (b.netProfitPercent || 0) - (a.netProfitPercent || 0);
+      if (filters.sortBy === 'volume') return (b.optimalTradeValueUSD || b.tradeableVolume || 0) - (a.optimalTradeValueUSD || a.tradeableVolume || 0);
       return 0;
     });
 
@@ -211,10 +215,10 @@ const CryptoArbitrage = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Opportunities</p>
               <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {stats.totalOpportunities || status.opportunitiesCount || 0}
+                {stats.totalOpportunities || status.opportunitiesCount || opportunities.length || 0}
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                {stats.profitableAfterFees || 0} profitable after fees
+                {opportunities.filter(o => (o.netProfitPercent || 0) > 0).length} executable
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-primary-500" />
@@ -224,13 +228,22 @@ const CryptoArbitrage = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Avg Profit</p>
-              <p className="mt-1 text-2xl font-bold text-green-600">
-                {(stats.avgProfitPercent || 0).toFixed(3)}%
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {(stats.avgNetProfitPercent || 0).toFixed(3)}% after fees
-              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Best Profit</p>
+              {opportunities.length > 0 ? (
+                <>
+                  <p className="mt-1 text-2xl font-bold text-green-600">
+                    {Math.max(...opportunities.map(o => o.netProfitPercent || o.profitPercent || 0)).toFixed(3)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    ${Math.max(...opportunities.map(o => o.expectedProfitUSD || 0)).toFixed(2)} potential
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-2xl font-bold text-gray-400">N/A</p>
+                  <p className="mt-1 text-xs text-gray-500">No data yet</p>
+                </>
+              )}
             </div>
             <DollarSign className="w-8 h-8 text-green-500" />
           </div>
@@ -239,13 +252,22 @@ const CryptoArbitrage = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Best Opportunity</p>
-              <p className="mt-1 text-2xl font-bold text-purple-600">
-                {stats.bestOpportunity ? `${stats.bestOpportunity.profitPercent.toFixed(3)}%` : 'N/A'}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {stats.bestOpportunity?.symbol || '-'}
-              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Potential</p>
+              {opportunities.length > 0 ? (
+                <>
+                  <p className="mt-1 text-2xl font-bold text-purple-600">
+                    ${opportunities.reduce((sum, o) => sum + (o.expectedProfitUSD || 0), 0).toFixed(2)}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Combined profit
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-2xl font-bold text-gray-400">$0.00</p>
+                  <p className="mt-1 text-xs text-gray-500">Load data to see</p>
+                </>
+              )}
             </div>
             <BarChart3 className="w-8 h-8 text-purple-500" />
           </div>
@@ -254,15 +276,31 @@ const CryptoArbitrage = () => {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Risk Breakdown</p>
-              <div className="flex gap-2 mt-1">
-                <span className="text-xs font-medium text-green-600">L:{stats.riskBreakdown?.low || 0}</span>
-                <span className="text-xs font-medium text-yellow-600">M:{stats.riskBreakdown?.medium || 0}</span>
-                <span className="text-xs font-medium text-red-600">H:{stats.riskBreakdown?.high || 0}</span>
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Low / Medium / High
-              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Avg Confidence</p>
+              {opportunities.length > 0 && opportunities[0].confidenceScore ? (
+                <>
+                  <p className={`mt-1 text-2xl font-bold ${
+                    (opportunities.reduce((sum, o) => sum + (o.confidenceScore || 50), 0) / opportunities.length) >= 60
+                      ? 'text-green-600' : 'text-yellow-600'
+                  }`}>
+                    {Math.round(opportunities.reduce((sum, o) => sum + (o.confidenceScore || 50), 0) / opportunities.length)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Order book based
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-xs font-medium text-green-600">L:{opportunities.filter(o => o.riskLevel === 'Low').length}</span>
+                    <span className="text-xs font-medium text-yellow-600">M:{opportunities.filter(o => o.riskLevel === 'Medium').length}</span>
+                    <span className="text-xs font-medium text-red-600">H:{opportunities.filter(o => o.riskLevel === 'High').length}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Risk breakdown
+                  </p>
+                </>
+              )}
             </div>
             <Shield className="w-8 h-8 text-blue-500" />
           </div>
@@ -496,26 +534,39 @@ const CryptoArbitrage = () => {
                   {filteredOpportunities.map((opp, index) => {
                     const transferBadge = getTransferBadge(opp.transferStatus);
                     const TransferIcon = transferBadge.icon;
-                    
+                    // Extract coin from symbol if not present
+                    const coin = opp.coin || opp.symbol?.split('/')[0] || '?';
+                    const isProfitable = opp.isProfitableAfterFees ?? (opp.netProfitPercent > 0);
+
                     return (
-                      <tr 
-                        key={`${opp.symbol}-${opp.buyExchange}-${opp.sellExchange}`}
+                      <tr
+                        key={opp.id || `${opp.symbol}-${opp.buyExchange}-${opp.sellExchange}`}
                         className={`hover:bg-gray-50 dark:hover:bg-brandDark-800 transition-colors ${
-                          index === 0 && opp.isProfitableAfterFees ? 'bg-green-50 dark:bg-green-900/10' : ''
+                          index === 0 && isProfitable ? 'bg-green-50 dark:bg-green-900/10' : ''
                         }`}
                       >
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex items-center justify-center w-8 h-8 mr-3 font-bold text-white rounded-full bg-gradient-to-br from-primary-500 to-secondary-500">
-                              {opp.coin?.charAt(0) || '?'}
+                              {coin.charAt(0)}
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {opp.coin}
+                                {coin}
                               </div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {opp.symbol}
                               </div>
+                              {/* Show confidence score if available */}
+                              {opp.confidenceScore && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    opp.confidenceScore >= 70 ? 'bg-green-500' :
+                                    opp.confidenceScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                  }`} />
+                                  <span className="text-xs text-gray-400">{opp.confidenceScore}% conf</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -569,46 +620,96 @@ const CryptoArbitrage = () => {
 
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="text-right">
+                            {/* Net profit (after all costs) */}
                             <div className={`inline-flex items-center px-2 py-1 text-sm font-semibold rounded ${
-                              opp.isProfitableAfterFees 
+                              isProfitable
                                 ? 'text-green-700 bg-green-100 dark:bg-green-900 dark:text-green-300'
                                 : 'text-gray-700 bg-gray-100 dark:bg-gray-900 dark:text-gray-300'
                             }`}>
                               <TrendingUp className="w-3 h-3 mr-1" />
-                              {opp.profitPercent?.toFixed(4)}%
+                              {(opp.netProfitPercent || opp.profitPercent || 0).toFixed(3)}%
                             </div>
-                            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                              After fees: {opp.netProfitPercent > 0 ? '+' : ''}{opp.netProfitPercent?.toFixed(4)}%
-                            </div>
-                            <div className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300">
-                              ${opp.profitPerCoin?.toFixed(6)} per coin
-                            </div>
+                            {/* Gross spread if available */}
+                            {opp.grossSpreadPercent && (
+                              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Gross: {opp.grossSpreadPercent.toFixed(3)}%
+                              </div>
+                            )}
+                            {/* Expected USD profit */}
+                            {opp.expectedProfitUSD ? (
+                              <div className="mt-1 text-xs font-medium text-green-600 dark:text-green-400">
+                                ${opp.expectedProfitUSD.toFixed(2)} expected
+                              </div>
+                            ) : opp.profitPerCoin && (
+                              <div className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                ${opp.profitPerCoin.toFixed(6)} per coin
+                              </div>
+                            )}
                           </div>
                         </td>
 
                         <td className="px-4 py-4 text-center whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {opp.tradeableVolume?.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {opp.coin}
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Max: ${opp.maxProfitDollar?.toFixed(2)}
-                          </div>
+                          {/* Optimal trade size (new system) or tradeable volume (old system) */}
+                          {opp.optimalTradeValueUSD ? (
+                            <>
+                              <div className="text-sm font-bold text-primary-600 dark:text-primary-400">
+                                ${opp.optimalTradeValueUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                optimal size
+                              </div>
+                              {opp.optimalTradeAmount && (
+                                <div className="mt-1 text-xs text-gray-400">
+                                  {opp.optimalTradeAmount.toFixed(4)} {coin}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {opp.tradeableVolume?.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {coin}
+                              </div>
+                              {opp.maxProfitDollar && (
+                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Max: ${opp.maxProfitDollar.toFixed(2)}
+                                </div>
+                              )}
+                            </>
+                          )}
                         </td>
 
                         <td className="px-4 py-4 text-center whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getRiskBadgeColor(opp.riskLevel)}`}>
-                            {opp.riskLevel}
+                            {opp.riskLevel || 'Medium'}
                           </span>
+                          {/* Show liquidity score if available (new system) */}
+                          {opp.liquidity?.avgScore && (
+                            <div className="mt-1">
+                              <span className={`text-xs ${
+                                opp.liquidity.avgScore >= 60 ? 'text-green-600' :
+                                opp.liquidity.avgScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                              }`}>
+                                Liq: {Math.round(opp.liquidity.avgScore)}%
+                              </span>
+                            </div>
+                          )}
                         </td>
 
                         <td className="px-4 py-4 text-center whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${transferBadge.color}`}>
-                            <TransferIcon className="w-3 h-3" />
-                            {opp.transferStatus}
-                          </span>
+                          {opp.transferStatus ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${transferBadge.color}`}>
+                              <TransferIcon className="w-3 h-3" />
+                              {opp.transferStatus}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                              <Info className="w-3 h-3" />
+                              N/A
+                            </span>
+                          )}
                         </td>
 
                         <td className="px-4 py-4 text-center whitespace-nowrap">
@@ -660,28 +761,76 @@ const CryptoArbitrage = () => {
               </div>
 
               <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
-                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Profit Analysis</p>
+                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Profit Analysis (VWAP-Based)</p>
                 <div className="space-y-2">
+                  {selectedOpportunity.grossSpreadPercent && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Gross spread:</span>
+                      <span className="font-medium">{selectedOpportunity.grossSpreadPercent?.toFixed(4) || selectedOpportunity.profitPercent?.toFixed(4)}%</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Profit per coin:</span>
-                    <span className="font-medium">${selectedOpportunity.profitPerCoin.toFixed(6)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Profit percentage:</span>
-                    <span className="font-medium text-green-600">{selectedOpportunity.profitPercent.toFixed(4)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">After fees (~0.4%):</span>
-                    <span className={`font-medium ${selectedOpportunity.isProfitableAfterFees ? 'text-green-600' : 'text-red-600'}`}>
-                      {selectedOpportunity.netProfitPercent.toFixed(4)}%
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Net profit (after costs):</span>
+                    <span className={`font-medium ${(selectedOpportunity.netProfitPercent || 0) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {(selectedOpportunity.netProfitPercent || selectedOpportunity.profitPercent || 0).toFixed(4)}%
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Max profit (with volume):</span>
-                    <span className="font-medium">${selectedOpportunity.maxProfitDollar.toFixed(2)}</span>
-                  </div>
+                  {selectedOpportunity.expectedProfitUSD ? (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Expected profit:</span>
+                      <span className="font-bold text-green-600">${selectedOpportunity.expectedProfitUSD.toFixed(2)}</span>
+                    </div>
+                  ) : selectedOpportunity.maxProfitDollar && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Max profit:</span>
+                      <span className="font-medium">${selectedOpportunity.maxProfitDollar.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {selectedOpportunity.optimalTradeValueUSD && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Optimal trade size:</span>
+                      <span className="font-medium">${selectedOpportunity.optimalTradeValueUSD.toFixed(0)}</span>
+                    </div>
+                  )}
+                  {selectedOpportunity.confidenceScore && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Confidence score:</span>
+                      <span className={`font-bold ${selectedOpportunity.confidenceScore >= 60 ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {selectedOpportunity.confidenceScore}%
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Costs Breakdown (new system) */}
+              {selectedOpportunity.costs && (
+                <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                  <p className="mb-2 text-sm font-medium text-orange-700 dark:text-orange-300">Costs Breakdown</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Buy fee:</span>
+                      <span>{selectedOpportunity.costs.buyFeePercent?.toFixed(3)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Sell fee:</span>
+                      <span>{selectedOpportunity.costs.sellFeePercent?.toFixed(3)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Buy slippage:</span>
+                      <span>{selectedOpportunity.costs.buySlippagePercent?.toFixed(3)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Sell slippage:</span>
+                      <span>{selectedOpportunity.costs.sellSlippagePercent?.toFixed(3)}%</span>
+                    </div>
+                    <div className="flex justify-between col-span-2 pt-2 mt-2 font-medium border-t border-orange-200 dark:border-orange-800">
+                      <span className="text-orange-700 dark:text-orange-300">Total costs:</span>
+                      <span className="text-orange-700 dark:text-orange-300">{selectedOpportunity.costs.totalCostPercent?.toFixed(3)}%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">

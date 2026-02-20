@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Settings as SettingsIcon,
   TrendingUp,
-  Lock,
+  Key,
   Bell,
   Palette,
   Search,
@@ -21,12 +21,16 @@ import {
   AlertCircle,
   CheckCircle,
   Info,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  Trash2,
+  Globe,
+  Zap,
+  Lock
 } from 'lucide-react';
 import {
   fetchUserSettings,
   updateArbitrageSettings,
-  updateVaultSettings,
   fetchAllExchanges,
   fetchEnabledExchanges,
   updateEnabledExchanges,
@@ -38,12 +42,18 @@ import {
   clearMessages,
   resetSettings
 } from '../../redux/slices/settingsSlice';
+import {
+  fetchAccounts,
+  fetchSupportedExchanges,
+  addAccount,
+  testAccount,
+  removeAccount,
+} from '../../redux/slices/exchangeAccountSlice';
 
 const Settings = () => {
   const dispatch = useDispatch();
   const {
     arbitrage,
-    vault,
     ui,
     exchanges,
     exchangesLoading,
@@ -53,10 +63,30 @@ const Settings = () => {
     hasLoaded
   } = useSelector((state) => state.settings);
 
+  const {
+    accounts: exchangeAccounts,
+    supportedExchanges,
+    loading: exchLoading,
+    error: exchError,
+  } = useSelector((state) => state.exchangeAccounts);
+
   const [activeTab, setActiveTab] = useState('arbitrage');
   const [exchangeSearch, setExchangeSearch] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Exchange API tab state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newAccount, setNewAccount] = useState({
+    label: '',
+    exchange: 'binance',
+    apiKey: '',
+    apiSecret: '',
+    apiPassphrase: '',
+    isSandbox: false,
+  });
+  const [testingId, setTestingId] = useState(null);
+  const [removingId, setRemovingId] = useState(null);
 
   // Load settings and exchanges on mount
   useEffect(() => {
@@ -67,6 +97,9 @@ const Settings = () => {
     dispatch(fetchAllExchanges());
     // Fetch currently enabled exchanges for scanning
     dispatch(fetchEnabledExchanges());
+    // Load exchange API accounts and supported exchanges
+    dispatch(fetchAccounts());
+    dispatch(fetchSupportedExchanges());
   }, [dispatch, hasLoaded]);
 
   // Clear messages after showing
@@ -159,10 +192,38 @@ const Settings = () => {
     dispatch(syncExchanges());
   };
 
+  // Exchange API handlers
+  const handleAddAccount = async () => {
+    if (!newAccount.label || !newAccount.apiKey || !newAccount.apiSecret) return;
+    await dispatch(addAccount(newAccount));
+    setNewAccount({ label: '', exchange: 'binance', apiKey: '', apiSecret: '', apiPassphrase: '', isSandbox: false });
+    setShowAddForm(false);
+    dispatch(fetchAccounts());
+  };
+
+  const handleTestAccount = async (id) => {
+    setTestingId(id);
+    await dispatch(testAccount(id));
+    setTestingId(null);
+    dispatch(fetchAccounts());
+  };
+
+  const handleRemoveAccount = async (id) => {
+    if (!window.confirm('Remove this exchange account? Bots using it will be stopped.')) return;
+    setRemovingId(id);
+    await dispatch(removeAccount(id));
+    setRemovingId(null);
+    dispatch(fetchAccounts());
+  };
+
+  const popularExchanges = supportedExchanges.filter(e =>
+    ['binance', 'bybit', 'kucoin', 'okx', 'gate', 'mexc', 'bitget', 'kraken'].includes(e.id)
+  );
+
   const tabs = [
     { id: 'arbitrage', label: 'Arbitrage', icon: TrendingUp },
     { id: 'exchanges', label: 'Exchanges', icon: BarChart3 },
-    { id: 'vault', label: 'Vault', icon: Lock },
+    { id: 'exchange_api', label: 'Exchange API', icon: Key },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'appearance', label: 'Appearance', icon: Palette }
   ];
@@ -675,84 +736,283 @@ const Settings = () => {
           </div>
         )}
 
-        {/* Vault Settings */}
-        {activeTab === 'vault' && (
-          <div className="card">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                <Lock className="w-5 h-5 text-indigo-600" />
-              </div>
+        {/* Exchange API Settings */}
+        {activeTab === 'exchange_api' && (
+          <div className="space-y-6">
+            {/* Security Warning */}
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <Shield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Vault Settings</h2>
-                <p className="text-sm text-gray-500">Configure your vault preferences</p>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Security Reminder</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  Only grant <strong>Read + Trade</strong> permissions. <strong>Never</strong> grant withdrawal permissions.
+                  Use IP whitelisting on your exchange for extra security. API keys are encrypted at rest.
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Default Lock Duration (Days)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={vault.defaultLockDuration}
-                  onChange={(e) => {
-                    // Would dispatch updateVaultSettings action here
-                  }}
-                  className="w-full input"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-brandDark-700 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={vault.autoCompound}
-                    onChange={(e) => {
-                      // Would dispatch action
-                    }}
-                    className="w-5 h-5 rounded text-primary-600"
-                  />
-                  <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Auto-Compound Rewards</span>
-                    <p className="text-xs text-gray-500">Automatically reinvest staking rewards</p>
+            {/* Exchange Accounts Card */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                    <Key className="w-5 h-5 text-indigo-600" />
                   </div>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-brandDark-700 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={vault.notifications.maturityReminder}
-                    onChange={(e) => {
-                      // Would dispatch action
-                    }}
-                    className="w-5 h-5 rounded text-primary-600"
-                  />
                   <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Maturity Reminders</span>
-                    <p className="text-xs text-gray-500">Get notified before vault unlocks</p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Connected Exchanges</h2>
+                    <p className="text-sm text-gray-500">API keys for live bot trading</p>
                   </div>
-                </label>
-              </div>
-
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Reminder Days Before Maturity
-                </label>
-                <select
-                  value={vault.notifications.reminderDaysBefore}
-                  onChange={(e) => {
-                    // Would dispatch action
-                  }}
-                  className="w-full input"
+                </div>
+                <button
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="btn-primary btn-sm"
                 >
-                  <option value="1">1 day</option>
-                  <option value="3">3 days</option>
-                  <option value="7">7 days</option>
-                  <option value="14">14 days</option>
-                </select>
+                  <Plus className="w-4 h-4" />
+                  Add Account
+                </button>
               </div>
+
+              {/* Error from exchange accounts */}
+              {exchError && (
+                <div className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                  <p className="text-sm text-red-700 dark:text-red-300">{exchError}</p>
+                </div>
+              )}
+
+              {/* Add Account Form */}
+              {showAddForm && (
+                <div className="mb-6 p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-brandDark-700">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    New Exchange Account
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Exchange
+                      </label>
+                      <select
+                        value={newAccount.exchange}
+                        onChange={(e) => setNewAccount(a => ({ ...a, exchange: e.target.value }))}
+                        className="w-full input"
+                      >
+                        {popularExchanges.length > 0 ? (
+                          popularExchanges.map(ex => (
+                            <option key={ex.id} value={ex.id}>{ex.name}</option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="binance">Binance</option>
+                            <option value="bybit">Bybit</option>
+                            <option value="kucoin">KuCoin</option>
+                            <option value="okx">OKX</option>
+                            <option value="gate">Gate.io</option>
+                            <option value="mexc">MEXC</option>
+                            <option value="bitget">Bitget</option>
+                            <option value="kraken">Kraken</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Label <span className="text-gray-400">(e.g. "Main Binance")</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newAccount.label}
+                        onChange={(e) => setNewAccount(a => ({ ...a, label: e.target.value }))}
+                        placeholder="My Binance Account"
+                        className="w-full input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        API Key
+                      </label>
+                      <input
+                        type="password"
+                        value={newAccount.apiKey}
+                        onChange={(e) => setNewAccount(a => ({ ...a, apiKey: e.target.value }))}
+                        placeholder="Your API key"
+                        className="w-full input font-mono text-sm"
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        API Secret
+                      </label>
+                      <input
+                        type="password"
+                        value={newAccount.apiSecret}
+                        onChange={(e) => setNewAccount(a => ({ ...a, apiSecret: e.target.value }))}
+                        placeholder="Your API secret"
+                        className="w-full input font-mono text-sm"
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    {newAccount.exchange === 'kucoin' && (
+                      <div className="md:col-span-2">
+                        <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          API Passphrase <span className="text-xs text-gray-400">(KuCoin only)</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={newAccount.apiPassphrase}
+                          onChange={(e) => setNewAccount(a => ({ ...a, apiPassphrase: e.target.value }))}
+                          placeholder="KuCoin passphrase"
+                          className="w-full input font-mono text-sm"
+                          autoComplete="off"
+                        />
+                      </div>
+                    )}
+
+                    <div className="md:col-span-2">
+                      <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-brandDark-600 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={newAccount.isSandbox}
+                          onChange={(e) => setNewAccount(a => ({ ...a, isSandbox: e.target.checked }))}
+                          className="w-5 h-5 rounded text-primary-600"
+                        />
+                        <div>
+                          <span className="font-medium text-gray-700 dark:text-gray-300">Sandbox / Testnet</span>
+                          <p className="text-xs text-gray-500">Use exchange's test environment (no real funds)</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-4">
+                    <button
+                      onClick={handleAddAccount}
+                      disabled={exchLoading.add || !newAccount.label || !newAccount.apiKey || !newAccount.apiSecret}
+                      className="btn-primary"
+                    >
+                      <Zap className={`w-4 h-4 ${exchLoading.add ? 'animate-pulse' : ''}`} />
+                      {exchLoading.add ? 'Testing & Saving...' : 'Test & Save'}
+                    </button>
+                    <button
+                      onClick={() => { setShowAddForm(false); setNewAccount({ label: '', exchange: 'binance', apiKey: '', apiSecret: '', apiPassphrase: '', isSandbox: false }); }}
+                      className="btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Accounts List */}
+              {exchLoading.fetch ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="w-8 h-8 animate-spin text-primary-600" />
+                </div>
+              ) : exchangeAccounts.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Globe className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No exchange accounts connected</p>
+                  <p className="text-sm text-gray-400 mt-1">Add an API key above to start live trading</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {exchangeAccounts.map((account) => (
+                    <div
+                      key={account._id}
+                      className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-brandDark-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 rounded-lg bg-gray-100 dark:bg-brandDark-600">
+                          <Key className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 dark:text-white">{account.label}</span>
+                            {account.isSandbox && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                Sandbox
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-sm text-gray-500 capitalize">{account.exchange}</span>
+                            <span className="text-gray-300 dark:text-gray-600">•</span>
+                            {account.isValid ? (
+                              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                                <CheckCircle className="w-3 h-3" /> Valid
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs text-red-500">
+                                <AlertCircle className="w-3 h-3" />
+                                {account.lastError ? 'Error' : 'Not tested'}
+                              </span>
+                            )}
+                            {account.lastTestedAt && (
+                              <span className="text-xs text-gray-400">
+                                · Tested {new Date(account.lastTestedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleTestAccount(account._id)}
+                          disabled={testingId === account._id}
+                          className="btn-secondary btn-sm"
+                          title="Test connection"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${testingId === account._id ? 'animate-spin' : ''}`} />
+                          <span className="hidden sm:inline">Test</span>
+                        </button>
+                        <button
+                          onClick={() => handleRemoveAccount(account._id)}
+                          disabled={removingId === account._id}
+                          className="btn-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1.5"
+                          title="Remove account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Remove</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Info Card */}
+            <div className="card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Info className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">How it works</h3>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  API keys are encrypted using AES-256 before storage — we never store them in plain text.
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  "Test & Save" validates your keys against the exchange before saving.
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  You can use multiple accounts (e.g., one for Binance spot, one for Bybit futures).
+                </li>
+                <li className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  Only enable <strong>Read</strong> and <strong>Trade</strong> permissions — never withdrawal.
+                </li>
+              </ul>
             </div>
           </div>
         )}

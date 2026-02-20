@@ -40,53 +40,22 @@ export const fetchDashboardStats = createAsyncThunk(
 );
 
 /* ======================
-  FETCH VAULTS
-====================== */
-export const fetchVaults = createAsyncThunk(
-  "dashboard/fetchVaults",
-  async (params = {}, thunkAPI) => {
-    try {
-      const response = await authAPI.get('/vaults', { params });
-      return response.data.data;
-    } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        err.message ||
-        "Failed to fetch vaults";
-      return thunkAPI.rejectWithValue({ message });
-    }
-  }
-);
-
-/* ======================
   INITIAL STATE
 ====================== */
 const initialState = {
-  // Dashboard data
   stats: {
-    totalInvested: 0,
-    activeVaults: 0,
     portfolioValue: 0,
-    totalInvestments: 0,
     totalReturns: 0,
+    activeBots: 0,
+    totalTrades: 0,
   },
   recentActivity: [],
-  vaults: [],
-  vaultsMeta: {
-    currentPage: 1,
-    totalPages: 1,
-    total: 0,
-    limit: 10,
-  },
-  
-  // Loading states
+
   loading: {
     dashboard: false,
     stats: false,
-    vaults: false,
   },
-  
-  // Error and success
+
   error: null,
   successMessage: null,
 };
@@ -98,26 +67,19 @@ const dashboardSlice = createSlice({
   name: "dashboard",
   initialState,
   reducers: {
-    // Clear messages
     clearDashboardMessages: (state) => {
       state.error = null;
       state.successMessage = null;
     },
-    
-    // Reset dashboard state
-    resetDashboardState: (state) => {
-      return initialState;
-    },
-    
-    // Update single stat
+    resetDashboardState: () => initialState,
     updateStat: (state, action) => {
       const { key, value } = action.payload;
-      if (state.stats.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(state.stats, key)) {
         state.stats[key] = value;
       }
     },
   },
-  
+
   extraReducers: (builder) => {
     /* ===== FETCH DASHBOARD ===== */
     builder
@@ -148,27 +110,6 @@ const dashboardSlice = createSlice({
       .addCase(fetchDashboardStats.rejected, (state, action) => {
         state.loading.stats = false;
         state.error = action.payload?.message || "Failed to fetch stats";
-      });
-
-    /* ===== FETCH VAULTS ===== */
-    builder
-      .addCase(fetchVaults.pending, (state) => {
-        state.loading.vaults = true;
-        state.error = null;
-      })
-      .addCase(fetchVaults.fulfilled, (state, action) => {
-        state.loading.vaults = false;
-        state.vaults = action.payload.vaults || [];
-        state.vaultsMeta = {
-          currentPage: action.payload.currentPage || 1,
-          totalPages: action.payload.totalPages || 1,
-          total: action.payload.total || 0,
-          limit: action.payload.limit || 10,
-        };
-      })
-      .addCase(fetchVaults.rejected, (state, action) => {
-        state.loading.vaults = false;
-        state.error = action.payload?.message || "Failed to fetch vaults";
       });
   },
 });

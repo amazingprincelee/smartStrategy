@@ -1,0 +1,336 @@
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+import {
+  ArrowLeft, Play, Square, Trash2, TrendingUp, TrendingDown,
+  Activity, Loader, AlertCircle, ChevronLeft, ChevronRight
+} from 'lucide-react';
+import {
+  fetchBotDetail, fetchBotTrades, fetchBotPositions, startBot, stopBot, deleteBot
+} from '../redux/slices/botSlice';
+
+const STRATEGY_LABELS = {
+  adaptive_grid: 'Adaptive Grid Averager',
+  dca: 'Simple DCA',
+  rsi_reversal: 'RSI Reversal',
+  ema_crossover: 'EMA Crossover',
+  scalper: 'ATR Scalper',
+  breakout: 'N-Day Breakout',
+};
+
+const REASON_COLORS = {
+  take_profit: 'text-green-600',
+  stop_loss: 'text-red-500',
+  trailing_stop: 'text-orange-500',
+  entry: 'text-blue-500',
+  dca: 'text-purple-500',
+  manual: 'text-gray-500',
+};
+
+const BotDetail = () => {
+  const { id } = useParams();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { detail, openPositions, trades, tradesMeta, loading } = useSelector(state => state.bots);
+  const [tradePage, setTradePage] = useState(1);
+
+  const bot = detail?.bot;
+
+  useEffect(() => {
+    dispatch(fetchBotDetail(id));
+    dispatch(fetchBotPositions({ id, status: 'open' }));
+    dispatch(fetchBotTrades({ id, page: 1 }));
+  }, [dispatch, id]);
+
+  useEffect(() => {
+    dispatch(fetchBotTrades({ id, page: tradePage }));
+  }, [dispatch, id, tradePage]);
+
+  const handleStart = async () => {
+    try {
+      await dispatch(startBot(id)).unwrap();
+      toast.success('Bot started');
+      dispatch(fetchBotDetail(id));
+    } catch (err) { toast.error(err || 'Failed to start'); }
+  };
+
+  const handleStop = async () => {
+    try {
+      await dispatch(stopBot(id)).unwrap();
+      toast.info('Bot stopped');
+      dispatch(fetchBotDetail(id));
+    } catch (err) { toast.error(err || 'Failed to stop'); }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete bot "${bot?.name}"? This cannot be undone.`)) return;
+    try {
+      await dispatch(deleteBot(id)).unwrap();
+      toast.info('Bot deleted');
+      navigate('/bots');
+    } catch (err) { toast.error(err || 'Failed to delete'); }
+  };
+
+  if (loading.detail) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader className="w-8 h-8 text-primary-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!bot) {
+    return (
+      <div className="p-6 text-center">
+        <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+        <p className="text-gray-600 dark:text-gray-400">Bot not found</p>
+        <button onClick={() => navigate('/bots')} className="mt-4 text-primary-600 hover:underline">
+          Back to bots
+        </button>
+      </div>
+    );
+  }
+
+  const pnl = bot.stats?.totalPnL ?? 0;
+  const winRate = bot.stats?.totalTrades > 0
+    ? ((bot.stats.winningTrades / bot.stats.totalTrades) * 100).toFixed(1)
+    : 0;
+
+  // Build a simple P&L chart from trades
+  const pnlChartData = trades
+    .filter(t => t.side === 'sell' && t.pnl != null)
+    .map((t, i) => ({
+      trade: i + 1,
+      pnl: parseFloat(t.pnl?.toFixed(2) || 0),
+      symbol: t.symbol
+    }));
+
+  const STATUS_DOT = {
+    running: 'bg-green-500',
+    stopped: 'bg-gray-400',
+    paused: 'bg-yellow-500',
+    error: 'bg-red-500',
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-4">
+          <button onClick={() => navigate('/bots')} className="mt-1 p-1.5 hover:bg-gray-100 dark:hover:bg-brandDark-700 rounded-lg transition-colors">
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2.5 mb-1">
+              <span className={`w-3 h-3 rounded-full ${STATUS_DOT[bot.status] || 'bg-gray-400'}`} />
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">{bot.name}</h1>
+              {bot.isDemo && (
+                <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+                  Demo
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <span className="font-mono">{bot.symbol}</span>
+              <span>·</span>
+              <span className="capitalize">{bot.exchange}</span>
+              <span>·</span>
+              <span className="capitalize">{bot.marketType}</span>
+              <span>·</span>
+              <span>{STRATEGY_LABELS[bot.strategyId] || bot.strategyId}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {bot.status === 'running' ? (
+            <button
+              onClick={handleStop}
+              disabled={loading.action}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-sm font-medium disabled:opacity-50"
+            >
+              <Square className="w-4 h-4" />
+              Stop
+            </button>
+          ) : (
+            <button
+              onClick={handleStart}
+              disabled={loading.action}
+              className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-sm font-medium disabled:opacity-50"
+            >
+              <Play className="w-4 h-4" />
+              Start
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-2 px-3 py-2 text-red-500 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-sm"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Key stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total P&L', value: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`, color: pnl >= 0 ? 'text-green-600' : 'text-red-500' },
+          { label: 'Win Rate', value: `${winRate}%`, color: 'text-blue-600' },
+          { label: 'Total Trades', value: bot.stats?.totalTrades ?? 0, color: 'text-gray-800 dark:text-white' },
+          { label: 'Open Positions', value: openPositions.length, color: 'text-purple-600' },
+        ].map(stat => (
+          <div key={stat.label} className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
+            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* P&L Chart */}
+      {pnlChartData.length > 1 && (
+        <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">P&L Per Trade</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={pnlChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="trade" tick={{ fontSize: 11 }} label={{ value: 'Trade #', position: 'insideBottom', offset: -2 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `$${v}`} />
+              <Tooltip formatter={(v) => [`$${v}`, 'P&L']} />
+              <Line type="monotone" dataKey="pnl" stroke="#6366f1" strokeWidth={2} dot={{ fill: '#6366f1', r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Open Positions */}
+      <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+          Open Positions ({openPositions.length})
+        </h2>
+        {openPositions.length === 0 ? (
+          <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No open positions</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-brandDark-700">
+                  <th className="text-left py-2 pr-4">Portion</th>
+                  <th className="text-right py-2 pr-4">Entry</th>
+                  <th className="text-right py-2 pr-4">Current</th>
+                  <th className="text-right py-2 pr-4">Unrealized P&L</th>
+                  <th className="text-right py-2 pr-4">Stop Loss</th>
+                  <th className="text-right py-2">Take Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {openPositions.map(pos => {
+                  const upnl = pos.unrealizedPnL || 0;
+                  return (
+                    <tr key={pos._id} className="border-b border-gray-50 dark:border-brandDark-700 hover:bg-gray-50 dark:hover:bg-brandDark-700">
+                      <td className="py-2 pr-4">#{pos.portionIndex + 1}</td>
+                      <td className="text-right py-2 pr-4">${pos.entryPrice?.toFixed(4)}</td>
+                      <td className="text-right py-2 pr-4">${(pos.currentPrice || pos.entryPrice)?.toFixed(4)}</td>
+                      <td className={`text-right py-2 pr-4 font-medium ${upnl >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {upnl >= 0 ? '+' : ''}${upnl.toFixed(4)}
+                      </td>
+                      <td className="text-right py-2 pr-4 text-red-400">${pos.stopLossPrice?.toFixed(4)}</td>
+                      <td className="text-right py-2 text-green-500">
+                        {pos.takeProfitPrice ? `$${pos.takeProfitPrice.toFixed(4)}` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Trade History */}
+      <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+          Trade History ({tradesMeta.total})
+        </h2>
+        {loading.trades ? (
+          <div className="flex justify-center py-8"><Loader className="w-6 h-6 animate-spin text-primary-500" /></div>
+        ) : trades.length === 0 ? (
+          <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No trades yet</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-brandDark-700">
+                    <th className="text-left py-2 pr-4">Time</th>
+                    <th className="text-left py-2 pr-4">Side</th>
+                    <th className="text-right py-2 pr-4">Price</th>
+                    <th className="text-right py-2 pr-4">Amount</th>
+                    <th className="text-right py-2 pr-4">Fee</th>
+                    <th className="text-right py-2 pr-4">P&L</th>
+                    <th className="text-left py-2">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trades.map(trade => (
+                    <tr
+                      key={trade._id}
+                      className={`border-b border-gray-50 dark:border-brandDark-700 ${
+                        trade.pnl != null && trade.pnl < 0 ? 'bg-red-50/30 dark:bg-red-900/10' :
+                        trade.pnl != null && trade.pnl > 0 ? 'bg-green-50/30 dark:bg-green-900/10' : ''
+                      }`}
+                    >
+                      <td className="py-2 pr-4 text-gray-400 text-xs">
+                        {new Date(trade.executedAt).toLocaleString()}
+                      </td>
+                      <td className={`py-2 pr-4 font-medium uppercase text-xs ${trade.side === 'buy' ? 'text-blue-600' : 'text-orange-500'}`}>
+                        {trade.side}
+                      </td>
+                      <td className="text-right py-2 pr-4">${trade.price?.toFixed(4)}</td>
+                      <td className="text-right py-2 pr-4">{trade.amount?.toFixed(6)}</td>
+                      <td className="text-right py-2 pr-4 text-gray-400">${trade.fee?.cost?.toFixed(4) || '—'}</td>
+                      <td className={`text-right py-2 pr-4 font-medium ${trade.pnl == null ? 'text-gray-400' : trade.pnl >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {trade.pnl != null ? `${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(4)}` : '—'}
+                      </td>
+                      <td className={`py-2 text-xs ${REASON_COLORS[trade.triggerReason] || 'text-gray-500'}`}>
+                        {trade.triggerReason?.replace('_', ' ')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Pagination */}
+            {tradesMeta.totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-brandDark-700">
+                <span className="text-sm text-gray-500">
+                  Page {tradesMeta.page} of {tradesMeta.totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    disabled={tradePage === 1}
+                    onClick={() => setTradePage(p => p - 1)}
+                    className="p-1.5 rounded border border-gray-200 dark:border-brandDark-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-brandDark-700"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    disabled={tradePage === tradesMeta.totalPages}
+                    onClick={() => setTradePage(p => p + 1)}
+                    className="p-1.5 rounded border border-gray-200 dark:border-brandDark-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-brandDark-700"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default BotDetail;

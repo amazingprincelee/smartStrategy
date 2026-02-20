@@ -69,13 +69,13 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
                   className="object-contain w-8 h-8 sm:w-10 sm:h-10"
                 />
                 <span className="text-lg font-bold sm:text-xl text-brandDark-900 dark:text-white">
-                  <span className="hidden sm:inline">Strategic Crypto Save</span>
-                  <span className="sm:hidden">SCS</span>
+                  <span className="hidden sm:inline">Strategic Crypto</span>
+                  <span className="sm:hidden">Strategic Crypto</span>
                 </span>
               </Link>
             </div>
 
-            {/* Center: Desktop Navigation - Hidden on mobile */}
+            {/* Center: Desktop Navigation - Hidden on mobile
             <nav className="items-center hidden space-x-6 md:flex">
               {isAuthenticated && (
                 <>
@@ -100,7 +100,7 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
                   </Link>
                 </>
               )}
-            </nav>
+            </nav> */}
 
             {/* Right Side Actions */}
             <div className="flex items-center space-x-2 sm:space-x-4">

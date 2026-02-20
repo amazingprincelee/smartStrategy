@@ -1,19 +1,27 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  PlusCircle, 
-  Shield, 
-  User, 
-  BarChart3,
+import { useSelector } from 'react-redux';
+import {
+  LayoutDashboard,
+  Bot,
+  PlusCircle,
+  FlaskConical,
+  BookOpen,
+  TrendingUp,
+  User,
   Settings,
   HelpCircle,
-  TrendingUp,
   X
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const bots = useSelector((state) => state.bots?.list || []);
+  const demo = useSelector((state) => state.demo);
+
+  const activeBots = bots.filter(b => b.status === 'running').length;
+  const totalPnL = bots.reduce((sum, b) => sum + (b.stats?.totalPnL || 0), 0);
+  const demoBalance = demo?.virtualBalance ?? 10000;
 
   const navigation = [
     {
@@ -22,25 +30,30 @@ const Sidebar = ({ isOpen, onClose }) => {
       icon: LayoutDashboard,
     },
     {
-      name: 'Arbitrage',
-      href: '/arbitrage',
-      icon: TrendingUp,
-      badge: 'New'
+      name: 'My Bots',
+      href: '/bots',
+      icon: Bot,
     },
     {
-      name: 'Create Vault',
-      href: '/create-vault',
+      name: 'Create Bot',
+      href: '/bots/create',
       icon: PlusCircle,
     },
     {
-      name: 'My Vaults',
-      href: '/vaults',
-      icon: Shield,
+      name: 'Demo Account',
+      href: '/demo',
+      icon: FlaskConical,
     },
     {
-      name: 'Analytics',
-      href: '/analytics',
-      icon: BarChart3,
+      name: 'Strategies',
+      href: '/strategies',
+      icon: BookOpen,
+    },
+    {
+      name: 'Arbitrage',
+      href: '/arbitrage',
+      icon: TrendingUp,
+      badge: 'Live'
     },
     {
       name: 'Profile',
@@ -60,7 +73,8 @@ const Sidebar = ({ isOpen, onClose }) => {
   ];
 
   const isActive = (href) => {
-    return location.pathname === href;
+    if (href === '/bots' && location.pathname === '/dashboard') return true;
+    return location.pathname === href || location.pathname.startsWith(href + '/');
   };
 
   return (
@@ -77,21 +91,18 @@ const Sidebar = ({ isOpen, onClose }) => {
       {/* SIDEBAR */}
       <aside
         className={`
-          fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 
-          bg-white dark:bg-brandDark-800 
-          border-r border-gray-200 dark:border-brandDark-700 
+          fixed left-0 top-16 h-[calc(100vh-4rem)] w-64
+          bg-white dark:bg-brandDark-800
+          border-r border-gray-200 dark:border-brandDark-700
           overflow-y-auto z-50
           transition-transform duration-300 ease-in-out
-          
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}
       >
-        {/* MOBILE: Close button (only visible on mobile) */}
+        {/* MOBILE: Close button */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-brandDark-700 lg:hidden">
-          <span className="text-lg font-semibold text-gray-900 dark:text-white">
-            Menu
-          </span>
+          <span className="text-lg font-semibold text-gray-900 dark:text-white">Menu</span>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-brandDark-700 transition-colors"
@@ -106,14 +117,14 @@ const Sidebar = ({ isOpen, onClose }) => {
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
-            
+
             return (
               <Link
                 key={item.name}
                 to={item.href}
-                onClick={onClose} // Close sidebar on mobile when clicking a link
+                onClick={onClose}
                 className={`
-                  flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium 
+                  flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium
                   transition-colors
                   ${active
                     ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
@@ -142,16 +153,20 @@ const Sidebar = ({ isOpen, onClose }) => {
           </h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Total Saved</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">$0.00</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Active Bots</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{activeBots}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Active Vaults</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">0</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Total P&L</span>
+              <span className={`text-sm font-medium ${totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+              </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Opportunities</span>
-              <span className="text-sm font-medium text-green-600 dark:text-green-400">0</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Demo Balance</span>
+              <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                ${demoBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
         </div>
@@ -159,7 +174,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         {/* Version Info */}
         <div className="absolute bottom-4 left-4 right-4">
           <div className="text-xs text-center text-gray-500 dark:text-gray-400">
-            v1.0.0 Beta
+            v2.0.0 Bot Trading
           </div>
         </div>
       </aside>

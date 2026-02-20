@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
+import { toast } from 'react-toastify';
 import {
   addNotification,
   updateNotification,
   removeNotification,
   fetchUnreadCount,
 } from '../../redux/slices/userSlice';
+import { updateBotRealtime, updatePositionPrice } from '../../redux/slices/botSlice';
 
 const SocketContext = createContext(null);
 
@@ -36,8 +38,12 @@ export const SocketProvider = ({ children }) => {
 
     console.log('🔄 Initializing socket connection...');
 
+    // Derive socket server origin (strip /api suffix if present)
+    const apiUrl = import.meta.env.VITE_LOCAL_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const socketUrl = new URL(apiUrl).origin;
+
     // Initialize socket connection
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+    const socket = io(socketUrl, {
       path: '/socket.io/', // Default Socket.io path
       auth: {
         token,
@@ -59,7 +65,7 @@ export const SocketProvider = ({ children }) => {
       
       // Join user's personal room
       if (user?._id) {
-        socket.emit('join', user._id);
+        socket.emit('join-user-room', user._id);
         console.log(`📨 Joined room for user: ${user._id}`);
       }
       
@@ -90,7 +96,7 @@ export const SocketProvider = ({ children }) => {
       
       // Rejoin user's room and refresh data
       if (user?._id) {
-        socket.emit('join', user._id);
+        socket.emit('join-user-room', user._id);
       }
       dispatch(fetchUnreadCount());
     });
@@ -140,6 +146,40 @@ export const SocketProvider = ({ children }) => {
     socket.on('notification:allRead', () => {
       console.log('✅ All notifications marked as read');
       dispatch(fetchUnreadCount());
+    });
+
+    // Bot event handlers
+    socket.on('bot:tick', (data) => {
+      // data: { botId, botName, symbol, currentPrice, openPositions, stats, status }
+      dispatch(updateBotRealtime(data));
+    });
+
+    socket.on('bot:trade', (data) => {
+      // data: { botId, botName, symbol, side, price, amount, pnl, triggerReason }
+      const priceStr = data.price != null ? ` @ $${Number(data.price).toFixed(2)}` : '';
+      const msg = `${data.botName}: ${(data.side || '').toUpperCase()} ${data.symbol}${priceStr}`;
+
+      if (data.triggerReason === 'entry') {
+        toast.info(msg, { autoClose: 4000 });
+      } else if (data.pnl != null) {
+        if (data.pnl >= 0) {
+          toast.success(`${msg} · PnL: +$${Number(data.pnl).toFixed(2)}`, { autoClose: 5000 });
+        } else {
+          toast.error(`${msg} · PnL: -$${Math.abs(data.pnl).toFixed(2)}`, { autoClose: 5000 });
+        }
+      } else {
+        toast.info(msg, { autoClose: 4000 });
+      }
+    });
+
+    socket.on('bot:paused', (data) => {
+      // data: { botId, botName, reason }
+      toast.warn(`Bot "${data.botName}" paused: ${data.reason}`, { autoClose: 8000 });
+    });
+
+    socket.on('bot:error', (data) => {
+      // data: { botId, botName, error }
+      toast.error(`Bot "${data.botName}" error: ${data.error}`, { autoClose: 8000 });
     });
 
     // Error handler
