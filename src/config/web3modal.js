@@ -8,10 +8,10 @@ createWeb3Modal({
   chains,
   defaultChain: sepolia,
   metadata: {
-    name: 'Strategic Crypto Save',
-    description: 'A decentralized savings platform for cryptocurrency',
-    url: typeof window !== 'undefined' ? window.location.origin : 'https://strategiccryptosave.com',
-    icons: ['https://strategiccryptosave.com/icon.png'],
+    name: 'SmartStrategy',
+    description: 'An automated cryptocurrency trading bot platform',
+    url: typeof window !== 'undefined' ? window.location.origin : 'https://smartstrategy.app',
+    icons: ['https://smartstrategy.app/icon.png'],
   },
   themeMode: 'light',
   themeVariables: {

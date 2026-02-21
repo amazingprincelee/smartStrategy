@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { 
-  Bell, 
-  User, 
-  LogOut, 
-  Settings, 
-  ChevronDown, 
-  Menu, 
+import {
+  Bell,
+  User,
+  LogOut,
+  Settings,
+  ChevronDown,
+  Menu,
   X,
   Moon,
-  Sun
+  Sun,
+  Bot
 } from 'lucide-react';
 import { logout } from '../../redux/slices/authSlice';
 import { useTheme } from '../../redux/useTheme';
@@ -62,15 +63,23 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
               )}
 
               {/* Logo */}
-              <Link to="/" className="flex items-center space-x-2 sm:space-x-3">
-                <img 
-                  src="/images/logo.png" 
-                  alt="Strategic Crypto Save Logo" 
-                  className="object-contain w-8 h-8 sm:w-10 sm:h-10"
-                />
-                <span className="text-lg font-bold sm:text-xl text-brandDark-900 dark:text-white">
-                  <span className="hidden sm:inline">Strategic Crypto</span>
-                  <span className="sm:hidden">Strategic Crypto</span>
+              <Link to="/" className="flex items-center space-x-2.5 sm:space-x-3 group">
+                {/* Icon Mark */}
+                <div className="relative flex-shrink-0">
+                  <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700 shadow-lg shadow-cyan-500/30 ring-1 ring-cyan-400/40 transition-transform duration-200 group-hover:scale-105">
+                    <Bot className="w-5 h-5 sm:w-[22px] sm:h-[22px] text-white" strokeWidth={1.75} />
+                  </div>
+                  {/* Live pulse indicator */}
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500 border-[1.5px] border-white dark:border-brandDark-900" />
+                  </span>
+                </div>
+
+                {/* Wordmark */}
+                <span className="text-lg font-bold sm:text-xl tracking-tight leading-none select-none">
+                  <span className="text-gray-900 dark:text-white">Smart</span>
+                  <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">Strategy</span>
                 </span>
               </Link>
             </div>

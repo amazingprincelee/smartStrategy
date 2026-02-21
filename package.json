@@ -1,9 +1,9 @@
 {
-  "name": "strategic-crypto-save-frontend",
+  "name": "smartstrategy-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Frontend for Strategic Crypto Save - A MERN stack crypto savings dApp",
+  "description": "Frontend for SmartStrategy - A MERN stack crypto trading bot platform",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

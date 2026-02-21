@@ -73,7 +73,7 @@ const Register = () => {
             Create Account
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Join Strategic Crypto Save and start securing your future
+            Join SmartStrategy and start trading smarter
           </p>
         </div>
 

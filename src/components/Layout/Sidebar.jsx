@@ -7,11 +7,12 @@ import {
   PlusCircle,
   FlaskConical,
   BookOpen,
+  Activity,
   TrendingUp,
   User,
   Settings,
   HelpCircle,
-  X
+  X,
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -48,6 +49,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Strategies',
       href: '/strategies',
       icon: BookOpen,
+    },
+    {
+      name: 'Signals',
+      href: '/signals',
+      icon: Activity,
+      badge: 'Live',
     },
     {
       name: 'Arbitrage',
@@ -100,9 +107,24 @@ const Sidebar = ({ isOpen, onClose }) => {
           lg:translate-x-0
         `}
       >
-        {/* MOBILE: Close button */}
+        {/* MOBILE: Logo + Close button */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-brandDark-700 lg:hidden">
-          <span className="text-lg font-semibold text-gray-900 dark:text-white">Menu</span>
+          <div className="flex items-center space-x-2.5">
+            {/* Mini icon mark */}
+            <div className="relative flex-shrink-0">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700 shadow-md shadow-cyan-500/25 ring-1 ring-cyan-400/40">
+                <Bot className="w-4 h-4 text-white" strokeWidth={1.75} />
+              </div>
+              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500 border border-white dark:border-brandDark-800" />
+              </span>
+            </div>
+            <span className="text-base font-bold tracking-tight leading-none">
+              <span className="text-gray-900 dark:text-white">Smart</span>
+              <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">Strategy</span>
+            </span>
+          </div>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-brandDark-700 transition-colors"

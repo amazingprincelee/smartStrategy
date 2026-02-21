@@ -1,148 +1,352 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { 
-  Shield, 
-  TrendingUp, 
-  Clock, 
-  Zap, 
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  Bot,
+  TrendingUp,
+  TrendingDown,
+  Zap,
   ArrowRight,
   CheckCircle,
   Star,
-  Users
+  BarChart2,
+  FlaskConical,
+  BookOpen,
+  Shield,
+  RefreshCw,
+  Activity,
+  ChevronRight,
+  Minus,
 } from 'lucide-react';
+import { fetchSignals, fetchPlatformStats } from '../redux/slices/signalSlice';
 
+/* ─── helpers ──────────────────────────────────────────────────────────── */
 
+const fmtPrice = (p) => {
+  if (!p && p !== 0) return '—';
+  if (p >= 1000)  return `$${p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (p >= 1)     return `$${p.toFixed(4)}`;
+  return `$${p.toFixed(6)}`;
+};
+
+const fmtChange = (c) => {
+  const sign = c >= 0 ? '+' : '';
+  return `${sign}${c?.toFixed(2)}%`;
+};
+
+const SIGNAL_STYLES = {
+  BUY:     { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700/50', dot: 'bg-green-500', bar: 'bg-green-500', label: 'BUY',  Icon: TrendingUp  },
+  SELL:    { bg: 'bg-red-50 dark:bg-red-900/30',     text: 'text-red-600 dark:text-red-300',     border: 'border-red-200 dark:border-red-700/50',   dot: 'bg-red-500',   bar: 'bg-red-500',   label: 'SELL', Icon: TrendingDown },
+  NEUTRAL: { bg: 'bg-gray-50 dark:bg-brandDark-700', text: 'text-gray-600 dark:text-gray-300', border: 'border-gray-200 dark:border-brandDark-600', dot: 'bg-gray-400', bar: 'bg-gray-400', label: 'HOLD', Icon: Minus },
+};
+
+const CONFIDENCE_BADGE = {
+  HIGH:   'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  MEDIUM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  LOW:    'bg-gray-100 text-gray-600 dark:bg-brandDark-600 dark:text-gray-400',
+};
+
+const TREND_LABEL = { uptrend: '↑ uptrend', downtrend: '↓ downtrend', sideways: '→ sideways' };
+const TREND_COLOR = { uptrend: 'text-green-600 dark:text-green-400', downtrend: 'text-red-500 dark:text-red-400', sideways: 'text-gray-500 dark:text-gray-400' };
+
+/* ─── SignalCard ──────────────────────────────────────────────────────── */
+const SignalCard = ({ s }) => {
+  const st = SIGNAL_STYLES[s.signal] || SIGNAL_STYLES.NEUTRAL;
+  const changePos = s.change24h >= 0;
+  return (
+    <div className={`rounded-xl border p-4 flex flex-col gap-3 ${st.bg} ${st.border}`}>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-bold text-gray-900 dark:text-white">{s.symbol}</p>
+          <p className="text-xs text-gray-400">{s.exchange} · {s.timeframe}</p>
+        </div>
+        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${st.text} ${st.bg} ${st.border}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+          {st.label}
+        </span>
+      </div>
+      {/* Price */}
+      <div className="flex items-end justify-between">
+        <p className="text-base font-semibold text-gray-900 dark:text-white">{fmtPrice(s.price)}</p>
+        <p className={`text-xs font-medium ${changePos ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+          {fmtChange(s.change24h)} 24h
+        </p>
+      </div>
+      {/* Badges */}
+      <div className="flex flex-wrap gap-1.5 text-xs">
+        <span className="px-2 py-0.5 rounded-md bg-white/70 dark:bg-brandDark-800/70 text-gray-700 dark:text-gray-300">RSI {s.rsi}</span>
+        <span className={`px-2 py-0.5 rounded-md bg-white/70 dark:bg-brandDark-800/70 font-medium ${TREND_COLOR[s.trend]}`}>{TREND_LABEL[s.trend]}</span>
+        <span className={`px-2 py-0.5 rounded-md font-medium ${CONFIDENCE_BADGE[s.confidence]}`}>{s.confidence}</span>
+      </div>
+      {/* Strength bar */}
+      <div>
+        <div className="flex justify-between mb-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Strength</span>
+          <span className={`text-xs font-bold ${st.text}`}>{s.strength}%</span>
+        </div>
+        <div className="h-1.5 bg-white/50 dark:bg-brandDark-900/50 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${s.strength}%` }} />
+        </div>
+      </div>
+      {/* Reason */}
+      <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">{s.reason}</p>
+    </div>
+  );
+};
+
+/* ─── SignalSkeleton ──────────────────────────────────────────────────── */
+const SignalSkeleton = () => (
+  <div className="rounded-xl border border-gray-200 dark:border-brandDark-700 p-4 flex flex-col gap-3 bg-white dark:bg-brandDark-800 animate-pulse">
+    <div className="flex justify-between">
+      <div className="space-y-1.5"><div className="h-3.5 w-20 bg-gray-200 dark:bg-brandDark-600 rounded" /><div className="h-2.5 w-28 bg-gray-200 dark:bg-brandDark-600 rounded" /></div>
+      <div className="h-6 w-14 bg-gray-200 dark:bg-brandDark-600 rounded-full" />
+    </div>
+    <div className="flex justify-between"><div className="h-4 w-24 bg-gray-200 dark:bg-brandDark-600 rounded" /><div className="h-3 w-14 bg-gray-200 dark:bg-brandDark-600 rounded" /></div>
+    <div className="flex gap-2"><div className="h-5 w-16 bg-gray-200 dark:bg-brandDark-600 rounded-md" /><div className="h-5 w-20 bg-gray-200 dark:bg-brandDark-600 rounded-md" /></div>
+    <div className="h-1.5 bg-gray-200 dark:bg-brandDark-600 rounded-full" />
+    <div className="h-8 bg-gray-200 dark:bg-brandDark-600 rounded" />
+  </div>
+);
+
+/* ─── StatCard ────────────────────────────────────────────────────────── */
+const StatCard = ({ value, label, color = 'text-cyan-500', loading }) => (
+  <div className="text-center">
+    <div className={`mb-1 text-3xl sm:text-4xl font-extrabold ${loading ? 'text-gray-300 dark:text-brandDark-600 animate-pulse' : color}`}>
+      {loading ? '—' : value}
+    </div>
+    <div className="text-sm text-gray-500 dark:text-gray-400">{label}</div>
+  </div>
+);
+
+/* ─── Home ────────────────────────────────────────────────────────────── */
 const Home = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const navigate = useNavigate();
+  const dispatch  = useDispatch();
+  const navigate  = useNavigate();
+  const { token } = useSelector(s => s.auth);
+  const isAuth    = !!token;
 
-  const handleGetStarted = () => {
-    if (isAuthenticated) {
-      navigate('/dashboard');
-    } else {
-      navigate('/register');
-    }
+  const { spot, futures, stats, loading, statsLoading } = useSelector(s => s.signals);
+  const [activeTab, setActiveTab] = useState('spot');
+  const [lastRefresh, setLastRefresh] = useState(null);
+
+  useEffect(() => {
+    dispatch(fetchSignals('spot'));
+    dispatch(fetchSignals('futures'));
+    dispatch(fetchPlatformStats());
+    setLastRefresh(new Date());
+  }, [dispatch]);
+
+  const handleRefresh = () => {
+    dispatch(fetchSignals(activeTab));
+    setLastRefresh(new Date());
   };
 
+  const handleGetStarted = () => navigate(isAuth ? '/dashboard' : '/register');
+
+  const displaySignals = activeTab === 'spot' ? spot : futures;
+
   const features = [
-    {
-      icon: Shield,
-      title: 'Secure & Decentralized',
-      description: 'Your funds are secured by smart contracts on the Ethereum blockchain. No central authority controls your money.',
-    },
-    {
-      icon: Clock,
-      title: 'Time-Locked Savings',
-      description: 'Create savings vaults with custom lock periods to prevent impulsive spending and build long-term wealth.',
-    },
-    {
-  icon: Users,
-  title: 'P2P',
-  description: 'Trade crypto directly with other users in a secure and transparent peer-to-peer marketplace.',
-},
-    {
-      icon: Zap,
-      title: 'Instant Access',
-      description: 'Access your funds immediately when the lock period expires. No waiting, no paperwork, no intermediaries.',
-    },
+    { icon: Bot,          color: 'from-cyan-500 to-blue-600',    title: 'Automated Bots',    desc: '24/7 trading bots that execute your strategy automatically — no screen time needed.' },
+    { icon: Activity,     color: 'from-green-500 to-emerald-600', title: 'Smart Signals',     desc: 'Real-time BUY/SELL signals powered by RSI, EMA, and volume analysis across 10+ exchanges.' },
+    { icon: FlaskConical, color: 'from-purple-500 to-violet-600', title: 'Free Demo Account', desc: 'Test every strategy with $10,000 virtual balance and live market prices. Zero risk.' },
+    { icon: BookOpen,     color: 'from-amber-500 to-orange-600',  title: 'Strategy Library',  desc: '6 built-in strategies: Adaptive Grid, DCA, RSI Reversal, EMA, Scalper, and Breakout.' },
+    { icon: TrendingUp,   color: 'from-blue-500 to-indigo-600',  title: 'Arbitrage Scanner', desc: 'Scan price differences across multiple exchanges in real-time for risk-free opportunities.' },
+    { icon: Shield,       color: 'from-red-500 to-rose-600',     title: 'Risk Engine',       desc: 'Global drawdown limits, daily loss caps, trailing stops, and per-position controls built in.' },
+  ];
+
+  const steps = [
+    { num: '01', title: 'Connect or Demo',   desc: 'Add your exchange API keys for live trading, or start instantly with a free $10k demo account. No funds required.' },
+    { num: '02', title: 'Choose a Strategy', desc: 'Pick from 6 proven strategies. Customize RSI thresholds, capital per bot, take-profit mode, and risk limits to fit your style.' },
+    { num: '03', title: 'Bot Trades 24/7',   desc: 'Your bot scans the market every tick, executes entries and exits, and sends real-time P&L updates to your dashboard.' },
+  ];
+
+  const testimonials = [
+    { name: 'Alex Kim',     role: 'Full-stack Developer', rating: 5, content: 'The Adaptive Grid bot caught multiple dips while I was at work. Up 18% on SOL in 3 weeks with the demo before going live.' },
+    { name: 'Maria Santos', role: 'Freelance Trader',     rating: 5, content: 'Signal quality is impressive — the RSI + EMA combo caught a BTC breakout I would have totally missed.' },
+    { name: 'David Okafor', role: 'Software Engineer',    rating: 5, content: 'DCA bot on ETH ran for 2 months without me touching it. SmartStrategy is exactly what I was looking for.' },
   ];
 
   const benefits = [
-    'No minimum deposit requirements',
-    'Transparent smart contract code',
-    'Low transaction fees',
-    'Global accessibility 24/7',
-    'Self-custody of your funds',
-    'Automated savings goals',
-  ];
-
-  const stats = [
-    { label: 'Total Value Locked', value: '$2.5M+' },
-    { label: 'Active Users', value: '1,200+' },
-    { label: 'Vaults Created', value: '5,000+' },
-    { label: 'Avg Lock Period', value: '6 months' },
+    'No coding knowledge required',
+    'Live signals for spot and futures',
+    '6 battle-tested trading strategies',
+    'Global drawdown + daily loss protection',
+    'Free demo with real market prices',
+    'Supports Binance, Bybit, KuCoin & more',
   ];
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative py-12 text-white bg-gradient-to-br from-brandDark-600 via-brandDark-700 to-brandDark-800 sm:py-16 lg:py-20">
-        <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="container relative px-4 mx-auto sm:px-6 lg:px-8">
+
+      {/* ── HERO ─────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden py-16 sm:py-24 lg:py-32 bg-gradient-to-br from-brandDark-900 via-brandDark-800 to-brandDark-700">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative container px-4 mx-auto sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="mb-4 text-3xl font-bold leading-tight sm:text-4xl md:text-5xl lg:text-6xl sm:mb-6">
-              Build Wealth with
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-primary-600">
-                Strategic Crypto Savings
+
+            {/* Brand mark */}
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <div className="relative">
+                <div className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700 shadow-2xl shadow-cyan-500/40 ring-2 ring-cyan-400/30">
+                  <Bot className="w-8 h-8 sm:w-9 sm:h-9 text-white" strokeWidth={1.6} />
+                </div>
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-brandDark-900" />
+                </span>
+              </div>
+              <span className="text-3xl sm:text-4xl font-black tracking-tight leading-none">
+                <span className="text-white">Smart</span>
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Strategy</span>
+              </span>
+            </div>
+
+            {/* Live badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping inline-flex" />
+              Live signals updating every 5 minutes
+            </div>
+
+            <h1 className="mb-6 text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
+              Trade Smarter with{' '}
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                AI-Powered Bots
               </span>
             </h1>
-            <p className="px-4 mb-6 text-lg leading-relaxed text-gray-100 sm:text-xl lg:text-2xl sm:mb-8 sm:px-0">
-              Create time-locked savings vaults, build disciplined saving habits, and achieve your financial goals with the power of decentralized finance.
+
+            <p className="px-4 mb-10 text-lg leading-relaxed text-gray-300 sm:text-xl lg:text-2xl sm:px-0 max-w-3xl mx-auto">
+              Automate your crypto trading with intelligent bots, real-time signals, and 6 proven strategies — on Binance, Bybit, KuCoin and more.
             </p>
-            <div className="flex flex-col justify-center gap-4 sm:flex-row sm:gap-6">
+
+            <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <button
                 onClick={handleGetStarted}
-                className="btn-primary btn-lg"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-base shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-200"
               >
-                <span>Get Started</span>
+                Start Trading Free
                 <ArrowRight className="w-5 h-5" />
               </button>
               <Link
-                to="/login"
-                className="btn-outline btn-lg"
+                to="/demo"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border border-white/20 bg-white/5 text-white font-semibold text-base hover:bg-white/10 transition-colors duration-200"
               >
-                Login
+                <FlaskConical className="w-5 h-5 text-purple-400" />
+                Try Demo — Free
               </Link>
+            </div>
+
+            {/* Trust row */}
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-8 text-sm text-gray-400">
+              {['No credit card', '$10k demo account', '10+ exchanges'].map((t, i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-green-500" />{t}
+                </span>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 bg-white sm:py-16 dark:bg-brandDark-900">
+      {/* ── DYNAMIC STATS ────────────────────────────────────────────── */}
+      <section className="py-12 bg-white dark:bg-brandDark-900 border-b border-gray-100 dark:border-brandDark-700">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-6 lg:grid-cols-4 sm:gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="mb-1 text-2xl font-bold sm:text-3xl lg:text-4xl text-primary-500 sm:mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-sm sm:text-base text-brandDark-600 dark:text-gray-400">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+            <StatCard value={stats ? `${stats.totalBots?.toLocaleString() ?? 0}+` : '500+'} label="Bots Created"        color="text-cyan-500"   loading={statsLoading && !stats} />
+            <StatCard value={stats ? `${stats.activeSignals ?? 18}`                : '18'}   label="Active Signals Now" color="text-green-500"  loading={statsLoading && !stats} />
+            <StatCard value="6"                                                               label="Trading Strategies" color="text-purple-500" loading={false} />
+            <StatCard value={stats ? `${stats.supportedExchanges}+`               : '10+'}  label="Supported Exchanges" color="text-blue-500"  loading={statsLoading && !stats} />
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* ── LIVE SIGNALS ─────────────────────────────────────────────── */}
       <section className="py-16 sm:py-20 bg-gray-50 dark:bg-brandDark-800">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
-          <div className="mb-12 text-center sm:mb-16">
-            <h2 className="mb-4 text-3xl font-bold sm:text-4xl text-brandDark-700 dark:text-white">
-              Why Choose Strategic Crypto Save?
-            </h2>
-            <p className="max-w-3xl px-4 mx-auto text-lg sm:text-xl text-brandDark-600 dark:text-gray-400 sm:px-0">
-              Experience the future of savings with our innovative DeFi platform designed for long-term wealth building.
-            </p>
+          {/* Section header */}
+          <div className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping inline-flex" />
+                LIVE — refreshes every 5 min
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Real-Time Trading Signals</h2>
+              <p className="mt-2 text-gray-600 dark:text-gray-400 max-w-xl">
+                Powered by RSI, EMA50/200, and volume analysis. Generated hourly using live Binance market data.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Spot / Futures tabs */}
+              <div className="flex rounded-lg border border-gray-200 dark:border-brandDark-600 overflow-hidden text-sm">
+                {['spot', 'futures'].map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 font-medium capitalize transition-colors ${
+                      activeTab === tab
+                        ? 'bg-cyan-500 text-white'
+                        : 'bg-white dark:bg-brandDark-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brandDark-600'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                title="Refresh signals"
+                className="p-2 rounded-lg border border-gray-200 dark:border-brandDark-600 bg-white dark:bg-brandDark-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brandDark-600 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-8">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
+          {/* Signal grid */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {loading && displaySignals.length === 0
+              ? Array.from({ length: 8 }).map((_, i) => <SignalSkeleton key={i} />)
+              : displaySignals.map(s => <SignalCard key={s.symbol} s={s} />)
+            }
+          </div>
+
+          <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+            <p>
+              {lastRefresh ? `Last updated: ${lastRefresh.toLocaleTimeString()}` : 'Loading…'}{' '}
+              · For informational purposes only — not financial advice.
+            </p>
+            <Link
+              to={isAuth ? '/bots/create' : '/register'}
+              className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 font-medium hover:underline"
+            >
+              Create a bot using these signals <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FEATURES ─────────────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-white dark:bg-brandDark-900">
+        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Everything You Need to Trade</h2>
+            <p className="mt-4 max-w-2xl mx-auto text-gray-600 dark:text-gray-400">
+              From first signal to automated execution — SmartStrategy covers every step of your trading workflow.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((f, i) => {
+              const Icon = f.icon;
               return (
-                <div key={index} className="text-center transition-shadow duration-300 card hover:shadow-xl">
-                  <div className="flex items-center justify-center mx-auto mb-4 rounded-full w-14 h-14 sm:w-16 sm:h-16 bg-gradient-primary">
-                    <Icon className="text-white w-7 h-7 sm:w-8 sm:h-8" />
+                <div key={i} className="group p-6 rounded-2xl border border-gray-100 dark:border-brandDark-700 bg-white dark:bg-brandDark-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} mb-4 shadow-md`}>
+                    <Icon className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="mb-3 text-lg font-semibold text-gray-900 sm:text-xl dark:text-white">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 sm:text-base dark:text-gray-400">
-                    {feature.description}
-                  </p>
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{f.title}</h3>
+                  <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{f.desc}</p>
                 </div>
               );
             })}
@@ -150,104 +354,117 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="py-16 bg-white sm:py-20 dark:bg-brandDark-900">
+      {/* ── HOW IT WORKS ─────────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-gray-50 dark:bg-brandDark-800">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
-          <div className="grid items-center gap-8 lg:grid-cols-2 sm:gap-12">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Up and Running in 3 Steps</h2>
+            <p className="mt-4 max-w-xl mx-auto text-gray-600 dark:text-gray-400">
+              No technical setup. Your bot can be live in under 5 minutes.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            {steps.map((step, i) => (
+              <div key={i} className="relative p-6 bg-white dark:bg-brandDark-900 rounded-2xl border border-gray-100 dark:border-brandDark-700 shadow-sm flex flex-col gap-3">
+                {i < steps.length - 1 && (
+                  <div className="hidden lg:block absolute top-10 left-full w-full h-px bg-gradient-to-r from-cyan-400/40 to-transparent z-0" />
+                )}
+                <span className="text-4xl font-black bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">{step.num}</span>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{step.title}</h3>
+                <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BENEFITS + LIVE PANEL ────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-white dark:bg-brandDark-900">
+        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-white sm:mb-6">
-                Everything You Need to Succeed
-              </h2>
-              <p className="mb-6 text-lg text-gray-600 sm:text-xl dark:text-gray-400 sm:mb-8">
-                Our platform provides all the tools and features you need to build a successful crypto savings strategy.
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl mb-4">Built for Serious Traders</h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+                Every feature was designed around real trading needs — not just pretty dashboards.
               </p>
-              <div className="grid gap-3 sm:gap-4">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <CheckCircle className="flex-shrink-0 w-5 h-5 text-green-500 sm:w-6 sm:h-6" />
-                    <span className="text-sm text-gray-700 sm:text-base dark:text-gray-300">{benefit}</span>
+              <div className="grid gap-3">
+                {benefits.map((b, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle className="flex-shrink-0 w-5 h-5 text-green-500" />
+                    <span className="text-gray-700 dark:text-gray-300">{b}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="relative mt-8 lg:mt-0">
-              <div className="p-6 bg-gradient-to-br from-primary-100 to-secondary-100 dark:from-primary-900 dark:to-secondary-900 rounded-2xl sm:p-8">
-                <div className="text-center">
-                  <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 rounded-full sm:w-24 sm:h-24 bg-gradient-primary sm:mb-6">
-                    <TrendingUp className="w-10 h-10 text-white sm:w-12 sm:h-12" />
-                  </div>
-                  <h3 className="mb-3 text-xl font-bold text-gray-900 sm:text-2xl dark:text-white sm:mb-4">
-                    Start Your Journey Today
-                  </h3>
-                  <p className="mb-4 text-sm text-gray-600 sm:text-base dark:text-gray-400 sm:mb-6">
-                    Join thousands of users who are already building wealth with Strategic Crypto Save.
-                  </p>
-                  <button
-                     onClick={handleGetStarted}
-                     className="w-full btn-primary"
-                   >
-                     Create Your First Vault
-                  </button>
-                </div>
+
+            {/* Live snapshot panel */}
+            <div className="rounded-2xl border border-gray-100 dark:border-brandDark-700 bg-gray-50 dark:bg-brandDark-800 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Live Signal Feed</span>
+                <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping inline-flex" />
+                  LIVE
+                </span>
               </div>
+              <div className="space-y-2.5">
+                {(spot.length > 0 ? spot.slice(0, 5) : Array(5).fill(null)).map((s, i) => (
+                  <div key={i} className={`flex items-center justify-between p-3 rounded-lg bg-white dark:bg-brandDark-700 border border-gray-100 dark:border-brandDark-600 ${!s ? 'animate-pulse' : ''}`}>
+                    {s ? (
+                      <>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.symbol}</p>
+                          <p className="text-xs text-gray-500">{fmtPrice(s.price)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-medium ${s.change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>{fmtChange(s.change24h)}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                            s.signal === 'BUY'  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                            s.signal === 'SELL' ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300' :
+                                                  'bg-gray-100 text-gray-600 dark:bg-brandDark-600 dark:text-gray-300'
+                          }`}>{s.signal === 'NEUTRAL' ? 'HOLD' : s.signal}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-1.5"><div className="h-3 w-20 bg-gray-200 dark:bg-brandDark-600 rounded" /><div className="h-2.5 w-14 bg-gray-200 dark:bg-brandDark-600 rounded" /></div>
+                        <div className="h-5 w-14 bg-gray-200 dark:bg-brandDark-600 rounded-full" />
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleGetStarted}
+                className="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                Get Full Access — Free
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gray-50 dark:bg-brandDark-800">
-        <div className="container px-4 mx-auto">
-          <div className="mb-16 text-center">
-            <h2 className="mb-4 text-4xl font-bold text-gray-900 dark:text-white">
-              What Our Users Say
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400">
-              Real stories from real users who have transformed their financial future.
-            </p>
+      {/* ── TESTIMONIALS ─────────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-gray-50 dark:bg-brandDark-800">
+        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">What Our Traders Say</h2>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Real results from users who automated their trading with SmartStrategy.</p>
           </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {[
-              {
-                name: 'Sarah Chen',
-                role: 'Software Engineer',
-                content: 'Strategic Crypto Save helped me save for my house down payment. The time-lock feature prevented me from spending impulsively.',
-                rating: 5,
-              },
-              {
-                name: 'Michael Rodriguez',
-                role: 'Entrepreneur',
-                content: 'The time-locked vaults helped me build better saving habits and resist impulsive spending. Perfect for long-term goals.',
-                rating: 5,
-              },
-              {
-                name: 'Emily Johnson',
-                role: 'Designer',
-                content: 'Finally, a savings platform that gives me full control over my money while helping me build discipline.',
-                rating: 5,
-              },
-            ].map((testimonial, index) => (
-              <div key={index} className="card">
-                <div className="flex items-center mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
+          <div className="grid gap-6 md:grid-cols-3">
+            {testimonials.map((t, i) => (
+              <div key={i} className="p-6 rounded-2xl bg-white dark:bg-brandDark-900 border border-gray-100 dark:border-brandDark-700 shadow-sm flex flex-col gap-4">
+                <div className="flex gap-0.5">
+                  {Array.from({ length: t.rating }).map((_, j) => <Star key={j} className="w-4 h-4 text-yellow-400 fill-current" />)}
                 </div>
-                <p className="mb-6 italic text-gray-600 dark:text-gray-400">
-                  "{testimonial.content}"
-                </p>
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center w-12 h-12 mr-4 rounded-full bg-gradient-primary">
-                    <Users className="w-6 h-6 text-white" />
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed italic flex-1">"{t.content}"</p>
+                <div className="flex items-center gap-3 pt-3 border-t border-gray-100 dark:border-brandDark-700">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white font-bold text-sm flex-shrink-0">
+                    {t.name.charAt(0)}
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {testimonial.name}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {testimonial.role}
-                    </div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{t.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.role}</p>
                   </div>
                 </div>
               </div>
@@ -256,22 +473,32 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 text-white bg-gradient-to-r from-primary-600 to-secondary-600">
-        <div className="container px-4 mx-auto text-center">
-          <h2 className="mb-6 text-4xl font-bold">
-            Ready to Start Building Wealth?
+      {/* ── FINAL CTA ────────────────────────────────────────────────── */}
+      <section className="py-20 relative overflow-hidden bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700">
+        <div className="absolute inset-0 bg-black/10" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full blur-3xl" />
+        <div className="relative container px-4 mx-auto text-center">
+          <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
+            Start Automating Your Trades Today
           </h2>
-          <p className="max-w-2xl mx-auto mb-8 text-xl">
-            Join the DeFi revolution and take control of your financial future with Strategic Crypto Save.
+          <p className="max-w-2xl mx-auto mb-8 text-lg text-white/80">
+            Join traders who run bots 24/7, catch every signal, and never miss a market move.
           </p>
-          <button
-            onClick={handleGetStarted}
-            className="transition-all duration-200 transform bg-white shadow-lg btn-primary btn-lg text-primary-600 hover:bg-gray-100 hover:shadow-xl hover:scale-105"
-          >
-            Get Started Now
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button
+              onClick={handleGetStarted}
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-white text-blue-700 font-semibold text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+            >
+              Create Free Account <ArrowRight className="w-5 h-5" />
+            </button>
+            <Link
+              to="/strategies"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border-2 border-white/40 text-white font-semibold text-base hover:bg-white/10 transition-colors"
+            >
+              <BarChart2 className="w-5 h-5" />
+              Browse Strategies
+            </Link>
+          </div>
         </div>
       </section>
 

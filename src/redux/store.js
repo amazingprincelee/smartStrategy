@@ -7,6 +7,7 @@ import settingsReducer from './slices/settingsSlice';
 import botReducer from './slices/botSlice';
 import exchangeAccountReducer from './slices/exchangeAccountSlice';
 import demoReducer from './slices/demoSlice';
+import signalReducer from './slices/signalSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     bots: botReducer,
     exchangeAccounts: exchangeAccountReducer,
     demo: demoReducer,
+    signals: signalReducer,
   },
 });
 

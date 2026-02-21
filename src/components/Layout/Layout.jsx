@@ -47,7 +47,8 @@ const Layout = () => {
         </main>
       </div>
       
-      <Footer />
+      {/* Footer only on public pages — not inside the authenticated app */}
+      {!isAuthenticated && <Footer />}
     </div>
   );
 };

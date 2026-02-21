@@ -21,6 +21,7 @@ import CreateBot from './pages/CreateBot';
 import BotDetail from './pages/BotDetail';
 import DemoAccount from './pages/DemoAccount';
 import StrategyLibrary from './pages/StrategyLibrary';
+import Signals from './pages/Signals';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 
@@ -58,6 +59,7 @@ function App() {
                     <Route path="/bots/:id" element={<BotDetail />} />
                     <Route path="/demo" element={<DemoAccount />} />
                     <Route path="/strategies" element={<StrategyLibrary />} />
+                    <Route path="/signals" element={<Signals />} />
                     <Route path="/arbitrage" element={<CryptoArbitrage />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/settings" element={<Settings />} />

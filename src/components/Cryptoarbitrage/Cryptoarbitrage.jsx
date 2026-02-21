@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   RefreshCw,
@@ -15,14 +15,17 @@ import {
   Shield,
   Activity,
   Zap,
-  Download
+  Download,
+  History,
+  Bell,
 } from 'lucide-react';
-import { 
+import {
   fetchArbitrageOpportunities,
   refreshArbitrageOpportunities,
   fetchArbitrageStatus,
-  clearArbitrageMessages 
+  clearArbitrageMessages
 } from '../../redux/slices/arbitrageslice';
+import { authAPI } from '../../services/api';
 
 const CryptoArbitrage = () => {
   const dispatch = useDispatch();
@@ -48,6 +51,34 @@ const CryptoArbitrage = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  // Past opportunities (stored, ≥2% profit)
+  const [pastOpps, setPastOpps] = useState([]);
+  const [pastLoading, setPastLoading] = useState(false);
+  const [pastFilter, setPastFilter] = useState('all'); // all | active | cleared
+  const [pastMeta, setPastMeta] = useState({ activeCount: 0, clearedCount: 0, total: 0 });
+
+  const fetchPastOpportunities = useCallback(async (statusFilter = 'all') => {
+    setPastLoading(true);
+    try {
+      const res = await authAPI.get(`/arbitrage/past-opportunities?status=${statusFilter}&limit=100`);
+      if (res.data.success) {
+        setPastOpps(res.data.data || []);
+        setPastMeta(res.data.meta || {});
+      }
+    } catch (err) {
+      console.error('Failed to load past opportunities:', err.message);
+    } finally {
+      setPastLoading(false);
+    }
+  }, []);
+
+  // Load past opportunities on mount and auto-refresh every 60 seconds
+  useEffect(() => {
+    fetchPastOpportunities(pastFilter);
+    const id = setInterval(() => fetchPastOpportunities(pastFilter), 60_000);
+    return () => clearInterval(id);
+  }, [fetchPastOpportunities, pastFilter]);
 
   // Check status on mount and set up status polling
   useEffect(() => {
@@ -728,6 +759,172 @@ const CryptoArbitrage = () => {
               </table>
             </div>
           )}
+      </div>
+
+      {/* ── Past Opportunities (≥2% stored) ──────────────────────── */}
+      <div className="card">
+        {/* Section header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
+              <History className="w-5 h-5 text-amber-500" />
+              Notable Opportunities History
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              Arbitrage opportunities with ≥2% net profit — stored, monitored, and emailed to all users.
+            </p>
+          </div>
+
+          {/* Summary pills */}
+          <div className="flex items-center gap-2 text-xs flex-shrink-0">
+            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-flex" />
+              {pastMeta.activeCount} Active
+            </span>
+            <span className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 font-semibold">
+              {pastMeta.clearedCount} Cleared
+            </span>
+            <button
+              onClick={() => fetchPastOpportunities(pastFilter)}
+              disabled={pastLoading}
+              className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${pastLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex gap-1 mb-4 p-1 bg-gray-100 dark:bg-brandDark-800 rounded-lg w-fit">
+          {[
+            { key: 'all',     label: 'All' },
+            { key: 'active',  label: 'Active' },
+            { key: 'cleared', label: 'Cleared' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setPastFilter(tab.key)}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                pastFilter === tab.key
+                  ? 'bg-white dark:bg-brandDark-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Email alert banner */}
+        <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+          <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            <strong>Email alerts active.</strong> All users are automatically notified by email when a new opportunity ≥2% net profit is detected. Opportunities are monitored every scan cycle and marked <em>Cleared</em> when they disappear.
+          </p>
+        </div>
+
+        {/* Table */}
+        {pastLoading && pastOpps.length === 0 ? (
+          <div className="flex items-center justify-center py-10 gap-3 text-gray-500">
+            <RefreshCw className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Loading history...</span>
+          </div>
+        ) : pastOpps.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <History className="w-12 h-12 text-gray-300 dark:text-gray-700 mb-3" />
+            <p className="text-gray-500 dark:text-gray-400 font-medium">No notable opportunities yet</p>
+            <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
+              Opportunities with ≥2% net profit will appear here when detected.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-brandDark-800">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Pair</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Buy Exchange</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Sell Exchange</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Net Profit</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Peak Profit</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Expected $</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Risk</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">First Detected</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Last Seen / Cleared</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-brandDark-700">
+                {pastOpps.map(opp => {
+                  const coin = opp.symbol?.split('/')[0] || '?';
+                  const isActive = opp.status === 'active';
+                  const fmtDate = (d) => d ? new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+                  return (
+                    <tr key={opp._id} className={`hover:bg-gray-50 dark:hover:bg-brandDark-800 transition-colors ${isActive ? 'bg-green-50/40 dark:bg-green-900/5' : ''}`}>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white bg-gradient-to-br from-primary-500 to-secondary-500">
+                            {coin.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900 dark:text-white">{coin}</div>
+                            <div className="text-xs text-gray-400">{opp.symbol}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                          {opp.buyExchange}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                          {opp.sellExchange}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <span className="font-bold text-green-600 dark:text-green-400">
+                          {opp.netProfitPercent?.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">
+                          {opp.peakProfitPercent?.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-green-600 dark:text-green-400 font-medium">
+                        ${(opp.expectedProfitUSD || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRiskBadgeColor(opp.riskLevel)}`}>
+                          {opp.riskLevel || 'Medium'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        {isActive ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                            Cleared
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                        {fmtDate(opp.firstDetectedAt)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                        {isActive ? fmtDate(opp.lastSeenAt) : fmtDate(opp.clearedAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Opportunity Detail Modal */}

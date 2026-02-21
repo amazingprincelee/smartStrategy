@@ -77,7 +77,7 @@ const WalletConnectModal = ({ isOpen, onClose }) => {
 
           {/* Description */}
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Choose a wallet to connect to Strategic Crypto Save. By connecting, you agree to our terms of service.
+            Choose a wallet to connect to SmartStrategy. By connecting, you agree to our terms of service.
           </p>
 
           {/* Wallet Options */}
