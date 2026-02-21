@@ -9,7 +9,33 @@ import {
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
 import { fetchAccounts } from '../redux/slices/exchangeAccountSlice';
 
-const POPULAR_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'AVAX/USDT', 'MATIC/USDT', 'DOGE/USDT'];
+// Volatile altcoins first — they hit RSI extremes more often → more frequent signals
+const COIN_GROUPS = [
+  {
+    label: 'Higher volatility — triggers signals more often',
+    coins: ['DOGE/USDT', 'SHIB/USDT', 'PEPE/USDT', 'SOL/USDT', 'AVAX/USDT', 'ADA/USDT', 'MATIC/USDT', 'LINK/USDT', 'DOT/USDT', 'ATOM/USDT', 'NEAR/USDT', 'ARB/USDT', 'OP/USDT', 'FTM/USDT', 'INJ/USDT', 'SUI/USDT'],
+  },
+  {
+    label: 'Blue chip — steadier, fewer dips',
+    coins: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'LTC/USDT', 'UNI/USDT'],
+  },
+];
+
+const STRATEGY_ACTIVITY = {
+  dca:          { label: 'Very high activity', detail: 'Buys on a fixed schedule regardless of market conditions' },
+  scalper:      { label: 'High activity',      detail: 'Scans every 5 min and opens tight in-and-out trades' },
+  rsi_reversal: { label: 'Medium activity',    detail: 'Enters when RSI crosses oversold / overbought zones' },
+  ema_crossover:{ label: 'Medium activity',    detail: 'Signals when trend direction changes (golden/death cross)' },
+  adaptive_grid:{ label: 'Lower activity',     detail: 'Waits for RSI dips + volume spikes in confirmed downtrends' },
+  breakout:     { label: 'Lower activity',     detail: 'Waits for price to break a multi-day high with volume' },
+};
+
+const ACTIVITY_BADGE = {
+  'Very high activity': 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+  'High activity':      'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  'Medium activity':    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  'Lower activity':     'bg-gray-100 text-gray-600 dark:bg-brandDark-600 dark:text-gray-400',
+};
 
 const RISK_COLORS = {
   low: 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800',
@@ -227,21 +253,26 @@ const CreateBot = () => {
           placeholder="e.g. BTC/USDT"
           className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white mb-3"
         />
-        <div className="flex flex-wrap gap-2">
-          {POPULAR_PAIRS.map(pair => (
-            <button
-              key={pair}
-              onClick={() => update('symbol', pair)}
-              className={`px-3 py-1.5 text-xs rounded-full border transition-colors font-mono ${
-                form.symbol === pair
-                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
-                  : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400 hover:border-primary-300'
-              }`}
-            >
-              {pair}
-            </button>
-          ))}
-        </div>
+        {COIN_GROUPS.map(group => (
+          <div key={group.label} className="mb-3">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{group.label}</p>
+            <div className="flex flex-wrap gap-2">
+              {group.coins.map(pair => (
+                <button
+                  key={pair}
+                  onClick={() => update('symbol', pair)}
+                  className={`px-3 py-1.5 text-xs rounded-full border transition-colors font-mono ${
+                    form.symbol === pair
+                      ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
+                      : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400 hover:border-primary-300'
+                  }`}
+                >
+                  {pair}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -266,16 +297,26 @@ const CreateBot = () => {
                   : 'border-gray-200 dark:border-brandDark-700 hover:border-gray-300'
               } ${RISK_COLORS[s.riskLevel]}`}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-900 dark:text-white text-sm">{s.name}</span>
-                  {s.isDefault && <Star className="w-4 h-4 text-yellow-500" />}
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-semibold text-gray-900 dark:text-white text-sm leading-tight">{s.name}</span>
+                  {s.isDefault && <Star className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
                 </div>
-                <span className={`px-2 py-0.5 text-xs rounded-full ${RISK_BADGE[s.riskLevel]}`}>
-                  {s.riskLevel}
-                </span>
+                <div className="flex flex-wrap justify-end items-center gap-1 flex-shrink-0">
+                  {STRATEGY_ACTIVITY[s.id] && (
+                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium whitespace-nowrap ${ACTIVITY_BADGE[STRATEGY_ACTIVITY[s.id].label]}`}>
+                      {STRATEGY_ACTIVITY[s.id].label}
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${RISK_BADGE[s.riskLevel]}`}>
+                    {s.riskLevel} risk
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{s.description}</p>
+              {STRATEGY_ACTIVITY[s.id] && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{STRATEGY_ACTIVITY[s.id].detail}</p>
+              )}
               <div className="flex gap-2 mt-2">
                 <span className="text-xs text-gray-400">{s.timeframe}</span>
                 <span className="text-gray-300">·</span>
@@ -464,7 +505,7 @@ const CreateBot = () => {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Bot className="w-6 h-6 text-primary-500" />
@@ -489,7 +530,7 @@ const CreateBot = () => {
             </React.Fragment>
           ))}
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
           Step {step + 1} of {steps.length}: <span className="font-medium text-gray-700 dark:text-gray-300">{steps[step]}</span>
         </p>
       </div>

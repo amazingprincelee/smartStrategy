@@ -122,7 +122,7 @@ const botSlice = createSlice({
 
     // Called from SocketContext on bot:tick events
     updateBotRealtime: (state, action) => {
-      const { botId, currentPrice, openPositions, status, unrealizedPnL } = action.payload;
+      const { botId, currentPrice, openPositions, status, unrealizedPnL, lastAnalysis, tickEntry } = action.payload;
       const bot = state.list.find(b => b._id === botId);
       if (bot) {
         bot.realtimePrice = currentPrice;
@@ -133,6 +133,12 @@ const botSlice = createSlice({
       if (state.detail?.bot?._id === botId) {
         state.detail.bot.realtimePrice = currentPrice;
         if (status) state.detail.bot.status = status;
+        if (lastAnalysis) state.detail.bot.lastAnalysis = lastAnalysis;
+        if (tickEntry) {
+          if (!state.detail.bot.tickLog) state.detail.bot.tickLog = [];
+          state.detail.bot.tickLog.push(tickEntry);
+          if (state.detail.bot.tickLog.length > 10) state.detail.bot.tickLog.shift();
+        }
       }
     },
 

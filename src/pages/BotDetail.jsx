@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -7,7 +7,8 @@ import {
 } from 'recharts';
 import {
   ArrowLeft, Play, Square, Trash2, TrendingUp, TrendingDown,
-  Activity, Loader, AlertCircle, ChevronLeft, ChevronRight
+  Activity, Loader, AlertCircle, ChevronLeft, ChevronRight,
+  CheckCircle2, XCircle, Clock, RefreshCw
 } from 'lucide-react';
 import {
   fetchBotDetail, fetchBotTrades, fetchBotPositions, startBot, stopBot, deleteBot
@@ -30,6 +31,259 @@ const REASON_COLORS = {
   dca: 'text-purple-500',
   manual: 'text-gray-500',
 };
+
+// Timeframe label per strategy
+const STRATEGY_TIMEFRAME = {
+  adaptive_grid: '1h',
+  dca: '4h',
+  rsi_reversal: '1h',
+  ema_crossover: '4h',
+  scalper: '5m',
+  breakout: '1d',
+};
+
+// Build condition list per strategy using live analysis values
+function getStrategyConditions(strategyId, params, analysis) {
+  if (!analysis) return [];
+  const rsi = analysis.rsi;
+  const vr  = analysis.volumeRatio;
+
+  switch (strategyId) {
+    case 'adaptive_grid':
+      return [
+        {
+          label: 'RSI Oversold',
+          met: rsi != null && rsi < (params?.rsiOversold || 30),
+          actual: rsi != null ? `RSI ${rsi}` : '—',
+          need: `< ${params?.rsiOversold || 30}`,
+        },
+        {
+          label: 'Volume Spike',
+          met: vr != null && vr > 1.2,
+          actual: vr != null ? `${vr}× avg` : '—',
+          need: '> 1.2× avg',
+        },
+        {
+          label: 'Trend Check',
+          met: analysis.trend !== 'bearish_strong',
+          actual: analysis.trend || '—',
+          need: 'not strongly bearish',
+        },
+      ];
+    case 'rsi_reversal':
+      return [
+        {
+          label: 'RSI Oversold',
+          met: rsi != null && rsi < (params?.rsiOversold || 30),
+          actual: rsi != null ? `RSI ${rsi}` : '—',
+          need: `< ${params?.rsiOversold || 30}`,
+        },
+        {
+          label: 'Volume Confirmation',
+          met: vr != null && vr > 1.1,
+          actual: vr != null ? `${vr}× avg` : '—',
+          need: '> 1.1× avg',
+        },
+      ];
+    case 'ema_crossover':
+      return [
+        {
+          label: 'EMA Crossover',
+          met: analysis.trend === 'bullish',
+          actual: analysis.trend || '—',
+          need: 'bullish crossover',
+        },
+        {
+          label: 'Volume Confirmation',
+          met: vr != null && vr > 1.0,
+          actual: vr != null ? `${vr}× avg` : '—',
+          need: '> 1.0× avg',
+        },
+      ];
+    case 'scalper':
+      return [
+        {
+          label: 'ATR Grid Active',
+          met: analysis.action !== 'waiting',
+          actual: analysis.action || 'scanning',
+          need: 'grid spacing hit',
+        },
+        {
+          label: 'Volume Present',
+          met: vr != null && vr > 0.8,
+          actual: vr != null ? `${vr}× avg` : '—',
+          need: '> 0.8× avg',
+        },
+      ];
+    case 'breakout':
+      return [
+        {
+          label: 'N-Day High Breakout',
+          met: analysis.action === 'entry',
+          actual: analysis.action === 'entry' ? 'breakout detected' : 'no breakout yet',
+          need: `price above ${params?.breakoutLookbackDays || 20}-day high`,
+        },
+      ];
+    case 'dca':
+      return [
+        {
+          label: 'DCA Interval',
+          met: analysis.action === 'entry',
+          actual: analysis.action === 'entry' ? 'interval reached' : 'accumulating',
+          need: `every ${params?.dcaIntervalHours || 24}h`,
+        },
+      ];
+    default:
+      return [];
+  }
+}
+
+// Countdown component — ticks every second
+function NextTickCountdown({ nextTickAt, timeframe }) {
+  const [remaining, setRemaining] = useState('');
+
+  useEffect(() => {
+    function update() {
+      if (!nextTickAt) { setRemaining('—'); return; }
+      const diff = new Date(nextTickAt).getTime() - Date.now();
+      if (diff <= 0) { setRemaining('any moment…'); return; }
+      const h = Math.floor(diff / 3_600_000);
+      const m = Math.floor((diff % 3_600_000) / 60_000);
+      const s = Math.floor((diff % 60_000) / 1000);
+      const parts = [];
+      if (h > 0) parts.push(`${h}h`);
+      if (m > 0 || h > 0) parts.push(`${m}m`);
+      parts.push(`${s}s`);
+      setRemaining(parts.join(' '));
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [nextTickAt]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <Clock className="w-4 h-4 text-primary-400 flex-shrink-0" />
+      <span className="text-sm text-gray-500 dark:text-gray-400">Next analysis in</span>
+      <span className="font-mono font-semibold text-primary-600 dark:text-primary-400">{remaining}</span>
+      <span className="text-xs text-gray-400">({timeframe} candle)</span>
+    </div>
+  );
+}
+
+// Bot status + conditions panel
+function BotStatusPanel({ bot }) {
+  const analysis = bot?.lastAnalysis;
+  const conditions = getStrategyConditions(bot?.strategyId, bot?.strategyParams, analysis);
+  const metCount = conditions.filter(c => c.met).length;
+  const timeframe = STRATEGY_TIMEFRAME[bot?.strategyId] || '1h';
+
+  if (bot?.status !== 'running') return null;
+
+  return (
+    <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary-500" />
+          Strategy Conditions
+        </h2>
+        {analysis?.timestamp && (
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            Last checked {new Date(analysis.timestamp).toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {/* Current price */}
+      {analysis?.currentPrice && (
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-sm text-gray-500 dark:text-gray-400">Current price</span>
+          <span className="font-mono font-bold text-gray-900 dark:text-white">
+            ${Number(analysis.currentPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+          </span>
+        </div>
+      )}
+
+      {/* Conditions list */}
+      {conditions.length === 0 ? (
+        <p className="text-sm text-gray-400">No analysis data yet — waiting for first tick…</p>
+      ) : (
+        <>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            {metCount} / {conditions.length} conditions met to open a trade
+          </div>
+          <div className="space-y-2 mb-4">
+            {conditions.map(c => (
+              <div key={c.label} className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 dark:bg-brandDark-700">
+                <div className="flex items-center gap-2 min-w-0">
+                  {c.met
+                    ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  }
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{c.label}</span>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className={`text-sm font-mono font-semibold block ${c.met ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                    {c.actual}
+                  </span>
+                  <span className="text-xs text-gray-400">needs {c.need}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Countdown */}
+      <NextTickCountdown nextTickAt={analysis?.nextTickAt} timeframe={timeframe} />
+    </div>
+  );
+}
+
+// Tick log panel
+function TickLogPanel({ tickLog }) {
+  if (!tickLog || tickLog.length === 0) return null;
+
+  return (
+    <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5">
+      <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+        <RefreshCw className="w-4 h-4 text-primary-500" />
+        Analysis Log
+        <span className="text-xs font-normal text-gray-400">(last {tickLog.length} checks)</span>
+      </h2>
+      <div className="overflow-x-auto">
+        <div className="min-w-[420px] space-y-1">
+          {[...tickLog].reverse().map((entry, i) => {
+            const actionColor = entry.action === 'entry'
+              ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
+              : entry.action === 'exit'
+              ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20'
+              : 'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-brandDark-700';
+            return (
+              <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-lg text-sm">
+                <span className="text-gray-400 dark:text-gray-500 text-xs w-24 flex-shrink-0">
+                  {new Date(entry.timestamp).toLocaleTimeString()}
+                </span>
+                <span className="font-mono text-gray-700 dark:text-gray-300 w-28 flex-shrink-0">
+                  ${entry.currentPrice != null ? Number(entry.currentPrice).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}
+                </span>
+                <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0 text-xs">
+                  RSI {entry.rsi ?? '—'}
+                </span>
+                <span className="text-gray-500 dark:text-gray-400 w-20 flex-shrink-0 text-xs">
+                  Vol {entry.volumeRatio != null ? `${entry.volumeRatio}×` : '—'}
+                </span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${actionColor}`}>
+                  {entry.action || '—'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const BotDetail = () => {
   const { id } = useParams();
@@ -117,24 +371,25 @@ const BotDetail = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-5 md:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
-          <button onClick={() => navigate('/bots')} className="mt-1 p-1.5 hover:bg-gray-100 dark:hover:bg-brandDark-700 rounded-lg transition-colors">
+      <div className="space-y-3">
+        {/* Top row: back + name */}
+        <div className="flex items-start gap-3">
+          <button onClick={() => navigate('/bots')} className="mt-0.5 p-1.5 hover:bg-gray-100 dark:hover:bg-brandDark-700 rounded-lg transition-colors flex-shrink-0">
             <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
-          <div>
-            <div className="flex items-center gap-2.5 mb-1">
-              <span className={`w-3 h-3 rounded-full ${STATUS_DOT[bot.status] || 'bg-gray-400'}`} />
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">{bot.name}</h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT[bot.status] || 'bg-gray-400'}`} />
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white leading-tight">{bot.name}</h1>
               {bot.isDemo && (
                 <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
                   Demo
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400">
               <span className="font-mono">{bot.symbol}</span>
               <span>·</span>
               <span className="capitalize">{bot.exchange}</span>
@@ -145,12 +400,13 @@ const BotDetail = () => {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        {/* Control buttons — below name on all sizes, aligned under name */}
+        <div className="flex gap-2 pl-10">
           {bot.status === 'running' ? (
             <button
               onClick={handleStop}
               disabled={loading.action}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-sm font-medium disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-sm font-medium disabled:opacity-50"
             >
               <Square className="w-4 h-4" />
               Stop
@@ -159,7 +415,7 @@ const BotDetail = () => {
             <button
               onClick={handleStart}
               disabled={loading.action}
-              className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-sm font-medium disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-sm font-medium disabled:opacity-50"
             >
               <Play className="w-4 h-4" />
               Start
@@ -167,7 +423,7 @@ const BotDetail = () => {
           )}
           <button
             onClick={handleDelete}
-            className="flex items-center gap-2 px-3 py-2 text-red-500 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-red-500 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-sm"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -175,19 +431,48 @@ const BotDetail = () => {
       </div>
 
       {/* Key stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total P&L', value: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`, color: pnl >= 0 ? 'text-green-600' : 'text-red-500' },
-          { label: 'Win Rate', value: `${winRate}%`, color: 'text-blue-600' },
-          { label: 'Total Trades', value: bot.stats?.totalTrades ?? 0, color: 'text-gray-800 dark:text-white' },
-          { label: 'Open Positions', value: openPositions.length, color: 'text-purple-600' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {/* Allocated capital */}
+        <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Allocated Capital</p>
+          <p className="text-xl font-bold text-gray-800 dark:text-white">
+            ${(bot.capitalAllocation?.totalCapital ?? 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{bot.capitalAllocation?.currency || 'USDT'}</p>
+        </div>
+        {/* Current value */}
+        <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Value</p>
+          <p className="text-xl font-bold text-gray-800 dark:text-white">
+            ${(bot.stats?.currentCapital ?? bot.capitalAllocation?.totalCapital ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{bot.capitalAllocation?.currency || 'USDT'}</p>
+        </div>
+        {/* P&L */}
+        <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total P&L</p>
+          <p className={`text-xl font-bold ${pnl >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+          </p>
+          <p className={`text-xs mt-0.5 ${pnl >= 0 ? 'text-green-500' : 'text-red-400'}`}>
+            {pnl >= 0 ? '+' : ''}{(bot.stats?.totalPnLPercent ?? 0).toFixed(2)}%
+          </p>
+        </div>
+        {/* Win rate */}
+        <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Win Rate</p>
+          <p className="text-xl font-bold text-blue-600">{winRate}%</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {bot.stats?.winningTrades ?? 0}W / {bot.stats?.losingTrades ?? 0}L · {bot.stats?.totalTrades ?? 0} total
+          </p>
+        </div>
       </div>
+
+      {/* Strategy conditions + countdown */}
+      <BotStatusPanel bot={bot} />
+
+      {/* Analysis log */}
+      <TickLogPanel tickLog={bot.tickLog} />
 
       {/* P&L Chart */}
       {pnlChartData.length > 1 && (

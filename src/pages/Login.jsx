@@ -154,7 +154,7 @@ const Login = () => {
               className="relative flex justify-center w-full px-4 py-3 text-sm font-medium text-white transition-colors border border-transparent rounded-lg group bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <LoadingSpinner size="small" />
+                <LoadingSpinner size="small" color="white" />
               ) : (
                 <>
                   Sign In

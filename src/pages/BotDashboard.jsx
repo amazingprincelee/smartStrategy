@@ -34,60 +34,75 @@ const BotCard = ({ bot, onStart, onStop, loading }) => {
   const pnl = bot.stats?.totalPnL ?? 0;
   const pnlPct = bot.stats?.totalPnLPercent ?? 0;
   const isPositive = pnl >= 0;
+  const allocated = bot.capitalAllocation?.totalCapital ?? 0;
+  const currency = bot.capitalAllocation?.currency || 'USDT';
+  const currentCapital = bot.stats?.currentCapital ?? allocated;
 
   return (
-    <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4 hover:shadow-md transition-shadow">
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2 min-w-0">
           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_COLORS[bot.status] || 'bg-gray-400'}`} />
-          <h3 className="font-semibold text-gray-900 dark:text-white truncate max-w-[140px]">{bot.name}</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-white truncate">{bot.name}</h3>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1 flex-shrink-0 ml-2">
           {bot.isDemo && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
               Demo
             </span>
           )}
-          <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-brandDark-700 dark:text-gray-300 rounded-full capitalize">
+          <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-brandDark-700 dark:text-gray-300 rounded-full capitalize">
             {bot.marketType}
           </span>
         </div>
       </div>
 
-      {/* Exchange / Symbol */}
-      <div className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-        <span className="font-mono">{bot.symbol}</span>
-        <span className="mx-1.5 text-gray-300">·</span>
+      {/* Exchange / Symbol / Strategy */}
+      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3 flex-wrap">
+        <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{bot.symbol}</span>
+        <span className="text-gray-300">·</span>
         <span className="capitalize">{bot.exchange}</span>
-      </div>
-
-      {/* Strategy */}
-      <div className="mb-4">
-        <span className="px-2 py-0.5 text-xs font-medium bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 rounded-full">
+        <span className="text-gray-300">·</span>
+        <span className="px-1.5 py-0.5 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 rounded-full font-medium">
           {STRATEGY_LABELS[bot.strategyId] || bot.strategyId}
         </span>
       </div>
 
-      {/* Stats row */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Capital + Balance row */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="bg-gray-50 dark:bg-brandDark-700/60 rounded-lg p-2.5">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Allocated</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            ${allocated.toLocaleString()} <span className="text-xs font-normal text-gray-400">{currency}</span>
+          </p>
+        </div>
+        <div className="bg-gray-50 dark:bg-brandDark-700/60 rounded-lg p-2.5">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Current Value</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            ${currentCapital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-gray-400">{currency}</span>
+          </p>
+        </div>
+      </div>
+
+      {/* P&L + Stats row */}
+      <div className="flex items-center justify-between mb-4 px-0.5">
         <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Total P&L</p>
-          <p className={`text-base font-bold ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
-            {isPositive ? '+' : ''}{pnl.toFixed(2)} USDT
+          <p className="text-xs text-gray-400 dark:text-gray-500">Total P&L</p>
+          <p className={`text-sm font-bold ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
+            {isPositive ? '+' : ''}{pnl.toFixed(2)}
+            <span className={`ml-1 text-xs font-medium ${isPositive ? 'text-green-500' : 'text-red-400'}`}>
+              ({isPositive ? '+' : ''}{pnlPct.toFixed(2)}%)
+            </span>
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Positions</p>
-          <p className="text-base font-semibold text-gray-800 dark:text-white">
-            {bot.openPositionsCount ?? 0}
-          </p>
+        <div className="text-center">
+          <p className="text-xs text-gray-400 dark:text-gray-500">Positions</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{bot.openPositionsCount ?? 0}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Trades</p>
-          <p className="text-base font-semibold text-gray-800 dark:text-white">
-            {bot.stats?.totalTrades ?? 0}
-          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Trades</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{bot.stats?.totalTrades ?? 0}</p>
         </div>
       </div>
 
@@ -192,21 +207,21 @@ const BotDashboard = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-5 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bot Dashboard</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Bot Dashboard</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5 hidden sm:block">
             Manage your automated trading bots
           </p>
         </div>
         <button
           onClick={() => navigate('/bots/create')}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+          className="flex items-center gap-2 px-3 py-2 md:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm flex-shrink-0"
         >
           <PlusCircle className="w-4 h-4" />
-          Create Bot
+          <span className="hidden sm:inline">Create Bot</span>
         </button>
       </div>
 
@@ -237,17 +252,17 @@ const BotDashboard = () => {
           <Bot className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No bots yet</h3>
           <p className="text-gray-400 dark:text-gray-500 mb-6">Create your first trading bot to get started</p>
-          <div className="flex justify-center gap-3">
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
             <button
               onClick={() => navigate('/bots/create')}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium text-sm"
             >
               <PlusCircle className="w-4 h-4" />
               Create Bot
             </button>
             <button
               onClick={() => navigate('/demo')}
-              className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 dark:border-brandDark-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-brandDark-700 font-medium"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-200 dark:border-brandDark-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-brandDark-700 font-medium text-sm"
             >
               <FlaskConical className="w-4 h-4" />
               Try Demo
