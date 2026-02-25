@@ -66,20 +66,20 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
               <Link to="/" className="flex items-center space-x-2.5 sm:space-x-3 group">
                 {/* Icon Mark */}
                 <div className="relative flex-shrink-0">
-                  <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700 shadow-lg shadow-cyan-500/30 ring-1 ring-cyan-400/40 transition-transform duration-200 group-hover:scale-105">
+                  <div className="flex items-center justify-center transition-transform duration-200 shadow-lg w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700 shadow-cyan-500/30 ring-1 ring-cyan-400/40 group-hover:scale-105">
                     <Bot className="w-5 h-5 sm:w-[22px] sm:h-[22px] text-white" strokeWidth={1.75} />
                   </div>
                   {/* Live pulse indicator */}
                   <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+                    <span className="absolute inline-flex w-full h-full bg-green-400 rounded-full opacity-75 animate-ping" />
                     <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500 border-[1.5px] border-white dark:border-brandDark-900" />
                   </span>
                 </div>
 
                 {/* Wordmark */}
-                <span className="text-lg font-bold sm:text-xl tracking-tight leading-none select-none">
+                <span className="text-lg font-bold leading-none tracking-tight select-none sm:text-xl">
                   <span className="text-gray-900 dark:text-white">Smart</span>
-                  <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">Strategy</span>
+                  <span className="text-transparent bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text">Strategy</span>
                 </span>
               </Link>
             </div>

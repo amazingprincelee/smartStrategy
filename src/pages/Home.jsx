@@ -35,62 +35,74 @@ const fmtChange = (c) => {
 };
 
 const SIGNAL_STYLES = {
-  BUY:     { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700/50', dot: 'bg-green-500', bar: 'bg-green-500', label: 'BUY',  Icon: TrendingUp  },
-  SELL:    { bg: 'bg-red-50 dark:bg-red-900/30',     text: 'text-red-600 dark:text-red-300',     border: 'border-red-200 dark:border-red-700/50',   dot: 'bg-red-500',   bar: 'bg-red-500',   label: 'SELL', Icon: TrendingDown },
-  NEUTRAL: { bg: 'bg-gray-50 dark:bg-brandDark-700', text: 'text-gray-600 dark:text-gray-300', border: 'border-gray-200 dark:border-brandDark-600', dot: 'bg-gray-400', bar: 'bg-gray-400', label: 'HOLD', Icon: Minus },
+  LONG:  { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700/50', dot: 'bg-green-500', bar: 'bg-green-500', label: 'LONG',  Icon: TrendingUp  },
+  SHORT: { bg: 'bg-red-50 dark:bg-red-900/30',     text: 'text-red-600 dark:text-red-300',     border: 'border-red-200 dark:border-red-700/50',   dot: 'bg-red-500',   bar: 'bg-red-500',   label: 'SHORT', Icon: TrendingDown },
+  // Legacy signal format fallbacks
+  BUY:     { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700/50', dot: 'bg-green-500', bar: 'bg-green-500', label: 'LONG',  Icon: TrendingUp  },
+  SELL:    { bg: 'bg-red-50 dark:bg-red-900/30',     text: 'text-red-600 dark:text-red-300',     border: 'border-red-200 dark:border-red-700/50',   dot: 'bg-red-500',   bar: 'bg-red-500',   label: 'SHORT', Icon: TrendingDown },
+  NEUTRAL: { bg: 'bg-gray-50 dark:bg-brandDark-700', text: 'text-gray-600 dark:text-gray-300', border: 'border-gray-200 dark:border-brandDark-600', dot: 'bg-gray-400', bar: 'bg-gray-400', label: 'HOLD',  Icon: Minus },
 };
-
-const CONFIDENCE_BADGE = {
-  HIGH:   'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  MEDIUM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  LOW:    'bg-gray-100 text-gray-600 dark:bg-brandDark-600 dark:text-gray-400',
-};
-
-const TREND_LABEL = { uptrend: '↑ uptrend', downtrend: '↓ downtrend', sideways: '→ sideways' };
-const TREND_COLOR = { uptrend: 'text-green-600 dark:text-green-400', downtrend: 'text-red-500 dark:text-red-400', sideways: 'text-gray-500 dark:text-gray-400' };
 
 /* ─── SignalCard ──────────────────────────────────────────────────────── */
 const SignalCard = ({ s }) => {
-  const st = SIGNAL_STYLES[s.signal] || SIGNAL_STYLES.NEUTRAL;
-  const changePos = s.change24h >= 0;
+  // Support both new (type=LONG/SHORT) and legacy (signal=BUY/SELL) formats
+  const signalKey = s.type || s.signal || 'NEUTRAL';
+  const st = SIGNAL_STYLES[signalKey] || SIGNAL_STYLES.NEUTRAL;
+
+  // Entry price: new format uses s.entry, legacy uses s.price
+  const displayPrice = s.entry ?? s.price;
+
+  // Confidence: new format uses s.confidenceScore (0-1), legacy uses s.strength (0-100)
+  const strengthPct = s.confidenceScore != null
+    ? Math.round(s.confidenceScore * 100)
+    : (s.strength ?? 0);
+
+  // Reasons: new format is array, legacy is string
+  const reasonText = Array.isArray(s.reasons)
+    ? s.reasons.slice(0, 2).join(' · ')
+    : (s.reason ?? '');
+
+  // Display pair/symbol
+  const displaySymbol = (s.pair ?? s.symbol ?? '').replace('/USDT', '').replace('USDT', '') + '/USDT';
+
   return (
     <div className={`rounded-xl border p-4 flex flex-col gap-3 ${st.bg} ${st.border}`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-bold text-gray-900 dark:text-white">{s.symbol}</p>
-          <p className="text-xs text-gray-400">{s.exchange} · {s.timeframe}</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-white">{displaySymbol}</p>
+          <p className="text-xs text-gray-400">{s.exchange ?? 'Binance'} · {s.timeframe ?? '1h'}</p>
         </div>
         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${st.text} ${st.bg} ${st.border}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
           {st.label}
         </span>
       </div>
-      {/* Price */}
+      {/* Price / R:R */}
       <div className="flex items-end justify-between">
-        <p className="text-base font-semibold text-gray-900 dark:text-white">{fmtPrice(s.price)}</p>
-        <p className={`text-xs font-medium ${changePos ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-          {fmtChange(s.change24h)} 24h
-        </p>
+        <p className="text-base font-semibold text-gray-900 dark:text-white">{fmtPrice(displayPrice)}</p>
+        {s.riskReward != null ? (
+          <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400">R:R {Number(s.riskReward).toFixed(1)}</span>
+        ) : s.change24h != null ? (
+          <p className={`text-xs font-medium ${s.change24h >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+            {fmtChange(s.change24h)} 24h
+          </p>
+        ) : null}
       </div>
-      {/* Badges */}
-      <div className="flex flex-wrap gap-1.5 text-xs">
-        <span className="px-2 py-0.5 rounded-md bg-white/70 dark:bg-brandDark-800/70 text-gray-700 dark:text-gray-300">RSI {s.rsi}</span>
-        <span className={`px-2 py-0.5 rounded-md bg-white/70 dark:bg-brandDark-800/70 font-medium ${TREND_COLOR[s.trend]}`}>{TREND_LABEL[s.trend]}</span>
-        <span className={`px-2 py-0.5 rounded-md font-medium ${CONFIDENCE_BADGE[s.confidence]}`}>{s.confidence}</span>
-      </div>
-      {/* Strength bar */}
+      {/* Confidence bar */}
       <div>
         <div className="flex justify-between mb-1">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Strength</span>
-          <span className={`text-xs font-bold ${st.text}`}>{s.strength}%</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">AI Confidence</span>
+          <span className={`text-xs font-bold ${st.text}`}>{strengthPct}%</span>
         </div>
         <div className="h-1.5 bg-white/50 dark:bg-brandDark-900/50 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${s.strength}%` }} />
+          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${strengthPct}%` }} />
         </div>
       </div>
       {/* Reason */}
-      <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">{s.reason}</p>
+      {reasonText && (
+        <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">{reasonText}</p>
+      )}
     </div>
   );
 };
@@ -309,7 +321,7 @@ const Home = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loading && displaySignals.length === 0
               ? Array.from({ length: 8 }).map((_, i) => <SignalSkeleton key={i} />)
-              : displaySignals.map(s => <SignalCard key={s.symbol} s={s} />)
+              : displaySignals.map((s, i) => <SignalCard key={s.pair ?? s.symbol ?? i} s={s} />)
             }
           </div>
 
@@ -412,16 +424,26 @@ const Home = () => {
                     {s ? (
                       <>
                         <div>
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.symbol}</p>
-                          <p className="text-xs text-gray-500">{fmtPrice(s.price)}</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {(s.pair ?? s.symbol ?? '').replace('/USDT','').replace('USDT','')}/USDT
+                          </p>
+                          <p className="text-xs text-gray-500">{fmtPrice(s.entry ?? s.price)}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-medium ${s.change24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>{fmtChange(s.change24h)}</span>
+                          {s.confidenceScore != null && (
+                            <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400">
+                              {Math.round(s.confidenceScore * 100)}%
+                            </span>
+                          )}
                           <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                            s.signal === 'BUY'  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
-                            s.signal === 'SELL' ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300' :
-                                                  'bg-gray-100 text-gray-600 dark:bg-brandDark-600 dark:text-gray-300'
-                          }`}>{s.signal === 'NEUTRAL' ? 'HOLD' : s.signal}</span>
+                            (s.type ?? s.signal) === 'LONG'  || (s.type ?? s.signal) === 'BUY'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                            : (s.type ?? s.signal) === 'SHORT' || (s.type ?? s.signal) === 'SELL'
+                              ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+                              : 'bg-gray-100 text-gray-600 dark:bg-brandDark-600 dark:text-gray-300'
+                          }`}>
+                            {s.type ?? (s.signal === 'NEUTRAL' ? 'HOLD' : s.signal)}
+                          </span>
                         </div>
                       </>
                     ) : (

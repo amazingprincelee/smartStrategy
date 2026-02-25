@@ -9,6 +9,7 @@ import {
   fetchUnreadCount,
 } from '../../redux/slices/userSlice';
 import { updateBotRealtime, updatePositionPrice } from '../../redux/slices/botSlice';
+import { addLiveSignal } from '../../redux/slices/signalSlice';
 
 const SocketContext = createContext(null);
 
@@ -48,11 +49,11 @@ export const SocketProvider = ({ children }) => {
       auth: {
         token,
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // polling first — avoids WS upgrade spam in dev
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 10,
       timeout: 20000,
       autoConnect: true,
     });
@@ -62,13 +63,20 @@ export const SocketProvider = ({ children }) => {
     // Connection event handlers
     socket.on('connect', () => {
       console.log('✅ Socket connected:', socket.id);
-      
+
       // Join user's personal room
       if (user?._id) {
         socket.emit('join-user-room', user._id);
         console.log(`📨 Joined room for user: ${user._id}`);
       }
-      
+
+      // Join the correct signal tier room
+      // Premium / Admin users get instant signals; others get 5-min delayed
+      const role = localStorage.getItem('role') || 'user';
+      const tier = (role === 'premium' || role === 'admin') ? 'premium' : 'free';
+      socket.emit('join-signals', { tier });
+      console.log(`📡 Joined signal room: signals:${tier}`);
+
       // Fetch initial unread count
       dispatch(fetchUnreadCount());
     });
@@ -93,11 +101,17 @@ export const SocketProvider = ({ children }) => {
 
     socket.on('reconnect', (attemptNumber) => {
       console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
-      
-      // Rejoin user's room and refresh data
+
+      // Rejoin user's personal room
       if (user?._id) {
         socket.emit('join-user-room', user._id);
       }
+
+      // Rejoin signal tier room
+      const role = localStorage.getItem('role') || 'user';
+      const tier = (role === 'premium' || role === 'admin') ? 'premium' : 'free';
+      socket.emit('join-signals', { tier });
+
       dispatch(fetchUnreadCount());
     });
 
@@ -146,6 +160,27 @@ export const SocketProvider = ({ children }) => {
     socket.on('notification:allRead', () => {
       console.log('✅ All notifications marked as read');
       dispatch(fetchUnreadCount());
+    });
+
+    // Live signal events
+    socket.on('new-signal', (signal) => {
+      console.log('📡 New signal received:', signal.pair, signal.type);
+
+      // Add to the redux store
+      dispatch(addLiveSignal(signal));
+
+      // Show toast notification
+      const isLong  = signal.type === 'LONG';
+      const icon    = isLong ? '📈' : '📉';
+      const conf    = signal.confidenceScore ? ` (${(signal.confidenceScore * 100).toFixed(0)}%)` : '';
+      const delayed = signal.delayedBy > 0 ? ' — upgrade for instant signals' : '';
+      const msg     = `${icon} ${signal.type} ${signal.pair}${conf}${delayed}`;
+
+      if (isLong) {
+        toast.success(msg, { autoClose: 8000 });
+      } else {
+        toast.error(msg, { autoClose: 8000 });
+      }
     });
 
     // Bot event handlers
