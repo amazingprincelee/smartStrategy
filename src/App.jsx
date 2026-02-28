@@ -16,6 +16,7 @@ import Settings from './components/Settings/Settings';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
 import BotDashboard from './pages/BotDashboard';
 import CreateBot from './pages/CreateBot';
 import BotDetail from './pages/BotDetail';
@@ -53,7 +54,7 @@ function App() {
                 {/* Protected Routes */}
                 <Route element={<Layout />}>
                   <Route element={<ProtectedRoute />}>
-                    <Route path="/dashboard" element={<BotDashboard />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/bots" element={<BotDashboard />} />
                     <Route path="/bots/create" element={<CreateBot />} />
                     <Route path="/bots/:id" element={<BotDetail />} />

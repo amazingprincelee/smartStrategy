@@ -14,6 +14,7 @@ import {
   HelpCircle,
   X,
 } from 'lucide-react';
+import SmartStrategyIcon from '../Logo/SmartStrategyIcon';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
@@ -80,7 +81,6 @@ const Sidebar = ({ isOpen, onClose }) => {
   ];
 
   const isActive = (href) => {
-    if (href === '/bots' && location.pathname === '/dashboard') return true;
     return location.pathname === href || location.pathname.startsWith(href + '/');
   };
 
@@ -112,9 +112,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           <div className="flex items-center space-x-2.5">
             {/* Mini icon mark */}
             <div className="relative flex-shrink-0">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700 shadow-md shadow-cyan-500/25 ring-1 ring-cyan-400/40">
-                <Bot className="w-4 h-4 text-white" strokeWidth={1.75} />
-              </div>
+              <SmartStrategyIcon size={32} />
               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500 border border-white dark:border-brandDark-800" />
@@ -122,7 +120,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             </div>
             <span className="text-base font-bold tracking-tight leading-none">
               <span className="text-gray-900 dark:text-white">Smart</span>
-              <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">Strategy</span>
+              <span className="bg-gradient-to-r from-cyan-500 to-green-400 bg-clip-text text-transparent">Strategy</span>
             </span>
           </div>
           <button
@@ -196,7 +194,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         {/* Version Info */}
         <div className="absolute bottom-4 left-4 right-4">
           <div className="text-xs text-center text-gray-500 dark:text-gray-400">
-            v2.0.0 Bot Trading
+            v2.1.0 · SmartStrategy
           </div>
         </div>
       </aside>
