@@ -10,6 +10,7 @@ import {
 } from '../../redux/slices/userSlice';
 import { updateBotRealtime, updatePositionPrice } from '../../redux/slices/botSlice';
 import { addLiveSignal } from '../../redux/slices/signalSlice';
+import { setLiveArbitrageOpportunities } from '../../redux/slices/arbitrageslice';
 
 const SocketContext = createContext(null);
 
@@ -180,6 +181,17 @@ export const SocketProvider = ({ children }) => {
         toast.success(msg, { autoClose: 8000 });
       } else {
         toast.error(msg, { autoClose: 8000 });
+      }
+    });
+
+    // Arbitrage real-time updates (pushed after every background scan)
+    socket.on('arbitrage:update', (data) => {
+      dispatch(setLiveArbitrageOpportunities(data.opportunities || []));
+      if ((data.opportunities?.length || 0) > 0) {
+        toast.info(
+          `Arbitrage: ${data.opportunities.length} opportunit${data.opportunities.length === 1 ? 'y' : 'ies'} found`,
+          { autoClose: 4000, toastId: 'arb-update' } // toastId prevents spam
+        );
       }
     });
 

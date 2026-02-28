@@ -58,24 +58,39 @@ export const runBacktest = createAsyncThunk(
   }
 );
 
+export const analyzeSignal = createAsyncThunk(
+  'signals/analyze',
+  async ({ symbol, timeframe = '1h', marketType = 'spot' }, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.post('/signals/analyze', { symbol, timeframe, marketType });
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 /* ============= SLICE ============= */
 
 const signalSlice = createSlice({
   name: 'signals',
   initialState: {
-    spot:            [],
-    futures:         [],
-    stats:           null,
-    history:         [],
-    historyMeta:     { total: 0, limit: 50, skip: 0 },
-    backtestResult:  null,
-    loading:         false,
-    statsLoading:    false,
-    historyLoading:  false,
-    backtestLoading: false,
-    error:           null,
-    backtestError:   null,
-    lastUpdated:     null,
+    spot:             [],
+    futures:          [],
+    stats:            null,
+    history:          [],
+    historyMeta:      { total: 0, limit: 50, skip: 0 },
+    backtestResult:   null,
+    analysis:         null,
+    loading:          false,
+    statsLoading:     false,
+    historyLoading:   false,
+    backtestLoading:  false,
+    analysisLoading:  false,
+    error:            null,
+    backtestError:    null,
+    analysisError:    null,
+    lastUpdated:      null,
   },
   reducers: {
     // Invoked by SocketContext when a live signal arrives via WebSocket
@@ -88,6 +103,10 @@ const signalSlice = createSlice({
     clearBacktestResult(state) {
       state.backtestResult = null;
       state.backtestError  = null;
+    },
+    clearAnalysis(state) {
+      state.analysis      = null;
+      state.analysisError = null;
     },
   },
   extraReducers: (builder) => {
@@ -118,8 +137,13 @@ const signalSlice = createSlice({
       .addCase(runBacktest.pending,   (state) => { state.backtestLoading = true; state.backtestError = null; state.backtestResult = null; })
       .addCase(runBacktest.fulfilled, (state, { payload }) => { state.backtestLoading = false; state.backtestResult = payload; })
       .addCase(runBacktest.rejected,  (state, { payload }) => { state.backtestLoading = false; state.backtestError = payload; });
+
+    builder
+      .addCase(analyzeSignal.pending,   (state) => { state.analysisLoading = true; state.analysisError = null; state.analysis = null; })
+      .addCase(analyzeSignal.fulfilled, (state, { payload }) => { state.analysisLoading = false; state.analysis = payload; })
+      .addCase(analyzeSignal.rejected,  (state, { payload }) => { state.analysisLoading = false; state.analysisError = payload; });
   },
 });
 
-export const { addLiveSignal, clearBacktestResult } = signalSlice.actions;
+export const { addLiveSignal, clearBacktestResult, clearAnalysis } = signalSlice.actions;
 export default signalSlice.reducer;

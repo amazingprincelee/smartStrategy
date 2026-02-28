@@ -329,12 +329,18 @@ const Dashboard = () => {
             <div className="p-4 rounded-xl bg-gray-50 dark:bg-brandDark-900 border border-emerald-500/30">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">{topArb.coin}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{topArb.coinName}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {topArb.symbol || topArb.coin}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {topArb.riskLevel ? `${topArb.riskLevel} risk` : ''}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400">
                   <TrendingUp className="w-3 h-3" />
-                  <span className="text-sm font-bold">{fmt(topArb.profitMargin)}%</span>
+                  <span className="text-sm font-bold">
+                    {fmt(topArb.netProfitPercent ?? topArb.profitMargin)}%
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-xs">
@@ -346,8 +352,14 @@ const Dashboard = () => {
                   Sell: {topArb.sellExchange}
                 </span>
               </div>
+              {topArb.expectedProfitUSD != null && (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Est. profit: <span className="text-emerald-400 font-medium">${fmt(topArb.expectedProfitUSD)}</span>
+                  {' · '} trade size: ${fmt(topArb.optimalTradeValueUSD, 0)}
+                </p>
+              )}
               {opportunities.length > 1 && (
-                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   +{opportunities.length - 1} more opportunities found
                 </p>
               )}

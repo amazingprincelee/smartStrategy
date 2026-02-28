@@ -130,16 +130,25 @@ const arbitrageSlice = createSlice({
       state.error = null;
       state.successMessage = null;
     },
-    
+
     // Reset arbitrage state
     resetArbitrageState: (state) => {
       return initialState;
     },
-    
+
     // Update local stats
     updateLocalStats: (state, action) => {
       state.stats = { ...state.stats, ...action.payload };
-    }
+    },
+
+    // Live push from Socket.IO arbitrage:update event
+    setLiveArbitrageOpportunities: (state, action) => {
+      const opportunities = action.payload || [];
+      state.opportunities = opportunities;
+      state.metadata.lastUpdate = new Date().toISOString();
+      state.metadata.isRefreshing = false;
+      state.stats.totalOpportunities = opportunities.length;
+    },
   },
   
   extraReducers: (builder) => {
@@ -272,7 +281,8 @@ const arbitrageSlice = createSlice({
 export const {
   clearArbitrageMessages,
   resetArbitrageState,
-  updateLocalStats
+  updateLocalStats,
+  setLiveArbitrageOpportunities,
 } = arbitrageSlice.actions;
 
 export default arbitrageSlice.reducer;
