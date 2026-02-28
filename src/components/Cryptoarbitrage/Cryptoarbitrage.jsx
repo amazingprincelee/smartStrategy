@@ -14,14 +14,11 @@ import {
   AlertTriangle,
   Shield,
   Activity,
-  Zap,
-  Download,
   History,
   Bell,
 } from 'lucide-react';
 import {
   fetchArbitrageOpportunities,
-  refreshArbitrageOpportunities,
   fetchArbitrageStatus,
   clearArbitrageMessages
 } from '../../redux/slices/arbitrageslice';
@@ -50,7 +47,6 @@ const CryptoArbitrage = () => {
 
   const [successMsg, setSuccessMsg] = useState('');
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Past opportunities (stored, ≥2% profit)
   const [pastOpps, setPastOpps] = useState([]);
@@ -82,16 +78,19 @@ const CryptoArbitrage = () => {
 
   // Check status on mount and set up status polling
   useEffect(() => {
-    // Check status immediately
     dispatch(fetchArbitrageStatus());
-    
-    // Poll status every 10 seconds to check if data is ready
     const statusInterval = setInterval(() => {
       dispatch(fetchArbitrageStatus());
     }, 10000);
-    
     return () => clearInterval(statusInterval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-load opportunities as soon as the scanner reports it has data
+  useEffect(() => {
+    if (status.isReady) {
+      dispatch(fetchArbitrageOpportunities());
+    }
+  }, [status.isReady, dispatch]);
 
   // Handle success messages
   useEffect(() => {
@@ -101,18 +100,6 @@ const CryptoArbitrage = () => {
       setTimeout(() => setSuccessMsg(''), 5000);
     }
   }, [successMessage, dispatch]);
-
-  // Manual load opportunities (user clicks button)
-  const handleLoadOpportunities = () => {
-    dispatch(fetchArbitrageOpportunities());
-    setHasLoadedOnce(true);
-  };
-
-  // Manual refresh (force new data fetch)
-  const handleManualRefresh = () => {
-    dispatch(refreshArbitrageOpportunities());
-    setSuccessMsg('Manual refresh triggered. New data will be ready in 2-5 minutes...');
-  };
 
   // Filter and sort opportunities (compatible with new Order Book-based system)
   const filteredOpportunities = (opportunities || [])
@@ -190,26 +177,6 @@ const CryptoArbitrage = () => {
             </div>
           )}
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleLoadOpportunities}
-            disabled={loading.opportunities || !status.isReady}
-            className="btn-secondary"
-            title="Load/Reload opportunities"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading.opportunities ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{hasLoadedOnce ? 'Reload' : 'Load'}</span>
-          </button>
-          <button
-            onClick={handleManualRefresh}
-            disabled={loading.refreshing || status.isLoading}
-            className="btn-primary"
-            title="Force new data fetch (takes 2-5 min)"
-          >
-            <Zap className={`w-4 h-4 ${loading.refreshing ? 'animate-pulse' : ''}`} />
-            <span className="hidden sm:inline">Force Update</span>
-          </button>
-        </div>
       </div>
 
       {/* Success Message */}
@@ -227,14 +194,6 @@ const CryptoArbitrage = () => {
           <div className="flex-1">
             <h3 className="font-medium text-red-800 dark:text-red-200">Error Loading Data</h3>
             <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
-            {status.isReady && (
-              <button
-                onClick={handleLoadOpportunities}
-                className="mt-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400"
-              >
-                Try Again →
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -388,144 +347,37 @@ const CryptoArbitrage = () => {
 
       {/* Opportunities Table - Always show */}
       <div className="card">
-        {/* Loading State */}
-        {loading.opportunities ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <RefreshCw className="w-12 h-12 mb-4 animate-spin text-primary-600" />
+        {/* Loading / Scanning State */}
+        {loading.opportunities || (status.isLoading && !status.isReady) ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <RefreshCw className="w-10 h-10 mb-4 animate-spin text-primary-500" />
             <p className="text-gray-600 dark:text-gray-400">
-              Loading arbitrage opportunities...
+              {status.isLoading && !status.isReady
+                ? 'Scanning exchanges for arbitrage opportunities…'
+                : 'Loading opportunities…'}
             </p>
+            {status.isLoading && !status.isReady && (
+              <p className="mt-1 text-xs text-gray-400">This usually takes 2–5 minutes on first run.</p>
+            )}
           </div>
-        ) : /* Initializing State - Scanner is fetching data */
-        status.isLoading && !status.isReady && !hasLoadedOnce ? (
-          <div className="py-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-              </div>
-              <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">
-                Scanning Exchanges...
-              </h3>
-              <p className="max-w-md mb-4 text-gray-600 dark:text-gray-400">
-                The arbitrage scanner is fetching price data from exchanges. This usually takes 2-5 minutes on first load.
-              </p>
-              <div className="w-full max-w-xs">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-500">Finding opportunities</span>
-                  <span className="px-2 py-0.5 text-xs font-bold text-white bg-blue-600 rounded-full">
-                    {status.opportunitiesCount || 0}
-                  </span>
-                </div>
-                {/* Dynamic progress bar based on opportunities found */}
-                <div className="relative w-full h-3 overflow-hidden bg-gray-200 rounded-full dark:bg-gray-700">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
-                    style={{
-                      width: `${Math.min(95, Math.max(15, (status.opportunitiesCount || 0) / 1.5))}%`
-                    }}
-                  />
-                  {/* Moving shine effect */}
-                  <div className="absolute inset-0 overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"
-                      style={{
-                        left: '0%',
-                        animation: 'moveRight 1.5s ease-in-out infinite'
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-gray-400">
-                    Scanning markets...
-                  </p>
-                  <p className="text-xs text-blue-500 font-medium">
-                    {Math.min(95, Math.max(15, Math.round((status.opportunitiesCount || 0) / 1.5)))}%
-                  </p>
-                </div>
-              </div>
-            </div>
+        ) : /* Waiting for first status response */
+        !status.isReady && !status.isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Activity className="w-10 h-10 mb-4 text-gray-400 animate-pulse" />
+            <p className="text-gray-600 dark:text-gray-400">Connecting to scanner…</p>
           </div>
-        ) : /* Ready to Load State */
-        status.isReady && !hasLoadedOnce ? (
-          <div className="py-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-green-100 dark:bg-green-900/30">
-                <Download className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">
-                {status.opportunitiesCount || 0} Opportunities Ready!
-              </h3>
-              <p className="max-w-md mb-4 text-gray-600 dark:text-gray-400">
-                Background scanning complete. Click below to load and view all arbitrage opportunities.
-              </p>
-              <button
-                onClick={handleLoadOpportunities}
-                disabled={loading.opportunities}
-                className="btn-primary"
-              >
-                <Download className={`w-5 h-5 ${loading.opportunities ? 'animate-bounce' : ''}`} />
-                <span>Load Opportunities</span>
-              </button>
-              {status.lastUpdate && (
-                <p className="mt-3 text-xs text-gray-500">
-                  Data updated: {new Date(status.lastUpdate).toLocaleString()}
-                </p>
-              )}
-            </div>
-          </div>
-        ) : /* Waiting for Scanner State */
-        !status.isReady && !status.isLoading && !hasLoadedOnce ? (
-          <div className="py-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-gray-100 dark:bg-gray-800">
-                <Activity className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">
-                Connecting to Scanner...
-              </h3>
-              <p className="max-w-md mb-4 text-gray-600 dark:text-gray-400">
-                Checking arbitrage scanner status. Please wait a moment...
-              </p>
-              <button
-                onClick={() => dispatch(fetchArbitrageStatus())}
-                className="btn-secondary"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Check Status</span>
-              </button>
-            </div>
-          </div>
-        ) : /* No Data After Loading */
-        hasLoadedOnce && filteredOpportunities.length === 0 ? (
+        ) : /* No opportunities after loading */
+        filteredOpportunities.length === 0 ? (
           <div className="py-12 text-center">
             <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">
               No Opportunities Found
             </h3>
-            <p className="mb-4 text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400">
               {opportunities.length === 0
-                ? "No arbitrage opportunities available at the moment."
-                : "Try adjusting your filters to see more opportunities."}
+                ? 'No arbitrage opportunities at the moment. The scanner runs every 5 minutes.'
+                : 'Try adjusting your filters to see more opportunities.'}
             </p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={handleLoadOpportunities}
-                disabled={loading.opportunities}
-                className="btn-secondary"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading.opportunities ? 'animate-spin' : ''}`} />
-                <span>Reload</span>
-              </button>
-              <button
-                onClick={handleManualRefresh}
-                disabled={loading.refreshing || status.isLoading}
-                className="btn-primary"
-              >
-                <Zap className="w-4 h-4" />
-                <span>Force Update</span>
-              </button>
-            </div>
           </div>
         ) : /* Data Table */ (
             <div className="overflow-x-auto">

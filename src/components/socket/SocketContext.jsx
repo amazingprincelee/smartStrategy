@@ -184,6 +184,17 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
+    // Background TA sweep results — populate Spot/Futures signal tabs
+    socket.on('signals:sweep', (signals) => {
+      if (!Array.isArray(signals) || signals.length === 0) return;
+      console.log(`📡 Sweep: ${signals.length} signal(s) received`);
+      signals.forEach(signal => dispatch(addLiveSignal(signal)));
+      toast.info(
+        `${signals.length} new signal${signals.length > 1 ? 's' : ''} from market sweep`,
+        { autoClose: 5000, toastId: 'sweep-update' }
+      );
+    });
+
     // Arbitrage real-time updates (pushed after every background scan)
     socket.on('arbitrage:update', (data) => {
       dispatch(setLiveArbitrageOpportunities(data.opportunities || []));
