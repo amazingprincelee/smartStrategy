@@ -155,6 +155,7 @@ const Home = () => {
   };
 
   const handleGetStarted = () => navigate(isAuth ? '/dashboard' : '/register');
+  const handleLogin      = () => navigate(isAuth ? '/dashboard' : '/login');
 
   const displaySignals = activeTab === 'spot' ? spot : futures;
 
@@ -235,14 +236,14 @@ const Home = () => {
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <button
-                onClick={handleGetStarted}
+                onClick={handleLogin}
                 className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-base shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-200"
               >
                 Start Trading Free
                 <ArrowRight className="w-5 h-5" />
               </button>
               <Link
-                to="/demo"
+                to="/register"
                 className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border border-white/20 bg-white/5 text-white font-semibold text-base hover:bg-white/10 transition-colors duration-200"
               >
                 <FlaskConical className="w-5 h-5 text-purple-400" />
