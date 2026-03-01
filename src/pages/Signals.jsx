@@ -1,9 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  fetchSignals,
-  fetchPlatformStats,
-  fetchSignalHistory,
   runBacktest,
   clearBacktestResult,
   analyzeSignal,
@@ -11,23 +8,14 @@ import {
 } from '../redux/slices/signalSlice';
 import {
   Activity,
-  TrendingUp,
-  TrendingDown,
   RefreshCw,
   Zap,
   BarChart2,
-  Clock,
   Lock,
   Crown,
-  ChevronRight,
-  History,
   FlaskConical,
-  ArrowUpRight,
-  ArrowDownRight,
   Target,
   Shield,
-  Layers,
-  Brain,
   Search,
   CheckCircle,
   XCircle,
@@ -55,239 +43,6 @@ function fmtTime(iso) {
     month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
-}
-
-/* ─────────────────────────────────────── SignalCard ── */
-
-function SignalCard({ s, isPremium }) {
-  const isLong = s.type === 'LONG';
-  const conf   = s.confidenceScore ?? 0;
-  const confPct = Math.round(conf * 100);
-
-  const border = isLong ? 'border-green-500/35' : 'border-red-500/35';
-  const bg     = isLong ? 'bg-green-500/8'      : 'bg-red-500/8';
-  const badge  = isLong
-    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-    : 'bg-red-500/20 text-red-300 border border-red-500/30';
-  const barColor = isLong
-    ? 'bg-gradient-to-r from-green-500 to-emerald-400'
-    : 'bg-gradient-to-r from-red-500 to-rose-400';
-
-  const mtf = s.mtfAlignment ?? {};
-  const mtfKeys = ['1m','5m','15m','1h'];
-
-  return (
-    <div className={`relative flex flex-col gap-3 p-4 rounded-xl border ${border} ${bg} transition-all duration-200 hover:scale-[1.012] hover:shadow-lg`}>
-
-      {/* Top row — pair + badge */}
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-base font-bold text-white">
-              {(s.pair ?? s.symbol ?? '').replace('/USDT','').replace('USDT','')}
-            </span>
-            <span className="text-xs text-gray-500">/USDT</span>
-            {s.marketType === 'futures' && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-bold uppercase">PERP</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-gray-500">{s.exchange ?? 'Binance'}</span>
-            <span className="text-gray-600">·</span>
-            <span className="text-[10px] uppercase tracking-wider text-gray-500">{s.timeframe ?? '1h'}</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-end gap-1">
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${badge}`}>
-            {isLong ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-            {s.type}
-          </span>
-          {s.leverage && s.leverage > 1 && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-bold">
-              {s.leverage}×
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Entry / SL / TP */}
-      <div className="grid grid-cols-3 gap-2 text-center">
-        {[
-          { label: 'Entry',      icon: Target,  val: s.entry,     color: 'text-cyan-300'  },
-          { label: 'Stop Loss',  icon: Shield,  val: s.stopLoss,  color: 'text-red-400'   },
-          { label: 'Take Profit',icon: Zap,     val: s.takeProfit,color: 'text-green-400' },
-        ].map(({ label, icon: Icon, val, color }) => (
-          <div key={label} className="relative flex flex-col items-center gap-0.5 p-1.5 rounded-lg bg-white/4 border border-white/5">
-            <Icon className={`w-3 h-3 ${color} mb-0.5`} />
-            <span className="text-[9px] text-gray-500 uppercase tracking-wider">{label}</span>
-            {isPremium ? (
-              <span className={`text-[11px] font-bold ${color}`}>
-                ${fmt(val, 4)}
-              </span>
-            ) : (
-              <span className="text-[11px] font-bold text-gray-600 blur-[4px] select-none">
-                ${fmt(val, 4)}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* R:R badge + AI confidence */}
-      <div className="flex items-center gap-2">
-        {s.riskReward != null && (
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
-            s.riskReward >= 2
-              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
-              : 'bg-gray-500/15 text-gray-400 border-gray-500/20'
-          }`}>
-            R:R {Number(s.riskReward).toFixed(1)}
-          </span>
-        )}
-        {s.aiSource && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/20 font-semibold flex items-center gap-0.5">
-            <Brain className="w-2.5 h-2.5" /> {s.aiSource === 'model' ? 'AI' : 'Rules'}
-          </span>
-        )}
-      </div>
-
-      {/* Confidence bar */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">AI Confidence</span>
-          <span className={`text-[10px] font-bold ${confPct >= 80 ? 'text-emerald-400' : confPct >= 65 ? 'text-yellow-400' : 'text-gray-400'}`}>
-            {confPct}%
-          </span>
-        </div>
-        <div className="h-1.5 rounded-full bg-white/8">
-          <div
-            className={`h-1.5 rounded-full transition-all duration-500 ${barColor}`}
-            style={{ width: `${confPct}%` }}
-          />
-        </div>
-      </div>
-
-      {/* MTF alignment */}
-      {Object.keys(mtf).length > 0 && (
-        <div className="flex items-center gap-1.5">
-          <Layers className="w-3 h-3 text-gray-500 flex-shrink-0" />
-          <div className="flex gap-1">
-            {mtfKeys.map(tf => {
-              const val = mtf[tf];
-              if (val == null) return null;
-              const aligned = isLong ? val > 0 : val < 0;
-              return (
-                <span key={tf} className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
-                  aligned ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/15 text-red-400'
-                }`}>
-                  {tf}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Reasons */}
-      {Array.isArray(s.reasons) && s.reasons.length > 0 && (
-        <div className="border-t border-white/5 pt-2 flex flex-wrap gap-1">
-          {s.reasons.slice(0, 3).map((r, i) => (
-            <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500">
-              {r}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Premium lock overlay hint */}
-      {!isPremium && (
-        <div className="flex items-center gap-1.5 text-[10px] text-amber-500/70">
-          <Lock className="w-3 h-3" />
-          <span>Upgrade for entry & levels</span>
-        </div>
-      )}
-
-      {/* Timestamp */}
-      <p className="text-[9px] text-gray-700 -mt-1">
-        {fmtTime(s.timestamp)}
-      </p>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────── Skeleton ── */
-
-function SignalSkeleton() {
-  return (
-    <div className="p-4 rounded-xl border border-white/8 bg-white/3 animate-pulse">
-      <div className="flex justify-between mb-3">
-        <div className="space-y-1.5">
-          <div className="h-4 w-20 bg-white/10 rounded" />
-          <div className="h-3 w-14 bg-white/6 rounded" />
-        </div>
-        <div className="h-6 w-16 bg-white/10 rounded-full" />
-      </div>
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {[0,1,2].map(i => <div key={i} className="h-12 bg-white/8 rounded-lg" />)}
-      </div>
-      <div className="h-1.5 bg-white/8 rounded-full mt-2" />
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────── StatCard ── */
-
-function StatCard({ label, value, icon: Icon, gradient, loading }) {
-  return (
-    <div className="flex items-center gap-3 p-4 rounded-xl bg-white/4 border border-white/8">
-      <div className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} shadow-md`}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-      <div>
-        {loading
-          ? <div className="h-5 w-16 bg-white/10 rounded animate-pulse mb-1" />
-          : <p className="text-xl font-extrabold text-white leading-none">{value ?? '—'}</p>
-        }
-        <p className="text-xs text-gray-400 mt-0.5">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────── HistoryRow ── */
-
-function HistoryRow({ s }) {
-  const isLong = s.type === 'LONG';
-  return (
-    <tr className="border-b border-white/5 hover:bg-white/3 transition-colors">
-      <td className="py-2.5 px-3 text-sm font-semibold text-white">
-        {(s.pair ?? s.symbol ?? '').replace('USDT', '')}
-        <span className="text-gray-600 text-xs">/USDT</span>
-      </td>
-      <td className="py-2.5 px-3">
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-          isLong ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-        }`}>
-          {s.type}
-        </span>
-      </td>
-      <td className="py-2.5 px-3 text-xs text-gray-300 capitalize">{s.marketType}</td>
-      <td className="py-2.5 px-3 text-xs text-gray-300">{s.timeframe}</td>
-      <td className="py-2.5 px-3 text-xs text-cyan-300 font-medium">
-        {s.confidenceScore != null ? `${Math.round(s.confidenceScore * 100)}%` : '—'}
-      </td>
-      <td className="py-2.5 px-3 text-xs text-gray-400">{fmtTime(s.timestamp)}</td>
-      <td className="py-2.5 px-3">
-        <span className={`text-xs font-medium ${
-          s.outcome === 'win'  ? 'text-green-400' :
-          s.outcome === 'loss' ? 'text-red-400'   : 'text-gray-500'
-        }`}>
-          {s.outcome ?? 'pending'}
-        </span>
-      </td>
-    </tr>
-  );
 }
 
 /* ─────────────────────────────────────── MetricCard ── */
@@ -327,11 +82,8 @@ function BacktestTradeRow({ t, i }) {
 /* ─────────────────────────────────────── Page ── */
 
 const TABS = [
-  { key: 'spot',     label: 'Spot',     icon: TrendingUp   },
-  { key: 'futures',  label: 'Futures',  icon: Layers       },
-  { key: 'history',  label: 'History',  icon: History      },
-  { key: 'backtest', label: 'Backtest', icon: FlaskConical  },
-  { key: 'analyze',  label: 'Analyze',  icon: Search        },
+  { key: 'backtest', label: 'Backtest', icon: FlaskConical },
+  { key: 'analyze',  label: 'Analyze',  icon: Search       },
 ];
 
 const ANALYZE_PAIRS = [
@@ -346,22 +98,15 @@ const BACKTEST_TFS     = ['1m','5m','15m','1h','4h'];
 
 const Signals = () => {
   const dispatch  = useDispatch();
-  const { spot, futures, stats, history, historyMeta,
-          backtestResult, analysis, loading, statsLoading,
-          historyLoading, backtestLoading, analysisLoading,
-          backtestError, analysisError, lastUpdated } =
+  const { backtestResult, analysis,
+          backtestLoading, analysisLoading,
+          backtestError, analysisError } =
     useSelector(state => state.signals);
 
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
   const isPremium = isPremiumUser(role);
 
-  const [activeTab,   setActiveTab]   = useState('spot');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [secondsLeft, setSecondsLeft] = useState(300);
-  const [typeFilter,  setTypeFilter]  = useState('all');
-
-  // History filters
-  const [hFilter, setHFilter] = useState({ marketType: '', type: '', minConfidence: '' });
+  const [activeTab, setActiveTab] = useState('analyze');
 
   // Backtest form
   const [btForm, setBtForm] = useState({
@@ -373,44 +118,6 @@ const Signals = () => {
   const [azForm, setAzForm] = useState({
     symbol: 'BTCUSDT', timeframe: '1h', marketType: 'spot',
   });
-
-  /* Initial fetch */
-  useEffect(() => {
-    dispatch(fetchSignals('spot'));
-    dispatch(fetchSignals('futures'));
-    dispatch(fetchPlatformStats());
-  }, [dispatch]);
-
-  /* Auto-refresh live signals */
-  useEffect(() => {
-    if (!autoRefresh || (activeTab !== 'spot' && activeTab !== 'futures')) return;
-    const ticker    = setInterval(() => setSecondsLeft(s => s <= 1 ? 300 : s - 1), 1000);
-    const refresher = setInterval(() => {
-      dispatch(fetchSignals('spot'));
-      dispatch(fetchSignals('futures'));
-      dispatch(fetchPlatformStats());
-      setSecondsLeft(300);
-    }, 300_000);
-    return () => { clearInterval(ticker); clearInterval(refresher); };
-  }, [dispatch, autoRefresh, activeTab]);
-
-  /* Fetch history when tab opens */
-  useEffect(() => {
-    if (activeTab === 'history') {
-      dispatch(fetchSignalHistory({ ...hFilter, limit: 50 }));
-    }
-  }, [activeTab]); // eslint-disable-line
-
-  const handleRefresh = useCallback(() => {
-    dispatch(fetchSignals('spot'));
-    dispatch(fetchSignals('futures'));
-    dispatch(fetchPlatformStats());
-    setSecondsLeft(300);
-  }, [dispatch]);
-
-  const handleHistorySearch = () => {
-    dispatch(fetchSignalHistory({ ...hFilter, limit: 50, skip: 0 }));
-  };
 
   const handleBacktest = (e) => {
     e.preventDefault();
@@ -427,14 +134,6 @@ const Signals = () => {
     dispatch(clearAnalysis());
     dispatch(analyzeSignal(azForm));
   };
-
-  const rawSignals = activeTab === 'spot' ? spot : futures;
-  const filtered   = typeFilter === 'all'
-    ? rawSignals
-    : rawSignals.filter(s => s.type === typeFilter);
-
-  const longCount  = rawSignals.filter(s => s.type === 'LONG').length;
-  const shortCount = rawSignals.filter(s => s.type === 'SHORT').length;
 
   const bt = backtestResult;
 
@@ -453,52 +152,13 @@ const Signals = () => {
               Hybrid AI + multi-timeframe signals with ATR-based risk management.
             </p>
           </div>
-
-          <div className="flex items-center gap-3">
-            {(activeTab === 'spot' || activeTab === 'futures') && (
-              <>
-                <button
-                  onClick={() => setAutoRefresh(a => !a)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    autoRefresh
-                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                      : 'bg-white/5 text-gray-400 border border-white/10'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  {autoRefresh
-                    ? `Auto (${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2,'0')})`
-                    : 'Auto Off'}
-                </button>
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-              </>
-            )}
-            {!isPremium && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                <Crown className="w-3.5 h-3.5" />
-                Free Tier
-              </span>
-            )}
-          </div>
+          {!isPremium && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/25">
+              <Crown className="w-3.5 h-3.5" />
+              Free Tier
+            </span>
+          )}
         </div>
-        {lastUpdated && (
-          <p className="mt-1 text-[11px] text-gray-600">Last updated: {fmtTime(lastUpdated)}</p>
-        )}
-      </div>
-
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Active Signals"    value={stats?.activeSignals}     icon={Zap}         gradient="from-cyan-500 to-blue-600"    loading={statsLoading} />
-        <StatCard label="Long Signals"      value={stats?.buySignals}        icon={TrendingUp}  gradient="from-green-500 to-emerald-600" loading={statsLoading} />
-        <StatCard label="Short Signals"     value={stats?.sellSignals}       icon={TrendingDown} gradient="from-red-500 to-rose-600"    loading={statsLoading} />
-        <StatCard label="Signals Today"     value={stats?.totalSignalsToday} icon={BarChart2}   gradient="from-purple-500 to-violet-600" loading={statsLoading} />
       </div>
 
       {/* ── Tabs ── */}
@@ -518,140 +178,6 @@ const Signals = () => {
           </button>
         ))}
       </div>
-
-      {/* ════════════ SPOT / FUTURES ════════════ */}
-      {(activeTab === 'spot' || activeTab === 'futures') && (
-        <>
-          {/* Type filter + counts */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            {['all','LONG','SHORT'].map(k => (
-              <button
-                key={k}
-                onClick={() => setTypeFilter(k)}
-                className={`text-xs px-3 py-1 rounded-full font-semibold transition-colors ${
-                  typeFilter === k
-                    ? k === 'LONG'  ? 'bg-green-500/25 text-green-300 border border-green-500/40'
-                    : k === 'SHORT' ? 'bg-red-500/25 text-red-300 border border-red-500/40'
-                    : 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
-                    : 'bg-white/5 text-gray-500 border border-white/8 hover:text-gray-300'
-                }`}
-              >
-                {k === 'all' ? `All (${rawSignals.length})` : k === 'LONG' ? `Long (${longCount})` : `Short (${shortCount})`}
-              </button>
-            ))}
-          </div>
-
-          {loading && filtered.length === 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => <SignalSkeleton key={i} />)}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Activity className="w-12 h-12 text-gray-600 mb-3" />
-              <p className="text-gray-400 font-medium">No signals yet</p>
-              <p className="text-gray-600 text-sm mt-1">The engine scans markets every 5 minutes.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filtered.map((s, i) => (
-                <SignalCard key={`${s.pair ?? s.symbol}-${i}`} s={s} isPremium={isPremium} />
-              ))}
-            </div>
-          )}
-
-          {/* Free-tier upgrade nudge */}
-          {!isPremium && (
-            <div className="mt-6 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 flex items-center gap-3">
-              <Crown className="w-5 h-5 text-amber-400 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-amber-300">Upgrade to Premium</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Unlock instant signals (no 5-min delay), exact entry/SL/TP prices, and signal history.
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ════════════ HISTORY ════════════ */}
-      {activeTab === 'history' && (
-        <div className="space-y-5">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3 p-4 rounded-xl bg-white/3 border border-white/8">
-            <select
-              value={hFilter.marketType}
-              onChange={e => setHFilter(f => ({ ...f, marketType: e.target.value }))}
-              className="px-3 py-1.5 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-300 focus:outline-none focus:border-cyan-500/50"
-            >
-              <option value="">All Markets</option>
-              <option value="spot">Spot</option>
-              <option value="futures">Futures</option>
-            </select>
-            <select
-              value={hFilter.type}
-              onChange={e => setHFilter(f => ({ ...f, type: e.target.value }))}
-              className="px-3 py-1.5 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-300 focus:outline-none focus:border-cyan-500/50"
-            >
-              <option value="">All Types</option>
-              <option value="LONG">Long</option>
-              <option value="SHORT">Short</option>
-            </select>
-            <select
-              value={hFilter.minConfidence}
-              onChange={e => setHFilter(f => ({ ...f, minConfidence: e.target.value }))}
-              className="px-3 py-1.5 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-300 focus:outline-none focus:border-cyan-500/50"
-            >
-              <option value="">Any Confidence</option>
-              <option value="0.75">≥ 75%</option>
-              <option value="0.85">≥ 85%</option>
-              <option value="0.90">≥ 90%</option>
-            </select>
-            <button
-              onClick={handleHistorySearch}
-              className="px-4 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-sm font-medium hover:bg-cyan-500/30 transition-colors"
-            >
-              Search
-            </button>
-          </div>
-
-          {/* Table */}
-          {historyLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-10 rounded-lg bg-white/4 animate-pulse" />
-              ))}
-            </div>
-          ) : history.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-center">
-              <History className="w-12 h-12 text-gray-600 mb-3" />
-              <p className="text-gray-400">No signal history found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/8">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-white/8 bg-white/3">
-                    {['Pair','Type','Market','TF','Confidence','Time','Outcome'].map(h => (
-                      <th key={h} className="py-2.5 px-3 text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((s, i) => <HistoryRow key={s._id ?? i} s={s} />)}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <p className="text-xs text-gray-600">
-            Showing {history.length} of {historyMeta?.total ?? 0} signals
-          </p>
-        </div>
-      )}
 
       {/* ════════════ BACKTEST ════════════ */}
       {activeTab === 'backtest' && (
@@ -896,7 +422,7 @@ const Signals = () => {
                 <Search className="w-12 h-12 text-gray-600 mb-3" />
                 <p className="text-gray-400 font-medium">Select a pair and click Analyze</p>
                 <p className="text-gray-600 text-sm mt-1">
-                  The engine reads real-time candles from Binance and scores 6 technical indicators.
+                  The engine reads real-time candles and scores 6 technical indicators.
                 </p>
               </div>
             )}
@@ -983,13 +509,12 @@ const Signals = () => {
                       </div>
                     </div>
 
-                    {/* Neutral message */}
                     {!hasSignal && az.message && (
                       <p className="text-xs text-gray-500 mt-2">{az.message}</p>
                     )}
                   </div>
 
-                  {/* ── Entry / SL / TP (only if signal) ── */}
+                  {/* ── Entry / SL / TP ── */}
                   {hasSignal && (
                     <div className="grid grid-cols-3 gap-3">
                       {[
@@ -1043,7 +568,6 @@ const Signals = () => {
                       </h4>
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {/* RSI */}
                         {az.indicators.rsi != null && (
                           <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
                             <span className="text-[9px] text-gray-600 uppercase tracking-wider">RSI (14)</span>
@@ -1056,7 +580,6 @@ const Signals = () => {
                           </div>
                         )}
 
-                        {/* EMA cross */}
                         {az.indicators.ema20 != null && az.indicators.ema50 != null && (
                           <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
                             <span className="text-[9px] text-gray-600 uppercase tracking-wider">EMA 20/50</span>
@@ -1069,7 +592,6 @@ const Signals = () => {
                           </div>
                         )}
 
-                        {/* EMA200 */}
                         {az.indicators.ema200 != null && az.currentPrice != null && (
                           <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
                             <span className="text-[9px] text-gray-600 uppercase tracking-wider">EMA 200</span>
@@ -1080,7 +602,6 @@ const Signals = () => {
                           </div>
                         )}
 
-                        {/* MACD */}
                         {az.indicators.macd != null && (
                           <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
                             <span className="text-[9px] text-gray-600 uppercase tracking-wider">MACD</span>
@@ -1093,7 +614,6 @@ const Signals = () => {
                           </div>
                         )}
 
-                        {/* Bollinger Bands */}
                         {az.indicators.bb != null && az.currentPrice != null && (() => {
                           const bb = az.indicators.bb;
                           const range = bb.upper - bb.lower;
@@ -1109,7 +629,6 @@ const Signals = () => {
                           );
                         })()}
 
-                        {/* ATR */}
                         {az.indicators.atr != null && (
                           <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
                             <span className="text-[9px] text-gray-600 uppercase tracking-wider">ATR (14)</span>
@@ -1120,7 +639,6 @@ const Signals = () => {
                           </div>
                         )}
 
-                        {/* Volume ratio */}
                         {az.indicators.volRatio != null && (
                           <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
                             <span className="text-[9px] text-gray-600 uppercase tracking-wider">Vol Ratio</span>

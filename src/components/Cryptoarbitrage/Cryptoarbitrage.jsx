@@ -24,19 +24,24 @@ import {
 } from '../../redux/slices/arbitrageslice';
 import { authAPI } from '../../services/api';
 
+const isPremiumUser = (role) => role === 'premium' || role === 'admin';
+
 const CryptoArbitrage = () => {
   const dispatch = useDispatch();
-  
+
   // Get data from Redux store
-  const { 
-    opportunities = [], 
-    loading = {}, 
-    error, 
+  const {
+    opportunities = [],
+    loading = {},
+    error,
     successMessage,
     metadata = {},
     stats = {},
     status = {}
   } = useSelector((state) => state.arbitrage || {});
+
+  const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
+  const isPremium = isPremiumUser(role);
 
   const [filters, setFilters] = useState({
     search: '',
@@ -161,7 +166,7 @@ const CryptoArbitrage = () => {
             ) : null}
           </div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Real-time arbitrage opportunities with background data refresh
+            Spot price gaps across 9 major exchanges before they close
           </p>
           {metadata.lastUpdate && (
             <div className="flex items-center gap-4 mt-2">
@@ -353,11 +358,11 @@ const CryptoArbitrage = () => {
             <RefreshCw className="w-10 h-10 mb-4 animate-spin text-primary-500" />
             <p className="text-gray-600 dark:text-gray-400">
               {status.isLoading && !status.isReady
-                ? 'Scanning exchanges for arbitrage opportunities…'
+                ? 'Hunting for price gaps across exchanges…'
                 : 'Loading opportunities…'}
             </p>
             {status.isLoading && !status.isReady && (
-              <p className="mt-1 text-xs text-gray-400">This usually takes 2–5 minutes on first run.</p>
+              <p className="mt-1 text-xs text-gray-400">Good things take a moment — checking live prices across all exchanges.</p>
             )}
           </div>
         ) : /* Waiting for first status response */
@@ -503,23 +508,26 @@ const CryptoArbitrage = () => {
 
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="text-right">
-                            {/* Net profit (after all costs) */}
+                            {/* Net profit (after all costs) — blurred for free tier */}
                             <div className={`inline-flex items-center px-2 py-1 text-sm font-semibold rounded ${
                               isProfitable
                                 ? 'text-green-700 bg-green-100 dark:bg-green-900 dark:text-green-300'
                                 : 'text-gray-700 bg-gray-100 dark:bg-gray-900 dark:text-gray-300'
-                            }`}>
+                            } ${!isPremium ? 'blur-[4px] select-none pointer-events-none' : ''}`}>
                               <TrendingUp className="w-3 h-3 mr-1" />
                               {(opp.netProfitPercent || opp.profitPercent || 0).toFixed(3)}%
                             </div>
-                            {/* Gross spread if available */}
-                            {opp.grossSpreadPercent && (
+                            {!isPremium && (
+                              <div className="mt-1 text-[10px] text-amber-500 font-semibold">Premium only</div>
+                            )}
+                            {/* Gross spread — premium only */}
+                            {isPremium && opp.grossSpreadPercent && (
                               <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 Gross: {opp.grossSpreadPercent.toFixed(3)}%
                               </div>
                             )}
-                            {/* Expected USD profit */}
-                            {opp.expectedProfitUSD ? (
+                            {/* Expected USD profit — premium only */}
+                            {isPremium && (opp.expectedProfitUSD ? (
                               <div className="mt-1 text-xs font-medium text-green-600 dark:text-green-400">
                                 ${opp.expectedProfitUSD.toFixed(2)} expected
                               </div>
@@ -527,7 +535,7 @@ const CryptoArbitrage = () => {
                               <div className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300">
                                 ${opp.profitPerCoin.toFixed(6)} per coin
                               </div>
-                            )}
+                            ))}
                           </div>
                         </td>
 
@@ -623,7 +631,7 @@ const CryptoArbitrage = () => {
               Notable Opportunities History
             </h2>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Arbitrage opportunities with ≥2% net profit — stored, monitored, and emailed to all users.
+              High-value opportunities with ≥2% net profit — {isPremium ? 'emailed to you instantly when detected.' : 'upgrade to Premium to receive instant email alerts.'}
             </p>
           </div>
 
@@ -667,13 +675,25 @@ const CryptoArbitrage = () => {
           ))}
         </div>
 
-        {/* Email alert banner */}
-        <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
-          <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-700 dark:text-amber-300">
-            <strong>Email alerts active.</strong> All users are automatically notified by email when a new opportunity ≥2% net profit is detected. Opportunities are monitored every scan cycle and marked <em>Cleared</em> when they disappear.
-          </p>
-        </div>
+        {/* Email alert banner — premium gets active alerts, free gets upgrade nudge */}
+        {isPremium ? (
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+            <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              <strong>Email alerts active.</strong> You'll be notified instantly by email whenever a new opportunity with ≥2% net profit is detected — before it closes.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-cyan-50 dark:bg-cyan-900/10 border border-cyan-200 dark:border-cyan-800/40">
+            <Bell className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs text-cyan-700 dark:text-cyan-300">
+                <strong>Get instant email alerts.</strong> Premium members are notified the moment a high-profit opportunity is detected — with full profit details and exchange info.
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Upgrade to Premium to unlock email alerts and full profit data.</p>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         {pastLoading && pastOpps.length === 0 ? (

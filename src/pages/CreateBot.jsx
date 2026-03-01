@@ -4,10 +4,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   ChevronRight, ChevronLeft, Bot, FlaskConical, Zap, Shield, CheckCircle,
-  Loader, Star, AlertCircle, Plus
+  Loader, Star, AlertCircle, Plus, Lock, Crown
 } from 'lucide-react';
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
 import { fetchAccounts } from '../redux/slices/exchangeAccountSlice';
+
+const isPremiumUser = (role) => role === 'premium' || role === 'admin';
+
+// Free tier: only DCA is available
+const FREE_STRATEGIES = ['dca'];
 
 // Volatile altcoins first — they hit RSI extremes more often → more frequent signals
 const COIN_GROUPS = [
@@ -58,6 +63,8 @@ const CreateBot = () => {
 
   const { strategies, loading: botLoading } = useSelector(state => state.bots);
   const { accounts } = useSelector(state => state.exchangeAccounts);
+  const role = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
+  const isPremium = isPremiumUser(role);
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
@@ -83,6 +90,13 @@ const CreateBot = () => {
     const sid = searchParams.get('strategy');
     if (sid) setForm(f => ({ ...f, strategyId: sid }));
   }, [searchParams]);
+
+  // Ensure free users always have an allowed strategy selected
+  useEffect(() => {
+    if (!isPremium && !FREE_STRATEGIES.includes(form.strategyId)) {
+      setForm(f => ({ ...f, strategyId: FREE_STRATEGIES[0] }));
+    }
+  }, [isPremium]);
 
   const selectedStrategy = strategies.find(s => s.id === form.strategyId);
 
@@ -282,48 +296,88 @@ const CreateBot = () => {
   // ────────────────────────────────────
   const renderStep2 = () => (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Choose Strategy</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Choose Strategy</h2>
+        {!isPremium && (
+          <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-full">
+            <Crown className="w-3.5 h-3.5" />
+            Free plan
+          </span>
+        )}
+      </div>
+
+      {!isPremium && (
+        <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-300">
+          <Crown className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>Free plan includes <strong>DCA</strong> only. Upgrade to Premium to unlock Scalper, RSI Reversal, EMA Crossover, Adaptive Grid, and Breakout strategies.</span>
+        </div>
+      )}
+
       {botLoading.strategies ? (
         <div className="flex justify-center py-8"><Loader className="w-6 h-6 animate-spin text-primary-500" /></div>
       ) : (
         <div className="grid grid-cols-1 gap-3">
-          {strategies.map(s => (
-            <button
-              key={s.id}
-              onClick={() => update('strategyId', s.id)}
-              className={`p-4 rounded-xl border-2 text-left transition-colors ${
-                form.strategyId === s.id
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                  : 'border-gray-200 dark:border-brandDark-700 hover:border-gray-300'
-              } ${RISK_COLORS[s.riskLevel]}`}
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold text-gray-900 dark:text-white text-sm leading-tight">{s.name}</span>
-                  {s.isDefault && <Star className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
-                </div>
-                <div className="flex flex-wrap justify-end items-center gap-1 flex-shrink-0">
-                  {STRATEGY_ACTIVITY[s.id] && (
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium whitespace-nowrap ${ACTIVITY_BADGE[STRATEGY_ACTIVITY[s.id].label]}`}>
-                      {STRATEGY_ACTIVITY[s.id].label}
-                    </span>
+          {strategies.map(s => {
+            const isLocked = !isPremium && !FREE_STRATEGIES.includes(s.id);
+            const isSelected = form.strategyId === s.id;
+
+            return (
+              <div key={s.id} className="relative">
+                <button
+                  onClick={() => {
+                    if (isLocked) {
+                      toast.info('Upgrade to Premium to unlock this strategy.');
+                      return;
+                    }
+                    update('strategyId', s.id);
+                  }}
+                  className={`w-full p-4 rounded-xl border-2 text-left transition-colors ${
+                    isLocked
+                      ? 'border-gray-200 dark:border-brandDark-700 opacity-60 cursor-not-allowed'
+                      : isSelected
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-gray-200 dark:border-brandDark-700 hover:border-gray-300'
+                  } ${isLocked ? '' : RISK_COLORS[s.riskLevel]}`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isLocked && <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                      <span className="font-semibold text-gray-900 dark:text-white text-sm leading-tight">{s.name}</span>
+                      {s.isDefault && !isLocked && <Star className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
+                    </div>
+                    <div className="flex flex-wrap justify-end items-center gap-1 flex-shrink-0">
+                      {isLocked ? (
+                        <span className="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap">
+                          <Crown className="w-3 h-3" />
+                          Premium
+                        </span>
+                      ) : (
+                        <>
+                          {STRATEGY_ACTIVITY[s.id] && (
+                            <span className={`px-2 py-0.5 text-xs rounded-full font-medium whitespace-nowrap ${ACTIVITY_BADGE[STRATEGY_ACTIVITY[s.id].label]}`}>
+                              {STRATEGY_ACTIVITY[s.id].label}
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${RISK_BADGE[s.riskLevel]}`}>
+                            {s.riskLevel} risk
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{s.description}</p>
+                  {!isLocked && STRATEGY_ACTIVITY[s.id] && (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{STRATEGY_ACTIVITY[s.id].detail}</p>
                   )}
-                  <span className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${RISK_BADGE[s.riskLevel]}`}>
-                    {s.riskLevel} risk
-                  </span>
-                </div>
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-xs text-gray-400">{s.timeframe}</span>
+                    <span className="text-gray-300">·</span>
+                    {s.supportedMarkets.map(m => <span key={m} className="text-xs text-gray-400 capitalize">{m}</span>)}
+                  </div>
+                </button>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{s.description}</p>
-              {STRATEGY_ACTIVITY[s.id] && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{STRATEGY_ACTIVITY[s.id].detail}</p>
-              )}
-              <div className="flex gap-2 mt-2">
-                <span className="text-xs text-gray-400">{s.timeframe}</span>
-                <span className="text-gray-300">·</span>
-                {s.supportedMarkets.map(m => <span key={m} className="text-xs text-gray-400 capitalize">{m}</span>)}
-              </div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
