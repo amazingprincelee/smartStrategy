@@ -338,7 +338,17 @@ const Home = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loading && displaySignals.length === 0
               ? Array.from({ length: 8 }).map((_, i) => <SignalSkeleton key={i} />)
-              : displaySignals.map((s, i) => <SignalCard key={s.pair ?? s.symbol ?? i} s={s} />)
+              : displaySignals.length > 0
+                ? displaySignals.map((s, i) => <SignalCard key={s.pair ?? s.symbol ?? i} s={s} />)
+                : (
+                  <div className="col-span-full flex flex-col items-center justify-center py-16 gap-3 text-gray-400 dark:text-gray-500">
+                    <Activity className="w-10 h-10 opacity-40" />
+                    <p className="text-sm font-medium">No {activeTab} signals yet — next sweep in a few minutes</p>
+                    <button onClick={handleRefresh} className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1">
+                      <RefreshCw className="w-3.5 h-3.5" /> Check now
+                    </button>
+                  </div>
+                )
             }
           </div>
 
