@@ -5,7 +5,6 @@ import {
   Bot,
   TrendingUp,
   TrendingDown,
-  Zap,
   ArrowRight,
   CheckCircle,
   Star,
@@ -15,8 +14,9 @@ import {
   Shield,
   RefreshCw,
   Activity,
-  ChevronRight,
   Minus,
+  Lock,
+  Crown,
 } from 'lucide-react';
 import { fetchSignals, fetchPlatformStats } from '../redux/slices/signalSlice';
 import SmartStrategyIcon from '../components/Logo/SmartStrategyIcon';
@@ -45,7 +45,7 @@ const SIGNAL_STYLES = {
 };
 
 /* ─── SignalCard ──────────────────────────────────────────────────────── */
-const SignalCard = ({ s }) => {
+const SignalCard = ({ s, isPremium = false }) => {
   // Support both new (type=LONG/SHORT) and legacy (signal=BUY/SELL) formats
   const signalKey = s.type || s.signal || 'NEUTRAL';
   const st = SIGNAL_STYLES[signalKey] || SIGNAL_STYLES.NEUTRAL;
@@ -58,9 +58,9 @@ const SignalCard = ({ s }) => {
     ? Math.round(s.confidenceScore * 100)
     : (s.strength ?? 0);
 
-  // Reasons: new format is array, legacy is string
+  // Reasons: premium sees 2, free sees 1
   const reasonText = Array.isArray(s.reasons)
-    ? s.reasons.slice(0, 2).join(' · ')
+    ? s.reasons.slice(0, isPremium ? 2 : 1).join(' · ')
     : (s.reason ?? '');
 
   // Display pair/symbol
@@ -79,9 +79,19 @@ const SignalCard = ({ s }) => {
           {st.label}
         </span>
       </div>
-      {/* Price / R:R */}
+
+      {/* Entry Price / R:R — blurred for free users */}
       <div className="flex items-end justify-between">
-        <p className="text-base font-semibold text-gray-900 dark:text-white">{fmtPrice(displayPrice)}</p>
+        {isPremium ? (
+          <p className="text-base font-semibold text-gray-900 dark:text-white">{fmtPrice(displayPrice)}</p>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <p className="text-base font-semibold text-gray-900 dark:text-white blur-sm select-none">
+              {fmtPrice(displayPrice)}
+            </p>
+            <Lock className="w-3 h-3 text-amber-500 flex-shrink-0" />
+          </div>
+        )}
         {s.riskReward != null ? (
           <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400">R:R {Number(s.riskReward).toFixed(1)}</span>
         ) : s.change24h != null ? (
@@ -90,6 +100,7 @@ const SignalCard = ({ s }) => {
           </p>
         ) : null}
       </div>
+
       {/* Confidence bar */}
       <div>
         <div className="flex justify-between mb-1">
@@ -100,9 +111,20 @@ const SignalCard = ({ s }) => {
           <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${strengthPct}%` }} />
         </div>
       </div>
+
       {/* Reason */}
       {reasonText && (
         <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-2">{reasonText}</p>
+      )}
+
+      {/* Premium upgrade nudge */}
+      {!isPremium && (
+        <div className="flex items-center gap-1.5 pt-1 border-t border-current/10">
+          <Crown className="w-3 h-3 text-amber-500 flex-shrink-0" />
+          <span className="text-xs text-amber-600 dark:text-amber-400">
+            Upgrade for exact entry &amp; SL/TP
+          </span>
+        </div>
       )}
     </div>
   );
@@ -136,8 +158,9 @@ const StatCard = ({ value, label, color = 'text-cyan-500', loading }) => (
 const Home = () => {
   const dispatch  = useDispatch();
   const navigate  = useNavigate();
-  const { token } = useSelector(s => s.auth);
+  const { token, user } = useSelector(s => s.auth);
   const isAuth    = !!token;
+  const isPremium = isAuth && (user?.role === 'premium' || user?.role === 'admin');
 
   const { spot, futures, stats, loading, statsLoading } = useSelector(s => s.signals);
   const [activeTab, setActiveTab] = useState('spot');
@@ -167,7 +190,11 @@ const Home = () => {
   const handleGetStarted = () => navigate(isAuth ? '/dashboard' : '/register');
   const handleLogin      = () => navigate(isAuth ? '/dashboard' : '/login');
 
-  const displaySignals = activeTab === 'spot' ? spot : futures;
+  const displaySignals  = activeTab === 'spot' ? spot : futures;
+  const previewSignals  = displaySignals.slice(0, 4);
+  const hasMore         = displaySignals.length > 4;
+
+  const handleViewMore  = () => navigate(isAuth ? '/signals' : '/login');
 
   const features = [
     { icon: Bot,          color: 'from-cyan-500 to-blue-600',    title: 'Automated Bots',    desc: '24/7 trading bots that execute your strategy automatically — no screen time needed.' },
@@ -334,12 +361,14 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Signal grid */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {/* Signal grid — max 4 cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {loading && displaySignals.length === 0
-              ? Array.from({ length: 8 }).map((_, i) => <SignalSkeleton key={i} />)
-              : displaySignals.length > 0
-                ? displaySignals.map((s, i) => <SignalCard key={s.pair ?? s.symbol ?? i} s={s} />)
+              ? Array.from({ length: 4 }).map((_, i) => <SignalSkeleton key={i} />)
+              : previewSignals.length > 0
+                ? previewSignals.map((s, i) => (
+                    <SignalCard key={s.pair ?? s.symbol ?? i} s={s} isPremium={isPremium} />
+                  ))
                 : (
                   <div className="col-span-full flex flex-col items-center justify-center py-16 gap-3 text-gray-400 dark:text-gray-500">
                     <Activity className="w-10 h-10 opacity-40" />
@@ -352,17 +381,19 @@ const Home = () => {
             }
           </div>
 
-          <div className="flex flex-col items-start justify-between gap-3 mt-6 text-xs text-gray-500 sm:flex-row sm:items-center dark:text-gray-400">
-            <p>
+          {/* Footer row */}
+          <div className="flex flex-col items-start justify-between gap-4 mt-6 sm:flex-row sm:items-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {lastRefresh ? `Last updated: ${lastRefresh.toLocaleTimeString()}` : 'Loading…'}{' '}
               · For informational purposes only — not financial advice.
             </p>
-            <Link
-              to={isAuth ? '/bots/create' : '/register'}
-              className="inline-flex items-center gap-1 font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
+            <button
+              onClick={handleViewMore}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold shadow-md hover:shadow-cyan-500/30 hover:scale-105 transition-all duration-200"
             >
-              Create a bot using these signals <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+              {hasMore ? `View All ${displaySignals.length} Signals` : 'View All Signals'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </section>
