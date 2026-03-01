@@ -29,9 +29,10 @@ const COIN_GROUPS = [
 const STRATEGY_ACTIVITY = {
   dca:          { label: 'Very high activity', detail: 'Buys on a fixed schedule regardless of market conditions' },
   scalper:      { label: 'High activity',      detail: 'Scans every 5 min and opens tight in-and-out trades' },
+  ai_signal:    { label: 'High activity',      detail: 'Enters when ≥3 of 6 AI indicators agree on direction' },
   rsi_reversal: { label: 'Medium activity',    detail: 'Enters when RSI crosses oversold / overbought zones' },
-  ema_crossover:{ label: 'Medium activity',    detail: 'Signals when trend direction changes (golden/death cross)' },
-  adaptive_grid:{ label: 'Lower activity',     detail: 'Waits for RSI dips + volume spikes in confirmed downtrends' },
+  ema_crossover:{ label: 'Medium activity',    detail: 'Signals on golden cross or uptrend dip entries' },
+  adaptive_grid:{ label: 'Medium activity',    detail: 'Buys RSI dips + volume spikes in bullish or downtrend markets' },
   breakout:     { label: 'Lower activity',     detail: 'Waits for price to break a multi-day high with volume' },
 };
 
@@ -309,7 +310,7 @@ const CreateBot = () => {
       {!isPremium && (
         <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-300">
           <Crown className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>Free plan includes <strong>DCA</strong> only. Upgrade to Premium to unlock Scalper, RSI Reversal, EMA Crossover, Adaptive Grid, and Breakout strategies.</span>
+          <span>Free plan includes <strong>DCA</strong> only. Upgrade to Premium to unlock AI Signal Bot, Scalper, RSI Reversal, EMA Crossover, Adaptive Grid, and Breakout strategies.</span>
         </div>
       )}
 
@@ -474,6 +475,34 @@ const CreateBot = () => {
                 onChange={e => updateParams('dcaAmountPerOrder', parseFloat(e.target.value))}
                 className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {selectedStrategy?.id === 'ai_signal' && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-300 space-y-1">
+          <p className="font-semibold">AI Signal Bot — fully automated</p>
+          <p className="text-xs">Entry, stop-loss, and take-profit are calculated automatically from live market indicators. No manual parameters needed.</p>
+        </div>
+      )}
+
+      {/* Leverage — shown for futures bots using DCA or AI Signal */}
+      {form.marketType === 'futures' && ['dca', 'ai_signal'].includes(selectedStrategy?.id) && (
+        <div className="space-y-3 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl">
+          <h3 className="text-sm font-semibold text-orange-700 dark:text-orange-300">Futures Leverage</h3>
+          <div>
+            <label className="block text-xs text-orange-600 dark:text-orange-400 mb-1">
+              Leverage (1×–20×) — position size = margin × leverage
+            </label>
+            <input
+              type="number" min="1" max="20" step="1"
+              value={form.strategyParams.leverage || 1}
+              onChange={e => updateParams('leverage', Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+              className="w-full rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            />
+            <p className="text-xs text-orange-500 dark:text-orange-400 mt-1">
+              ⚠ Higher leverage increases both potential profit and risk of liquidation.
+            </p>
           </div>
         </div>
       )}
