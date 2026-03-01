@@ -367,7 +367,7 @@ const Dashboard = () => {
                         {latestSignal.aiSource}
                       </span>
                     )}
-                    {latestSignal.mtfAlignment != null && (
+                    {typeof latestSignal.mtfAlignment === 'number' && (
                       <span>{latestSignal.mtfAlignment}/3 TF aligned</span>
                     )}
                   </div>
