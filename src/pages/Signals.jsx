@@ -6,6 +6,7 @@ import {
   analyzeSignal,
   clearAnalysis,
   fetchAvailablePairs,
+  fetchSignals,
 } from '../redux/slices/signalSlice';
 import {
   Activity,
@@ -21,6 +22,9 @@ import {
   CheckCircle,
   XCircle,
   MinusCircle,
+  TrendingUp,
+  TrendingDown,
+  Clock,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────── helpers ── */
@@ -44,6 +48,100 @@ function fmtTime(iso) {
     month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+function timeAgo(iso) {
+  if (!iso) return null;
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)   return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return `${Math.floor(diff / 3600)}h ago`;
+}
+
+/* ─────────────────────────────────────── LiveSignalCard ── */
+
+function LiveSignalCard({ s, isPremium }) {
+  const isLong   = s.type === 'LONG';
+  const conf     = Math.round((s.confidenceScore || 0) * 100);
+  const confBar  = conf >= 75 ? 'bg-green-500' : conf >= 60 ? 'bg-yellow-500' : 'bg-orange-400';
+  const confTxt  = conf >= 75 ? 'text-green-400' : conf >= 60 ? 'text-yellow-400' : 'text-orange-400';
+  const reasons  = s.reasons?.slice(0, 2) || [];
+  const ago      = timeAgo(s.timestamp);
+  const blurVal  = !isPremium ? 'blur-sm select-none pointer-events-none' : '';
+
+  return (
+    <div className={`rounded-xl border overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-lg ${
+      isLong
+        ? 'border-green-500/25 bg-gradient-to-br from-green-500/5 to-emerald-600/5'
+        : 'border-red-500/25 bg-gradient-to-br from-red-500/5 to-rose-600/5'
+    }`}>
+      {/* Header strip */}
+      <div className={`px-3 py-2.5 flex items-center justify-between ${
+        isLong ? 'bg-green-500/10' : 'bg-red-500/10'
+      }`}>
+        <div className="flex items-center gap-2">
+          <span className="font-extrabold text-white text-sm tracking-wide">{s.pair}</span>
+          <span className="text-[10px] text-gray-400">{s.marketType || 'spot'} · {s.timeframe || '1h'}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {ago && <span className="text-[10px] text-gray-500 flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{ago}</span>}
+          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+            isLong
+              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+              : 'bg-red-500/20 text-red-400 border border-red-500/30'
+          }`}>
+            {isLong ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {s.type}
+          </span>
+        </div>
+      </div>
+
+      {/* Prices */}
+      <div className="grid grid-cols-3 divide-x divide-white/5 py-2.5">
+        <div className={`px-3 text-center ${blurVal}`}>
+          <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Entry</p>
+          <p className="text-xs font-bold text-white">${fmt(s.entry, 4)}</p>
+        </div>
+        <div className={`px-3 text-center ${blurVal}`}>
+          <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Stop Loss</p>
+          <p className="text-xs font-bold text-red-400">${fmt(s.stopLoss, 4)}</p>
+        </div>
+        <div className={`px-3 text-center ${blurVal}`}>
+          <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Take Profit</p>
+          <p className="text-xs font-bold text-green-400">${fmt(s.takeProfit, 4)}</p>
+        </div>
+      </div>
+
+      {/* Confidence + meta */}
+      <div className="px-3 pb-2.5 space-y-1.5">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 bg-white/8 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${confBar}`} style={{ width: `${conf}%` }} />
+          </div>
+          <span className={`text-[10px] font-semibold ${confTxt} w-12 text-right`}>{conf}% conf</span>
+        </div>
+        {(reasons.length > 0 || s.riskReward != null) && (
+          <div className="flex flex-wrap items-center gap-1">
+            {s.riskReward != null && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] bg-violet-500/15 text-violet-400 border border-violet-500/20 font-medium">
+                R:R {Number(s.riskReward).toFixed(1)}
+              </span>
+            )}
+            {reasons.map((r, i) => (
+              <span key={i} className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-gray-500 border border-white/8">
+                {r}
+              </span>
+            ))}
+          </div>
+        )}
+        {!isPremium && (
+          <p className="text-[9px] text-amber-500/80 flex items-center gap-1">
+            <Lock className="w-2.5 h-2.5" /> Upgrade to see exact entry & targets
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /* ─────────────────────────────────────── MetricCard ── */
@@ -83,6 +181,8 @@ function BacktestTradeRow({ t, i }) {
 /* ─────────────────────────────────────── Page ── */
 
 const TABS = [
+  { key: 'spot',     label: 'Spot',     icon: TrendingUp   },
+  { key: 'futures',  label: 'Futures',  icon: Zap          },
   { key: 'analyze',  label: 'Analyze',  icon: Search       },
   { key: 'backtest', label: 'Backtest', icon: FlaskConical },
 ];
@@ -112,13 +212,13 @@ const Signals = () => {
   const { backtestResult, analysis,
           backtestLoading, analysisLoading,
           backtestError, analysisError,
-          availablePairs } =
+          availablePairs, spot, futures, loading } =
     useSelector(state => state.signals);
 
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
   const isPremium = isPremiumUser(role);
 
-  const [activeTab, setActiveTab] = useState('analyze');
+  const [activeTab, setActiveTab] = useState('spot');
 
   // Backtest form
   const [btForm, setBtForm] = useState({
@@ -130,6 +230,13 @@ const Signals = () => {
   const [azForm, setAzForm] = useState({
     symbol: 'BTCUSDT', timeframe: '1h', marketType: 'spot',
   });
+
+  // Fetch live signals when on spot/futures tab
+  useEffect(() => {
+    if (activeTab === 'spot' || activeTab === 'futures') {
+      dispatch(fetchSignals(activeTab));
+    }
+  }, [activeTab, dispatch]);
 
   // Fetch pair list from exchange on mount; refetch when market type changes
   useEffect(() => {
@@ -198,6 +305,73 @@ const Signals = () => {
           </button>
         ))}
       </div>
+
+      {/* ════════════ SPOT / FUTURES SIGNALS ════════════ */}
+      {(activeTab === 'spot' || activeTab === 'futures') && (() => {
+        const signals = activeTab === 'spot' ? spot : futures;
+        return (
+          <div>
+            {/* Toolbar */}
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-gray-400">
+                {loading
+                  ? 'Fetching signals…'
+                  : signals.length > 0
+                    ? `${signals.length} signal${signals.length !== 1 ? 's' : ''} — updated every 5 min`
+                    : 'No signals yet — next sweep in a few minutes'}
+              </p>
+              <button
+                onClick={() => dispatch(fetchSignals(activeTab))}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all disabled:opacity-40"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+
+            {/* Skeleton loader */}
+            {loading && signals.length === 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-40 rounded-xl bg-white/4 animate-pulse border border-white/5" />
+                ))}
+              </div>
+            )}
+
+            {/* Signal cards */}
+            {signals.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {signals.map((s, i) => (
+                  <LiveSignalCard key={s._id || s.pair + i} s={s} isPremium={isPremium} />
+                ))}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && signals.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Activity className="w-12 h-12 text-gray-600 mb-3" />
+                <p className="text-gray-400 font-medium">No {activeTab} signals yet</p>
+                <p className="text-xs text-gray-600 mt-1">The engine scans every 5 min — check back soon</p>
+              </div>
+            )}
+
+            {/* Premium upgrade nudge for free users */}
+            {!isPremium && signals.length > 0 && (
+              <div className="mt-5 p-4 rounded-xl border border-amber-500/25 bg-amber-500/5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-sm text-amber-400">
+                  <Lock className="w-4 h-4 flex-shrink-0" />
+                  <span>Exact entry, stop loss & take profit are hidden on the free plan.</span>
+                </div>
+                <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold whitespace-nowrap">
+                  <Crown className="w-3.5 h-3.5" /> Upgrade
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ════════════ BACKTEST ════════════ */}
       {activeTab === 'backtest' && (

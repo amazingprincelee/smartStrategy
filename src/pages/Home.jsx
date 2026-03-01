@@ -148,6 +148,15 @@ const Home = () => {
     dispatch(fetchSignals('futures'));
     dispatch(fetchPlatformStats());
     setLastRefresh(new Date());
+
+    // Poll every 5 min as REST fallback (WebSocket sweep is the primary real-time source)
+    const timer = setInterval(() => {
+      dispatch(fetchSignals('spot'));
+      dispatch(fetchSignals('futures'));
+      setLastRefresh(new Date());
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(timer);
   }, [dispatch]);
 
   const handleRefresh = () => {
@@ -218,8 +227,16 @@ const Home = () => {
 
             {/* Live badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping inline-flex" />
-              Live signals available
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
+              </span>
+              LIVE — refreshes every 5 min
+              {lastRefresh && (
+                <span className="text-cyan-600 text-xs">
+                  · updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
             </div>
 
             <h1 className="mb-6 text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">

@@ -14,7 +14,7 @@ import {
   ArrowUpRight,
   Clock,
 } from 'lucide-react';
-import { fetchPlatformStats } from '../redux/slices/signalSlice';
+import { fetchPlatformStats, fetchSignals, fetchSignalHistory } from '../redux/slices/signalSlice';
 import { fetchArbitrageOpportunities } from '../redux/slices/arbitrageslice';
 
 /* ─── helpers ────────────────────────────────────────────────── */
@@ -28,6 +28,14 @@ const greeting = () => {
 
 const fmt = (n, dec = 2) =>
   n == null ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+
+const timeAgo = (iso) => {
+  if (!iso) return null;
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)  return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return `${Math.floor(diff / 3600)}h ago`;
+};
 
 /* ─── service card config ────────────────────────────────────── */
 const SERVICES = [
@@ -99,18 +107,24 @@ const Dashboard = () => {
   const bots         = useSelector((s) => s.bots?.list || []);
   const platformStats = useSelector((s) => s.signals?.stats);
   const spotSignals  = useSelector((s) => s.signals?.spot || []);
+  const history      = useSelector((s) => s.signals?.history || []);
   const { opportunities } = useSelector((s) => s.arbitrage || { opportunities: [] });
 
   useEffect(() => {
     dispatch(fetchPlatformStats());
+    dispatch(fetchSignals('spot'));
     dispatch(fetchArbitrageOpportunities({ minProfit: 0.1, minVolume: 100, topCoins: 10 }));
+    // Always pre-load history so the signal card has something to show
+    // even if the live in-memory cache is cold (e.g. right after server restart)
+    dispatch(fetchSignalHistory({ marketType: 'spot', limit: 10 }));
   }, [dispatch]);
 
   /* derived */
   const firstName    = user?.profile?.firstName || user?.email?.split('@')[0] || 'Trader';
   const activeBots   = bots.filter((b) => b.status === 'running').length;
   const totalPnL     = bots.reduce((s, b) => s + (b.stats?.totalPnL || 0), 0);
-  const latestSignal = spotSignals[0] || null;
+  // Live signals first; fall back to most recent DB history entry
+  const latestSignal = spotSignals[0] || history[0] || null;
   const topArb       = opportunities?.[0] || null;
 
   /* quick-stat chips */
@@ -253,59 +267,131 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
         {/* Latest AI Signal */}
-        <div className="card">
+        <div className="card overflow-hidden">
+          {/* Card header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-violet-400" />
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Latest AI Signal</h3>
+              {/* Live pulse */}
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+              </span>
             </div>
             <Link to="/signals" className="flex items-center gap-1 text-xs font-medium text-violet-400 hover:text-violet-300">
               All signals <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
 
-          {latestSignal ? (
-            <div className="p-4 rounded-xl bg-gray-50 dark:bg-brandDark-900 border border-gray-200 dark:border-brandDark-700">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold text-gray-900 dark:text-white">{latestSignal.pair}</span>
-                <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                  latestSignal.type === 'LONG'
-                    ? 'bg-green-500/15 text-green-400'
-                    : 'bg-red-500/15 text-red-400'
+          {latestSignal ? (() => {
+            const isLong = latestSignal.type === 'LONG';
+            const conf   = Math.round((latestSignal.confidenceScore || 0) * 100);
+            const confColor = conf >= 75 ? 'bg-green-500' : conf >= 60 ? 'bg-yellow-500' : 'bg-orange-500';
+            const confText  = conf >= 75 ? 'text-green-400' : conf >= 60 ? 'text-yellow-400' : 'text-orange-400';
+            const reasons   = latestSignal.reasons?.slice(0, 3) || [];
+            const ago       = timeAgo(latestSignal.timestamp);
+
+            return (
+              <div className={`rounded-xl border overflow-hidden ${
+                isLong
+                  ? 'border-green-500/30 bg-gradient-to-br from-green-500/5 to-emerald-600/5'
+                  : 'border-red-500/30 bg-gradient-to-br from-red-500/5 to-rose-600/5'
+              }`}>
+                {/* Signal header strip */}
+                <div className={`px-4 py-3 flex items-center justify-between ${
+                  isLong ? 'bg-green-500/10' : 'bg-red-500/10'
                 }`}>
-                  {latestSignal.type}
-                </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-extrabold text-white tracking-wide">
+                      {latestSignal.pair}
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {latestSignal.marketType || 'spot'} · {latestSignal.timeframe || '1h'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {ago && <span className="text-[10px] text-gray-500">{ago}</span>}
+                    <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                      isLong
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/40'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                    }`}>
+                      {isLong ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                      {latestSignal.type}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Entry / SL / TP */}
+                <div className="grid grid-cols-3 gap-0 divide-x divide-white/5 px-1 py-3">
+                  <div className="px-3 text-center">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Entry</p>
+                    <p className="text-sm font-bold text-white">${fmt(latestSignal.entry, 4)}</p>
+                  </div>
+                  <div className="px-3 text-center">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Stop Loss</p>
+                    <p className="text-sm font-bold text-red-400">${fmt(latestSignal.stopLoss, 4)}</p>
+                  </div>
+                  <div className="px-3 text-center">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Take Profit</p>
+                    <p className="text-sm font-bold text-green-400">${fmt(latestSignal.takeProfit, 4)}</p>
+                  </div>
+                </div>
+
+                {/* Confidence bar + R:R */}
+                <div className="px-4 pb-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-white/8 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${confColor}`}
+                        style={{ width: `${conf}%` }}
+                      />
+                    </div>
+                    <span className={`text-xs font-semibold ${confText} w-14 text-right`}>
+                      {conf}% conf
+                    </span>
+                  </div>
+
+                  {/* Meta row */}
+                  <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                    {latestSignal.riskReward != null && (
+                      <span className="flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-violet-400" />
+                        R:R {Number(latestSignal.riskReward).toFixed(1)}
+                      </span>
+                    )}
+                    {latestSignal.aiSource && (
+                      <span className="flex items-center gap-1">
+                        <Activity className="w-3 h-3 text-violet-400" />
+                        {latestSignal.aiSource}
+                      </span>
+                    )}
+                    {latestSignal.mtfAlignment != null && (
+                      <span>{latestSignal.mtfAlignment}/3 TF aligned</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Reasons */}
+                {reasons.length > 0 && (
+                  <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                    {reasons.map((r, i) => (
+                      <span
+                        key={i}
+                        className="px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 text-gray-400"
+                      >
+                        {r}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400">Entry</p>
-                  <p className="font-semibold text-gray-900 dark:text-white">${fmt(latestSignal.entry)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400">Stop Loss</p>
-                  <p className="font-semibold text-red-400">${fmt(latestSignal.stopLoss)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400">Take Profit</p>
-                  <p className="font-semibold text-green-400">${fmt(latestSignal.takeProfit)}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-gray-200 dark:bg-brandDark-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-violet-500 rounded-full"
-                    style={{ width: `${Math.round((latestSignal.confidenceScore || 0) * 100)}%` }}
-                  />
-                </div>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {Math.round((latestSignal.confidenceScore || 0) * 100)}% conf
-                </span>
-              </div>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="py-8 text-center">
               <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">No signals yet</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Generating signals…</p>
               <Link to="/signals" className="mt-2 inline-block text-xs text-violet-400 hover:text-violet-300">
                 Open Signals →
               </Link>
