@@ -216,7 +216,7 @@ const Settings = () => {
     dispatch(fetchAccounts());
   };
 
-  const popularExchanges = supportedExchanges.filter(e =>
+  const popularExchanges = (supportedExchanges?.popular || []).filter(e =>
     ['binance', 'bybit', 'kucoin', 'okx', 'gate', 'mexc', 'bitget', 'kraken'].includes(e.id)
   );
 
