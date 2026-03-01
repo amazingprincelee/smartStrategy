@@ -82,8 +82,8 @@ function BacktestTradeRow({ t, i }) {
 /* ─────────────────────────────────────── Page ── */
 
 const TABS = [
-  { key: 'backtest', label: 'Backtest', icon: FlaskConical },
   { key: 'analyze',  label: 'Analyze',  icon: Search       },
+  { key: 'backtest', label: 'Backtest', icon: FlaskConical },
 ];
 
 const ANALYZE_PAIRS = [
@@ -197,7 +197,7 @@ const Signals = () => {
                   <select
                     value={btForm.symbol}
                     onChange={e => setBtForm(f => ({ ...f, symbol: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
                   >
                     {BACKTEST_SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -208,7 +208,7 @@ const Signals = () => {
                   <select
                     value={btForm.marketType}
                     onChange={e => setBtForm(f => ({ ...f, marketType: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
                   >
                     <option value="spot">Spot</option>
                     <option value="futures">Futures</option>
@@ -220,7 +220,7 @@ const Signals = () => {
                   <select
                     value={btForm.timeframe}
                     onChange={e => setBtForm(f => ({ ...f, timeframe: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
                   >
                     {BACKTEST_TFS.map(tf => <option key={tf} value={tf}>{tf}</option>)}
                   </select>
@@ -234,7 +234,7 @@ const Signals = () => {
                     step="100"
                     value={btForm.initialCapital}
                     onChange={e => setBtForm(f => ({ ...f, initialCapital: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
                   />
                 </label>
 
@@ -365,7 +365,7 @@ const Signals = () => {
                   <select
                     value={azForm.symbol}
                     onChange={e => setAzForm(f => ({ ...f, symbol: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
                   >
                     {ANALYZE_PAIRS.map(p => (
                       <option key={p} value={p}>{p.replace('USDT', '/USDT')}</option>
@@ -378,7 +378,7 @@ const Signals = () => {
                   <select
                     value={azForm.timeframe}
                     onChange={e => setAzForm(f => ({ ...f, timeframe: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
                   >
                     <option value="15m">15 minutes</option>
                     <option value="1h">1 hour</option>
@@ -390,7 +390,7 @@ const Signals = () => {
                   <select
                     value={azForm.marketType}
                     onChange={e => setAzForm(f => ({ ...f, marketType: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm text-gray-200 focus:outline-none focus:border-cyan-500/50"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
                   >
                     <option value="spot">Spot</option>
                     <option value="futures">Futures (Perp)</option>
