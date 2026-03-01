@@ -87,10 +87,20 @@ const TABS = [
 ];
 
 const ANALYZE_PAIRS = [
-  'BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT',
-  'ADAUSDT','DOGEUSDT','AVAXUSDT','LINKUSDT','DOTUSDT',
-  'MATICUSDT','UNIUSDT','ATOMUSDT','LTCUSDT','NEARUSDT',
-  'FTMUSDT','SANDUSDT','MANAUSDT','AXSUSDT','AAVEUSDT',
+  // Large caps
+  'BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','ADAUSDT','LTCUSDT','DOGEUSDT',
+  // DeFi & Layer 1
+  'AVAXUSDT','DOTUSDT','ATOMUSDT','NEARUSDT','LINKUSDT','UNIUSDT','AAVEUSDT','MATICUSDT',
+  'ARBUSDT','OPUSDT','APTUSDT','SUIUSDT','INJUSDT','STXUSDT','ICPUSDT','FILUSDT',
+  // Trending / Meme
+  'PEPEUSDT','SHIBUSDT','FLOKIUSDT','BONKUSDT','WIFUSDT','MEMEUSDT',
+  // AI & Web3
+  'FETUSDT','RNDRUSDT','WLDUSDT','AGIXUSDT','OCEANUSDT',
+  // Gaming & NFT
+  'AXSUSDT','SANDUSDT','MANAUSDT','GALAUSDT','APEUSDT','GMTUSDT',
+  // Other popular
+  'RUNEUSDT','THETAUSDT','EGLDUSDT','VETUSDT','HBARUSDT','ALGOUSDT',
+  'TONUSDT','JUPUSDT','FTMUSDT','XTZUSDT','ZRXUSDT',
 ];
 
 const BACKTEST_SYMBOLS = ['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT'];
@@ -362,15 +372,30 @@ const Signals = () => {
               <div className="space-y-3">
                 <label className="block">
                   <span className="text-xs text-gray-400 mb-1 block">Pair</span>
-                  <select
+                  <input
+                    type="text"
                     value={azForm.symbol}
-                    onChange={e => setAzForm(f => ({ ...f, symbol: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50" style={{ colorScheme: 'dark' }}
-                  >
+                    onChange={e => setAzForm(f => ({ ...f, symbol: e.target.value.toUpperCase().replace('/', '').trim() }))}
+                    placeholder="e.g. BTCUSDT"
+                    className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
+                  />
+                  <p className="text-[10px] text-gray-600 mt-1.5 mb-1">Quick pick:</p>
+                  <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto pr-0.5">
                     {ANALYZE_PAIRS.map(p => (
-                      <option key={p} value={p}>{p.replace('USDT', '/USDT')}</option>
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setAzForm(f => ({ ...f, symbol: p }))}
+                        className={`px-1.5 py-0.5 text-[10px] rounded font-mono border transition-colors ${
+                          azForm.symbol === p
+                            ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-300'
+                            : 'border-white/10 bg-white/4 text-gray-500 hover:text-gray-300 hover:border-white/20'
+                        }`}
+                      >
+                        {p.replace('USDT', '')}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </label>
 
                 <label className="block">

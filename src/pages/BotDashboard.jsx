@@ -4,7 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   Bot, PlusCircle, TrendingUp, TrendingDown, Play, Square,
-  FlaskConical, BookOpen, Loader, AlertCircle, Activity
+  FlaskConical, BookOpen, Loader, AlertCircle, Activity,
+  Crown, Zap, Lock,
 } from 'lucide-react';
 import { fetchBots, startBot, stopBot } from '../redux/slices/botSlice';
 
@@ -138,11 +139,23 @@ const BotCard = ({ bot, onStart, onStop, loading }) => {
   );
 };
 
+const isPremiumUser = (role) => role === 'premium' || role === 'admin';
+
+const PREMIUM_STRATEGIES = [
+  { name: 'ATR Scalper',     detail: 'Fast in-and-out trades every 5 min' },
+  { name: 'RSI Reversal',    detail: 'Enter at oversold / overbought extremes' },
+  { name: 'EMA Crossover',   detail: 'Golden / death cross trend signals' },
+  { name: 'Adaptive Grid',   detail: 'Multi-level dip-buying with RSI + volume' },
+  { name: 'N-Day Breakout',  detail: 'Momentum plays on volume-confirmed breakouts' },
+];
+
 const BotDashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { list: bots, loading } = useSelector(state => state.bots);
   const demo = useSelector(state => state.demo);
+  const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
+  const isPremium = isPremiumUser(role);
 
   useEffect(() => {
     dispatch(fetchBots());
@@ -211,7 +224,15 @@ const BotDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Bot Dashboard</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Bot Dashboard</h1>
+            {!isPremium && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                <Crown className="w-3.5 h-3.5" />
+                Free Tier
+              </span>
+            )}
+          </div>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5 hidden sm:block">
             Manage your automated trading bots
           </p>
@@ -241,6 +262,38 @@ const BotDashboard = () => {
           );
         })}
       </div>
+
+      {/* Free-tier upgrade banner */}
+      {!isPremium && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10 p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-2">
+                <Lock className="w-4 h-4 text-amber-500" />
+                Free plan — DCA strategy only
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                You're currently limited to the DCA bot. Upgrade to Premium to run our advanced strategies that trade more frequently and adapt to market conditions.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {PREMIUM_STRATEGIES.map(s => (
+                  <div key={s.name} className="flex items-start gap-2 p-2 rounded-lg bg-white/60 dark:bg-white/5 border border-amber-200/60 dark:border-amber-800/30">
+                    <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-gray-800 dark:text-white">{s.name}</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">{s.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button className="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
+              <Crown className="w-4 h-4" />
+              Upgrade to Premium
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bot Grid */}
       {loading.list ? (

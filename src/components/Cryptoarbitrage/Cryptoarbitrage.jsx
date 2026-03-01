@@ -16,6 +16,9 @@ import {
   Activity,
   History,
   Bell,
+  Crown,
+  Lock,
+  Zap,
 } from 'lucide-react';
 import {
   fetchArbitrageOpportunities,
@@ -150,7 +153,7 @@ const CryptoArbitrage = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
               Crypto Arbitrage Scanner
             </h1>
@@ -164,6 +167,12 @@ const CryptoArbitrage = () => {
                 <div className="absolute inset-0 bg-green-500 rounded-full opacity-75 animate-ping"></div>
               </div>
             ) : null}
+            {!isPremium && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                <Crown className="w-3.5 h-3.5" />
+                Free Tier
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Spot price gaps across 9 major exchanges before they close
@@ -183,6 +192,37 @@ const CryptoArbitrage = () => {
           )}
         </div>
       </div>
+
+      {/* Free-tier upgrade banner */}
+      {!isPremium && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-1">
+                <Crown className="w-4 h-4 text-amber-500" />
+                Unlock the full arbitrage edge
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mt-2">
+                {[
+                  'Exact profit % on every opportunity',
+                  'Gross spread & expected USD gain',
+                  'Instant email alerts for ≥2% gaps',
+                  'Priority access before gaps close',
+                ].map(f => (
+                  <p key={f} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                    <Zap className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                    {f}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <button className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
+              <Crown className="w-4 h-4" />
+              Upgrade to Premium
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Success Message */}
       {successMsg && (
