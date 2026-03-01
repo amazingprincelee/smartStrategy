@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   runBacktest,
   clearBacktestResult,
   analyzeSignal,
   clearAnalysis,
+  fetchAvailablePairs,
 } from '../redux/slices/signalSlice';
 import {
   Activity,
@@ -110,7 +111,8 @@ const Signals = () => {
   const dispatch  = useDispatch();
   const { backtestResult, analysis,
           backtestLoading, analysisLoading,
-          backtestError, analysisError } =
+          backtestError, analysisError,
+          availablePairs } =
     useSelector(state => state.signals);
 
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
@@ -128,6 +130,14 @@ const Signals = () => {
   const [azForm, setAzForm] = useState({
     symbol: 'BTCUSDT', timeframe: '1h', marketType: 'spot',
   });
+
+  // Fetch pair list from exchange on mount; refetch when market type changes
+  useEffect(() => {
+    dispatch(fetchAvailablePairs(azForm.marketType));
+  }, [azForm.marketType, dispatch]);
+
+  // Use dynamic pairs if available, otherwise fall back to the hardcoded list
+  const pairList = availablePairs.length > 0 ? availablePairs : ANALYZE_PAIRS;
 
   const handleBacktest = (e) => {
     e.preventDefault();
@@ -374,28 +384,54 @@ const Signals = () => {
                   <span className="text-xs text-gray-400 mb-1 block">Pair</span>
                   <input
                     type="text"
+                    list="analyze-pairs-list"
                     value={azForm.symbol}
                     onChange={e => setAzForm(f => ({ ...f, symbol: e.target.value.toUpperCase().replace('/', '').trim() }))}
-                    placeholder="e.g. BTCUSDT"
+                    placeholder="e.g. BTCUSDT or type to search…"
                     className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
+                    style={{ colorScheme: 'dark' }}
+                    autoComplete="off"
                   />
-                  <p className="text-[10px] text-gray-600 mt-1.5 mb-1">Quick pick:</p>
-                  <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto pr-0.5">
-                    {ANALYZE_PAIRS.map(p => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setAzForm(f => ({ ...f, symbol: p }))}
-                        className={`px-1.5 py-0.5 text-[10px] rounded font-mono border transition-colors ${
-                          azForm.symbol === p
-                            ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-300'
-                            : 'border-white/10 bg-white/4 text-gray-500 hover:text-gray-300 hover:border-white/20'
-                        }`}
-                      >
-                        {p.replace('USDT', '')}
-                      </button>
+                  <datalist id="analyze-pairs-list">
+                    {pairList.map(p => (
+                      <option key={p} value={p}>{p.replace('USDT', '/USDT')}</option>
                     ))}
-                  </div>
+                  </datalist>
+                  {/* Filtered chips — hide chips that don't match what's typed */}
+                  {(() => {
+                    const q = azForm.symbol.replace('USDT', '').toUpperCase();
+                    // When dynamic list is large (>100), only show first 80 unfiltered to keep UI fast
+                    const base = pairList.length > 100 ? pairList.slice(0, 80) : pairList;
+                    const filtered = q.length >= 2
+                      ? pairList.filter(p => p.replace('USDT', '').startsWith(q) || p.startsWith(q))
+                      : base;
+                    return (
+                      <>
+                        <p className="text-[10px] text-gray-600 mt-1.5 mb-1">
+                          {q.length >= 2 ? `${filtered.length} match${filtered.length !== 1 ? 'es' : ''}` : 'Quick pick:'}
+                        </p>
+                        <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto pr-0.5">
+                          {filtered.map(p => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setAzForm(f => ({ ...f, symbol: p }))}
+                              className={`px-1.5 py-0.5 text-[10px] rounded font-mono border transition-colors ${
+                                azForm.symbol === p
+                                  ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-300'
+                                  : 'border-white/10 bg-white/4 text-gray-500 hover:text-gray-300 hover:border-white/20'
+                              }`}
+                            >
+                              {p.replace('USDT', '')}
+                            </button>
+                          ))}
+                          {filtered.length === 0 && (
+                            <p className="text-[10px] text-gray-600 italic">No match — you can still type any valid pair</p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </label>
 
                 <label className="block">

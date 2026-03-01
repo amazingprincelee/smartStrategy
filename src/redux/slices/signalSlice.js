@@ -70,6 +70,18 @@ export const analyzeSignal = createAsyncThunk(
   }
 );
 
+export const fetchAvailablePairs = createAsyncThunk(
+  'signals/fetchPairs',
+  async (market = 'spot', { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get(`/signals/pairs?market=${market}`);
+      return { market, pairs: res.data.data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 /* ============= SLICE ============= */
 
 const signalSlice = createSlice({
@@ -82,11 +94,13 @@ const signalSlice = createSlice({
     historyMeta:      { total: 0, limit: 50, skip: 0 },
     backtestResult:   null,
     analysis:         null,
+    availablePairs:   [],
     loading:          false,
     statsLoading:     false,
     historyLoading:   false,
     backtestLoading:  false,
     analysisLoading:  false,
+    pairsLoading:     false,
     error:            null,
     backtestError:    null,
     analysisError:    null,
@@ -142,6 +156,11 @@ const signalSlice = createSlice({
       .addCase(analyzeSignal.pending,   (state) => { state.analysisLoading = true; state.analysisError = null; state.analysis = null; })
       .addCase(analyzeSignal.fulfilled, (state, { payload }) => { state.analysisLoading = false; state.analysis = payload; })
       .addCase(analyzeSignal.rejected,  (state, { payload }) => { state.analysisLoading = false; state.analysisError = payload; });
+
+    builder
+      .addCase(fetchAvailablePairs.pending,   (state) => { state.pairsLoading = true; })
+      .addCase(fetchAvailablePairs.fulfilled, (state, { payload }) => { state.pairsLoading = false; state.availablePairs = payload.pairs; })
+      .addCase(fetchAvailablePairs.rejected,  (state) => { state.pairsLoading = false; }); // keep existing pairs on error
   },
 });
 
