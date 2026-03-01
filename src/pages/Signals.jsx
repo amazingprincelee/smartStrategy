@@ -219,6 +219,7 @@ const Signals = () => {
   const isPremium = isPremiumUser(role);
 
   const [activeTab, setActiveTab] = useState('spot');
+  const [showAll, setShowAll]     = useState(false);
 
   // Backtest form
   const [btForm, setBtForm] = useState({
@@ -231,11 +232,12 @@ const Signals = () => {
     symbol: 'BTCUSDT', timeframe: '1h', marketType: 'spot',
   });
 
-  // Fetch live signals when on spot/futures tab
+  // Fetch live signals when on spot/futures tab; reset show-all on tab switch
   useEffect(() => {
     if (activeTab === 'spot' || activeTab === 'futures') {
       dispatch(fetchSignals(activeTab));
     }
+    setShowAll(false);
   }, [activeTab, dispatch]);
 
   // Fetch pair list from exchange on mount; refetch when market type changes
@@ -289,19 +291,19 @@ const Signals = () => {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-white/5 border border-white/8 w-fit">
+      <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-white/5 border border-white/8 w-full sm:w-fit">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-all ${
+            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-medium capitalize transition-all ${
               activeTab === key
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
+            <Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+            <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
@@ -340,13 +342,30 @@ const Signals = () => {
             )}
 
             {/* Signal cards */}
-            {signals.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {signals.map((s, i) => (
-                  <LiveSignalCard key={s._id || s.pair + i} s={s} isPremium={isPremium} />
-                ))}
-              </div>
-            )}
+            {signals.length > 0 && (() => {
+              const MOBILE_LIMIT = 6;
+              const visibleSignals = showAll ? signals : signals.slice(0, MOBILE_LIMIT);
+              const hiddenCount = signals.length - MOBILE_LIMIT;
+              return (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {visibleSignals.map((s, i) => (
+                      <LiveSignalCard key={s._id || s.pair + i} s={s} isPremium={isPremium} />
+                    ))}
+                  </div>
+                  {signals.length > MOBILE_LIMIT && (
+                    <button
+                      onClick={() => setShowAll(v => !v)}
+                      className="w-full mt-3 py-2.5 rounded-xl border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-2"
+                    >
+                      {showAll
+                        ? 'Show less'
+                        : `Show ${hiddenCount} more signal${hiddenCount !== 1 ? 's' : ''}`}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Empty state */}
             {!loading && signals.length === 0 && (
