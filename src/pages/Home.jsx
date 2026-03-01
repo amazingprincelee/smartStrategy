@@ -19,6 +19,7 @@ import {
   Minus,
 } from 'lucide-react';
 import { fetchSignals, fetchPlatformStats } from '../redux/slices/signalSlice';
+import SmartStrategyIcon from '../components/Logo/SmartStrategyIcon';
 
 /* ─── helpers ──────────────────────────────────────────────────────────── */
 
@@ -101,7 +102,7 @@ const SignalCard = ({ s }) => {
       </div>
       {/* Reason */}
       {reasonText && (
-        <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">{reasonText}</p>
+        <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-2">{reasonText}</p>
       )}
     </div>
   );
@@ -109,15 +110,15 @@ const SignalCard = ({ s }) => {
 
 /* ─── SignalSkeleton ──────────────────────────────────────────────────── */
 const SignalSkeleton = () => (
-  <div className="rounded-xl border border-gray-200 dark:border-brandDark-700 p-4 flex flex-col gap-3 bg-white dark:bg-brandDark-800 animate-pulse">
+  <div className="flex flex-col gap-3 p-4 bg-white border border-gray-200 rounded-xl dark:border-brandDark-700 dark:bg-brandDark-800 animate-pulse">
     <div className="flex justify-between">
       <div className="space-y-1.5"><div className="h-3.5 w-20 bg-gray-200 dark:bg-brandDark-600 rounded" /><div className="h-2.5 w-28 bg-gray-200 dark:bg-brandDark-600 rounded" /></div>
-      <div className="h-6 w-14 bg-gray-200 dark:bg-brandDark-600 rounded-full" />
+      <div className="h-6 bg-gray-200 rounded-full w-14 dark:bg-brandDark-600" />
     </div>
-    <div className="flex justify-between"><div className="h-4 w-24 bg-gray-200 dark:bg-brandDark-600 rounded" /><div className="h-3 w-14 bg-gray-200 dark:bg-brandDark-600 rounded" /></div>
-    <div className="flex gap-2"><div className="h-5 w-16 bg-gray-200 dark:bg-brandDark-600 rounded-md" /><div className="h-5 w-20 bg-gray-200 dark:bg-brandDark-600 rounded-md" /></div>
+    <div className="flex justify-between"><div className="w-24 h-4 bg-gray-200 rounded dark:bg-brandDark-600" /><div className="h-3 bg-gray-200 rounded w-14 dark:bg-brandDark-600" /></div>
+    <div className="flex gap-2"><div className="w-16 h-5 bg-gray-200 rounded-md dark:bg-brandDark-600" /><div className="w-20 h-5 bg-gray-200 rounded-md dark:bg-brandDark-600" /></div>
     <div className="h-1.5 bg-gray-200 dark:bg-brandDark-600 rounded-full" />
-    <div className="h-8 bg-gray-200 dark:bg-brandDark-600 rounded" />
+    <div className="h-8 bg-gray-200 rounded dark:bg-brandDark-600" />
   </div>
 );
 
@@ -193,44 +194,42 @@ const Home = () => {
     <div className="min-h-screen">
 
       {/* ── HERO ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden py-16 sm:py-24 lg:py-32 bg-gradient-to-br from-brandDark-900 via-brandDark-800 to-brandDark-700">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative py-16 overflow-hidden sm:py-24 lg:py-32 bg-gradient-to-br from-brandDark-900 via-brandDark-800 to-brandDark-700">
+        <div className="absolute top-0 rounded-full pointer-events-none left-1/4 w-96 h-96 bg-cyan-500/10 blur-3xl" />
+        <div className="absolute bottom-0 rounded-full pointer-events-none right-1/4 w-96 h-96 bg-blue-600/10 blur-3xl" />
 
-        <div className="relative container px-4 mx-auto sm:px-6 lg:px-8">
+        <div className="container relative px-4 mx-auto sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
 
             {/* Brand mark */}
             <div className="flex items-center justify-center gap-3 mb-8">
-              <div className="relative">
-                <div className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700 shadow-2xl shadow-cyan-500/40 ring-2 ring-cyan-400/30">
-                  <Bot className="w-8 h-8 sm:w-9 sm:h-9 text-white" strokeWidth={1.6} />
-                </div>
-                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+              <div className="relative flex-shrink-0">
+                <SmartStrategyIcon size={56} />
+                <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
+                  <span className="absolute inline-flex w-full h-full bg-green-400 rounded-full opacity-75 animate-ping" />
                   <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-brandDark-900" />
                 </span>
               </div>
-              <span className="text-3xl sm:text-4xl font-black tracking-tight leading-none">
+              <span className="text-3xl font-black leading-none tracking-tight sm:text-4xl">
                 <span className="text-white">Smart</span>
-                <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Strategy</span>
+                <span className="text-transparent bg-gradient-to-r from-cyan-400 to-green-400 bg-clip-text">Strategy</span>
               </span>
             </div>
 
             {/* Live badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping inline-flex" />
-              Live signals updating every 5 minutes
+              Live signals available
             </div>
 
             <h1 className="mb-6 text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
               Trade Smarter with{' '}
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+              <span className="text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
                 AI-Powered Bots
               </span>
             </h1>
 
-            <p className="px-4 mb-10 text-lg leading-relaxed text-gray-300 sm:text-xl lg:text-2xl sm:px-0 max-w-3xl mx-auto">
+            <p className="max-w-3xl px-4 mx-auto mb-10 text-lg leading-relaxed text-gray-300 sm:text-xl lg:text-2xl sm:px-0">
               Automate your crypto trading with intelligent bots, real-time signals, and 6 proven strategies — on Binance, Bybit, KuCoin and more.
             </p>
 
@@ -252,7 +251,7 @@ const Home = () => {
             </div>
 
             {/* Trust row */}
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-8 text-sm text-gray-400">
+            <div className="flex flex-wrap justify-center mt-8 text-sm text-gray-400 gap-x-6 gap-y-2">
               {['No credit card', '$10k demo account', '10+ exchanges'].map((t, i) => (
                 <span key={i} className="flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4 text-green-500" />{t}
@@ -264,7 +263,7 @@ const Home = () => {
       </section>
 
       {/* ── DYNAMIC STATS ────────────────────────────────────────────── */}
-      <section className="py-12 bg-white dark:bg-brandDark-900 border-b border-gray-100 dark:border-brandDark-700">
+      <section className="py-12 bg-white border-b border-gray-100 dark:bg-brandDark-900 dark:border-brandDark-700">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
             <StatCard value={stats ? `${stats.totalBots?.toLocaleString() ?? 0}+` : '500+'} label="Bots Created"        color="text-cyan-500"   loading={statsLoading && !stats} />
@@ -279,20 +278,20 @@ const Home = () => {
       <section className="py-16 sm:py-20 bg-gray-50 dark:bg-brandDark-800">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
           {/* Section header */}
-          <div className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex flex-col justify-between gap-4 mb-10 sm:flex-row sm:items-end">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+              <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 text-xs font-semibold text-green-700 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping inline-flex" />
                 LIVE — refreshes every 5 min
               </div>
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Real-Time Trading Signals</h2>
-              <p className="mt-2 text-gray-600 dark:text-gray-400 max-w-xl">
+              <p className="max-w-xl mt-2 text-gray-600 dark:text-gray-400">
                 Powered by RSI, EMA50/200, and volume analysis. Generated hourly using live Binance market data.
               </p>
             </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center flex-shrink-0 gap-3">
               {/* Spot / Futures tabs */}
-              <div className="flex rounded-lg border border-gray-200 dark:border-brandDark-600 overflow-hidden text-sm">
+              <div className="flex overflow-hidden text-sm border border-gray-200 rounded-lg dark:border-brandDark-600">
                 {['spot', 'futures'].map(tab => (
                   <button
                     key={tab}
@@ -311,7 +310,7 @@ const Home = () => {
                 onClick={handleRefresh}
                 disabled={loading}
                 title="Refresh signals"
-                className="p-2 rounded-lg border border-gray-200 dark:border-brandDark-600 bg-white dark:bg-brandDark-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brandDark-600 transition-colors disabled:opacity-50"
+                className="p-2 text-gray-600 transition-colors bg-white border border-gray-200 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brandDark-600 disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
@@ -326,14 +325,14 @@ const Home = () => {
             }
           </div>
 
-          <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex flex-col items-start justify-between gap-3 mt-6 text-xs text-gray-500 sm:flex-row sm:items-center dark:text-gray-400">
             <p>
               {lastRefresh ? `Last updated: ${lastRefresh.toLocaleTimeString()}` : 'Loading…'}{' '}
               · For informational purposes only — not financial advice.
             </p>
             <Link
               to={isAuth ? '/bots/create' : '/register'}
-              className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 font-medium hover:underline"
+              className="inline-flex items-center gap-1 font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
             >
               Create a bot using these signals <ChevronRight className="w-3.5 h-3.5" />
             </Link>
@@ -342,11 +341,11 @@ const Home = () => {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────── */}
-      <section className="py-16 sm:py-20 bg-white dark:bg-brandDark-900">
+      <section className="py-16 bg-white sm:py-20 dark:bg-brandDark-900">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Everything You Need to Trade</h2>
-            <p className="mt-4 max-w-2xl mx-auto text-gray-600 dark:text-gray-400">
+            <p className="max-w-2xl mx-auto mt-4 text-gray-600 dark:text-gray-400">
               From first signal to automated execution — SmartStrategy covers every step of your trading workflow.
             </p>
           </div>
@@ -354,7 +353,7 @@ const Home = () => {
             {features.map((f, i) => {
               const Icon = f.icon;
               return (
-                <div key={i} className="group p-6 rounded-2xl border border-gray-100 dark:border-brandDark-700 bg-white dark:bg-brandDark-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div key={i} className="p-6 transition-all duration-300 bg-white border border-gray-100 group rounded-2xl dark:border-brandDark-700 dark:bg-brandDark-800 hover:shadow-xl hover:-translate-y-1">
                   <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} mb-4 shadow-md`}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
@@ -372,17 +371,17 @@ const Home = () => {
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Up and Running in 3 Steps</h2>
-            <p className="mt-4 max-w-xl mx-auto text-gray-600 dark:text-gray-400">
+            <p className="max-w-xl mx-auto mt-4 text-gray-600 dark:text-gray-400">
               No technical setup. Your bot can be live in under 5 minutes.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             {steps.map((step, i) => (
-              <div key={i} className="relative p-6 bg-white dark:bg-brandDark-900 rounded-2xl border border-gray-100 dark:border-brandDark-700 shadow-sm flex flex-col gap-3">
+              <div key={i} className="relative flex flex-col gap-3 p-6 bg-white border border-gray-100 shadow-sm dark:bg-brandDark-900 rounded-2xl dark:border-brandDark-700">
                 {i < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-10 left-full w-full h-px bg-gradient-to-r from-cyan-400/40 to-transparent z-0" />
+                  <div className="absolute z-0 hidden w-full h-px lg:block top-10 left-full bg-gradient-to-r from-cyan-400/40 to-transparent" />
                 )}
-                <span className="text-4xl font-black bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">{step.num}</span>
+                <span className="text-4xl font-black text-transparent bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text">{step.num}</span>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">{step.title}</h3>
                 <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{step.desc}</p>
               </div>
@@ -392,12 +391,12 @@ const Home = () => {
       </section>
 
       {/* ── BENEFITS + LIVE PANEL ────────────────────────────────────── */}
-      <section className="py-16 sm:py-20 bg-white dark:bg-brandDark-900">
+      <section className="py-16 bg-white sm:py-20 dark:bg-brandDark-900">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl mb-4">Built for Serious Traders</h2>
-              <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+              <h2 className="mb-4 text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Built for Serious Traders</h2>
+              <p className="mb-8 text-lg text-gray-600 dark:text-gray-400">
                 Every feature was designed around real trading needs — not just pretty dashboards.
               </p>
               <div className="grid gap-3">
@@ -411,10 +410,10 @@ const Home = () => {
             </div>
 
             {/* Live snapshot panel */}
-            <div className="rounded-2xl border border-gray-100 dark:border-brandDark-700 bg-gray-50 dark:bg-brandDark-800 p-6">
+            <div className="p-6 border border-gray-100 rounded-2xl dark:border-brandDark-700 bg-gray-50 dark:bg-brandDark-800">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Live Signal Feed</span>
-                <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping inline-flex" />
                   LIVE
                 </span>
@@ -449,8 +448,8 @@ const Home = () => {
                       </>
                     ) : (
                       <>
-                        <div className="space-y-1.5"><div className="h-3 w-20 bg-gray-200 dark:bg-brandDark-600 rounded" /><div className="h-2.5 w-14 bg-gray-200 dark:bg-brandDark-600 rounded" /></div>
-                        <div className="h-5 w-14 bg-gray-200 dark:bg-brandDark-600 rounded-full" />
+                        <div className="space-y-1.5"><div className="w-20 h-3 bg-gray-200 rounded dark:bg-brandDark-600" /><div className="h-2.5 w-14 bg-gray-200 dark:bg-brandDark-600 rounded" /></div>
+                        <div className="h-5 bg-gray-200 rounded-full w-14 dark:bg-brandDark-600" />
                       </>
                     )}
                   </div>
@@ -458,7 +457,7 @@ const Home = () => {
               </div>
               <button
                 onClick={handleGetStarted}
-                className="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                className="w-full py-3 mt-4 text-sm font-semibold text-white transition-opacity rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90"
               >
                 Get Full Access — Free
               </button>
@@ -476,13 +475,13 @@ const Home = () => {
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             {testimonials.map((t, i) => (
-              <div key={i} className="p-6 rounded-2xl bg-white dark:bg-brandDark-900 border border-gray-100 dark:border-brandDark-700 shadow-sm flex flex-col gap-4">
+              <div key={i} className="flex flex-col gap-4 p-6 bg-white border border-gray-100 shadow-sm rounded-2xl dark:bg-brandDark-900 dark:border-brandDark-700">
                 <div className="flex gap-0.5">
                   {Array.from({ length: t.rating }).map((_, j) => <Star key={j} className="w-4 h-4 text-yellow-400 fill-current" />)}
                 </div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed italic flex-1">"{t.content}"</p>
+                <p className="flex-1 text-sm italic leading-relaxed text-gray-600 dark:text-gray-400">"{t.content}"</p>
                 <div className="flex items-center gap-3 pt-3 border-t border-gray-100 dark:border-brandDark-700">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white font-bold text-sm flex-shrink-0">
+                  <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 text-sm font-bold text-white rounded-full bg-gradient-to-br from-cyan-500 to-blue-600">
                     {t.name.charAt(0)}
                   </div>
                   <div>
@@ -497,17 +496,17 @@ const Home = () => {
       </section>
 
       {/* ── FINAL CTA ────────────────────────────────────────────────── */}
-      <section className="py-20 relative overflow-hidden bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700">
+      <section className="relative py-20 overflow-hidden bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700">
         <div className="absolute inset-0 bg-black/10" />
-        <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full blur-3xl" />
-        <div className="relative container px-4 mx-auto text-center">
+        <div className="absolute top-0 right-0 rounded-full w-72 h-72 bg-white/5 blur-3xl" />
+        <div className="container relative px-4 mx-auto text-center">
           <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
             Start Automating Your Trades Today
           </h2>
           <p className="max-w-2xl mx-auto mb-8 text-lg text-white/80">
             Join traders who run bots 24/7, catch every signal, and never miss a market move.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
               onClick={handleGetStarted}
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-white text-blue-700 font-semibold text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
