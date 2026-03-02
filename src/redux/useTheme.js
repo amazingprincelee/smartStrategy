@@ -1,61 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export const useTheme = () => {
+  // 'dark'    = navy theme (the app's default look)
+  // 'darkest' = pure black theme (user-activated)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'dark';
   });
 
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    const newTheme = theme === 'darkest' ? 'dark' : 'darkest';
+    applyTheme(newTheme);
+  };
+
+  const applyTheme = (newTheme) => {
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
-    
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
+
+    // .dark is always present — it's the base navy theme
+    document.documentElement.classList.add('dark');
+
+    if (newTheme === 'darkest') {
+      document.documentElement.classList.add('darkest');
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove('darkest');
     }
   };
-
-  const setDarkMode = () => {
-    setTheme('dark');
-    localStorage.setItem('theme', 'dark');
-    document.documentElement.classList.add('dark');
-  };
-
-  const setLightMode = () => {
-    setTheme('light');
-    localStorage.setItem('theme', 'light');
-    document.documentElement.classList.remove('dark');
-  };
-
-  useEffect(() => {
-    // Sync with system preference changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => {
-      if (!localStorage.getItem('theme')) {
-        const newTheme = e.matches ? 'dark' : 'light';
-        setTheme(newTheme);
-        localStorage.setItem('theme', newTheme);
-        
-        if (newTheme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   return {
     theme,
     toggleTheme,
-    setDarkMode,
-    setLightMode,
-    isDark: theme === 'dark',
-    isLight: theme === 'light'
+    isBlack: theme === 'darkest',   // pure black mode active
+    isDark: theme !== 'darkest',    // navy mode active (default)
+    isLight: false,                 // no white/light mode exists
   };
 };

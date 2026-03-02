@@ -9,7 +9,6 @@ import {
   Menu,
   X,
   Moon,
-  Sun,
 } from 'lucide-react';
 import { logout } from '../../redux/slices/authSlice';
 import { useTheme } from '../../redux/useTheme';
@@ -24,7 +23,7 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
   const { token, user } = useSelector(state => state.auth);
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme, toggleTheme, isBlack } = useTheme();
   const isAuthenticated = !!token; // Derive authentication status from token
 
   const handleLogout = () => {
@@ -114,12 +113,12 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
               <button
                 onClick={toggleTheme}
                 className="p-2 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-brandDark-700"
-                title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+                title={isBlack ? 'Switch to navy mode' : 'Switch to black mode'}
               >
-                {isDark ? (
-                  <Sun className="w-5 h-5 text-yellow-500" />
+                {isBlack ? (
+                  <Moon className="w-5 h-5 text-yellow-400" />
                 ) : (
-                  <Moon className="w-5 h-5 text-brandDark-600 dark:text-gray-300" />
+                  <Moon className="w-5 h-5 text-gray-400 dark:text-gray-300" />
                 )}
               </button>
 

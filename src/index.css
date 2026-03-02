@@ -126,17 +126,40 @@
   }
 }
 
-/* Theme mode variables */
+/* ── brandDark CSS variable defaults (used outside .dark too, e.g. text-brandDark-600) ── */
 :root {
+  --bd-600: #486581;
+  --bd-700: #334e68;
+  --bd-800: #243b53;
+  --bd-900: #0b2447;
+
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
   --border: 214.3 31.8% 91.4%;
 }
 
+/* ── Default theme: navy dark mode (the app's normal look) ── */
 .dark {
-  --background: 222.2 84% 4.9%;
+  --bd-600: #486581;
+  --bd-700: #334e68;
+  --bd-800: #243b53;
+  --bd-900: #0b2447;
+
+  --background: 222.2 47% 11%;
   --foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
+  --border: 214.3 31.8% 30%;
+}
+
+/* ── Pure black dark mode — activated by adding .darkest to <html> ── */
+.dark.darkest {
+  --bd-600: #2a2a2a;
+  --bd-700: #1a1a1a;
+  --bd-800: #111111;
+  --bd-900: #000000;
+
+  --background: 0 0% 0%;
+  --foreground: 210 40% 98%;
+  --border: 0 0% 16%;
 }
 
 
@@ -155,5 +178,5 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500 dark:bg-brandDark-500;
+  @apply bg-gray-500 dark:bg-brandDark-700;
 }

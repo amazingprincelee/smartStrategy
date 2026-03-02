@@ -19,6 +19,8 @@ import {
   Crown,
   Lock,
   Zap,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import {
   fetchArbitrageOpportunities,
@@ -175,7 +177,7 @@ const CryptoArbitrage = () => {
             )}
           </div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Spot price gaps across 9 major exchanges before they close
+            Real-time price gaps across 8 exchanges — scanned every 5 minutes
           </p>
           {metadata.lastUpdate && (
             <div className="flex items-center gap-4 mt-2">
@@ -339,6 +341,61 @@ const CryptoArbitrage = () => {
             </div>
             <Shield className="w-8 h-8 text-blue-500" />
           </div>
+        </div>
+      </div>
+
+      {/* ── Scanning Exchanges ── */}
+      <div className="card py-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                Live — Scanning 8 Exchanges
+              </span>
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
+              · every 5 minutes
+            </span>
+          </div>
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            Open accounts on 2+ to execute manually
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {[
+            { name: 'OKX',      fee: '0.10%', url: 'https://www.okx.com',    tier: 'low' },
+            { name: 'KuCoin',   fee: '0.10%', url: 'https://www.kucoin.com', tier: 'low' },
+            { name: 'Bitget',   fee: '0.10%', url: 'https://www.bitget.com', tier: 'low' },
+            { name: 'Phemex',   fee: '0.10%', url: 'https://phemex.com',     tier: 'low' },
+            { name: 'Poloniex', fee: '0.155%',url: 'https://poloniex.com',   tier: 'mid' },
+            { name: 'Gate.io',  fee: '0.20%', url: 'https://www.gate.io',    tier: 'std' },
+            { name: 'MEXC',     fee: '0.20%', url: 'https://www.mexc.com',   tier: 'std' },
+            { name: 'HTX',      fee: '0.20%', url: 'https://www.htx.com',    tier: 'std' },
+          ].map(ex => (
+            <a
+              key={ex.name}
+              href={ex.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-brandDark-600 bg-white dark:bg-brandDark-700 hover:border-primary-400 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+            >
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400">
+                {ex.name}
+              </span>
+              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                ex.tier === 'low'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                  : ex.tier === 'mid'
+                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
+                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
+              }`}>
+                {ex.fee}
+              </span>
+              <ExternalLink className="w-3 h-3 text-gray-300 dark:text-gray-600 group-hover:text-primary-400 transition-colors" />
+            </a>
+          ))}
         </div>
       </div>
 

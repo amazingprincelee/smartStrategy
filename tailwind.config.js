@@ -27,10 +27,12 @@ export default {
           300: '#9fb3c8',
           400: '#829ab1',
           500: '#627d98',
-          600: '#486581',
-          700: '#334e68',
-          800: '#243b53',
-          900: '#0b2447', // Main brand dark color
+          // 600-900 are powered by CSS variables so we can swap navy ↔ black
+          // without touching any component class names
+          600: 'var(--bd-600)',
+          700: 'var(--bd-700)',
+          800: 'var(--bd-800)',
+          900: 'var(--bd-900)',
         },
 
         secondary: {
