@@ -672,13 +672,13 @@ const Settings = () => {
                           ))
                         ) : (
                           <>
-                            <option value="binance">Binance</option>
-                            <option value="bybit">Bybit</option>
-                            <option value="kucoin">KuCoin</option>
                             <option value="okx">OKX</option>
+                            <option value="kucoin">KuCoin</option>
+                            <option value="bitget">Bitget</option>
+                            <option value="phemex">Phemex</option>
                             <option value="gate">Gate.io</option>
                             <option value="mexc">MEXC</option>
-                            <option value="bitget">Bitget</option>
+                            <option value="huobi">HTX (Huobi)</option>
                             <option value="kraken">Kraken</option>
                           </>
                         )}

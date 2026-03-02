@@ -233,8 +233,17 @@ const CreateBot = () => {
             onChange={e => update('exchange', e.target.value)}
             className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
           >
-            {['binance', 'bybit', 'kucoin', 'okx', 'gate', 'kraken'].map(ex => (
-              <option key={ex} value={ex} className="capitalize">{ex}</option>
+            {[
+              { id: 'okx',    name: 'OKX'         },
+              { id: 'kucoin', name: 'KuCoin'       },
+              { id: 'bitget', name: 'Bitget'       },
+              { id: 'phemex', name: 'Phemex'       },
+              { id: 'gate',   name: 'Gate.io'      },
+              { id: 'mexc',   name: 'MEXC'         },
+              { id: 'huobi',  name: 'HTX (Huobi)'  },
+              { id: 'kraken', name: 'Kraken'       },
+            ].map(ex => (
+              <option key={ex.id} value={ex.id}>{ex.name}</option>
             ))}
           </select>
         </div>

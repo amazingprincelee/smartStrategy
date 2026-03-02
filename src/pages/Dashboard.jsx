@@ -124,7 +124,13 @@ const Dashboard = () => {
   const activeBots   = bots.filter((b) => b.status === 'running').length;
   const totalPnL     = bots.reduce((s, b) => s + (b.stats?.totalPnL || 0), 0);
   // Live signals first; fall back to most recent DB history entry
-  const latestSignal = spotSignals[0] || history[0] || null;
+  // Live signals first; fall back to most recent LONG from DB history.
+  // Spot markets have no shorting — never show a SHORT signal in the spot card,
+  // even if old DB records have SHORT+spot from before the futures guard was added.
+  const latestSignal = spotSignals.find(s => s.type === 'LONG')
+    || spotSignals[0]
+    || history.find(s => s.type === 'LONG')
+    || null;
   const topArb       = opportunities?.[0] || null;
 
   /* quick-stat chips */

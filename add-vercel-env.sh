@@ -11,7 +11,7 @@ echo "Adding environment variables to Vercel..."
 
 # Add environment variables
 echo "Adding VITE_API_URL..."
-echo "https://backend-strategic-save.onrender.com/api" | vercel env add VITE_API_URL production
+echo "https://lionfish-app-irgo6.ondigitalocean.app/api" | vercel env add VITE_API_URL production
 
 echo "Adding VITE_INFURA_API_KEY..."
 echo "3e7de97412bd4e9d8adc98a6ed2e9a21" | vercel env add VITE_INFURA_API_KEY production
