@@ -6,7 +6,6 @@ import {
   Key,
   Bell,
   Palette,
-  Search,
   RefreshCw,
   Save,
   RotateCcw,
@@ -31,14 +30,8 @@ import {
 import {
   fetchUserSettings,
   updateArbitrageSettings,
-  fetchAllExchanges,
-  fetchEnabledExchanges,
-  updateEnabledExchanges,
-  syncExchanges,
   setArbitrageFilter,
   setArbitrageDisplay,
-  toggleExchange,
-  setSelectedExchanges,
   clearMessages,
   resetSettings
 } from '../../redux/slices/settingsSlice';
@@ -55,8 +48,6 @@ const Settings = () => {
   const {
     arbitrage,
     ui,
-    exchanges,
-    exchangesLoading,
     loading,
     error,
     successMessage,
@@ -71,7 +62,6 @@ const Settings = () => {
   } = useSelector((state) => state.exchangeAccounts);
 
   const [activeTab, setActiveTab] = useState('arbitrage');
-  const [exchangeSearch, setExchangeSearch] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -88,15 +78,11 @@ const Settings = () => {
   const [testingId, setTestingId] = useState(null);
   const [removingId, setRemovingId] = useState(null);
 
-  // Load settings and exchanges on mount
+  // Load settings on mount
   useEffect(() => {
     if (!hasLoaded) {
       dispatch(fetchUserSettings());
     }
-    // Fetch all available exchanges from CCXT
-    dispatch(fetchAllExchanges());
-    // Fetch currently enabled exchanges for scanning
-    dispatch(fetchEnabledExchanges());
     // Load exchange API accounts and supported exchanges
     dispatch(fetchAccounts());
     dispatch(fetchSupportedExchanges());
@@ -112,12 +98,6 @@ const Settings = () => {
     }
   }, [successMessage, error, dispatch]);
 
-  // Filter exchanges by search
-  const filteredExchanges = exchanges.filter(ex =>
-    ex.name?.toLowerCase().includes(exchangeSearch.toLowerCase()) ||
-    ex.exchangeId?.toLowerCase().includes(exchangeSearch.toLowerCase())
-  );
-
   // Handle filter change
   const handleFilterChange = (key, value) => {
     dispatch(setArbitrageFilter({ key, value }));
@@ -130,52 +110,15 @@ const Settings = () => {
     setHasChanges(true);
   };
 
-  // Maximum exchanges allowed
-  const MAX_EXCHANGES = 10;
-
-  // Handle exchange toggle with limit
-  const handleExchangeToggle = (exchangeId) => {
-    const isCurrentlySelected = arbitrage.selectedExchanges.includes(exchangeId.toLowerCase());
-
-    // If trying to add and already at max, show warning
-    if (!isCurrentlySelected && arbitrage.selectedExchanges.length >= MAX_EXCHANGES) {
-      alert(`Maximum ${MAX_EXCHANGES} exchanges allowed. Please deselect an exchange first.`);
-      return;
-    }
-
-    dispatch(toggleExchange(exchangeId));
-    setHasChanges(true);
-  };
-
-  // Select/deselect all exchanges (limited to MAX_EXCHANGES)
-  const handleSelectAllExchanges = (select) => {
-    if (select) {
-      // Only select up to MAX_EXCHANGES
-      const limitedExchanges = exchanges.slice(0, MAX_EXCHANGES).map(e => e.exchangeId);
-      dispatch(setSelectedExchanges(limitedExchanges));
-    } else {
-      dispatch(setSelectedExchanges([]));
-    }
-    setHasChanges(true);
-  };
-
   // Save arbitrage settings
   const handleSaveArbitrageSettings = () => {
-    // Save user preferences
     dispatch(updateArbitrageSettings({
       settings: {
         filters: arbitrage.filters,
         display: arbitrage.display,
-        selectedExchanges: arbitrage.selectedExchanges,
         notifications: arbitrage.notifications
       }
     }));
-
-    // Also update the backend arbitrage service with the selected exchanges
-    if (arbitrage.selectedExchanges.length > 0) {
-      dispatch(updateEnabledExchanges(arbitrage.selectedExchanges));
-    }
-
     setHasChanges(false);
   };
 
@@ -185,11 +128,6 @@ const Settings = () => {
       dispatch(resetSettings({ section }));
       setHasChanges(false);
     }
-  };
-
-  // Sync exchanges from CCXT
-  const handleSyncExchanges = () => {
-    dispatch(syncExchanges());
   };
 
   // Exchange API handlers
@@ -572,166 +510,97 @@ const Settings = () => {
           </>
         )}
 
-        {/* Exchange Selection */}
+        {/* Arbitrage Exchanges — read-only info panel */}
         {activeTab === 'exchanges' && (
-          <div className="card">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3">
+          <div className="space-y-6">
+            {/* Header card */}
+            <div className="card">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
                   <BarChart3 className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Exchange Selection</h2>
-                  <p className="text-sm text-gray-500">Choose exchanges for arbitrage scanning</p>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Arbitrage Exchanges</h2>
+                  <p className="text-sm text-gray-500">Exchanges our scanner monitors 24/7 for price differences</p>
                 </div>
               </div>
-              <button
-                onClick={handleSyncExchanges}
-                disabled={loading.sync}
-                className="btn-secondary btn-sm"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading.sync ? 'animate-spin' : ''}`} />
-                Sync Exchanges
-              </button>
-            </div>
 
-            {/* Info Banner */}
-            <div className="flex items-start gap-3 p-4 mb-6 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-              <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  <strong>Limit:</strong> Maximum {MAX_EXCHANGES} exchanges allowed.
-                  More exchanges = more opportunities but slower scans. Start with 2-5 for best performance.
-                </p>
+              {/* How-to banner */}
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">How to participate in arbitrage</p>
+                  <ol className="text-sm text-blue-700 dark:text-blue-300 list-decimal list-inside space-y-0.5">
+                    <li>Open accounts on at least 2 exchanges listed below</li>
+                    <li>Keep USDT or stablecoins funded on each exchange</li>
+                    <li>Our scanner finds price gaps automatically — you act on them</li>
+                  </ol>
+                </div>
               </div>
             </div>
 
-            {/* Search and Quick Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search exchanges..."
-                  value={exchangeSearch}
-                  onChange={(e) => setExchangeSearch(e.target.value)}
-                  className="w-full pl-10 input"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleSelectAllExchanges(true)}
-                  disabled={arbitrage.selectedExchanges.length >= MAX_EXCHANGES}
-                  className="text-sm btn-secondary flex-1 sm:flex-none"
+            {/* Exchange cards grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { name: 'OKX',      id: 'okx',      fee: '0.10%', tier: 'Low fee',    url: 'https://www.okx.com',       note: 'Major global exchange, excellent liquidity' },
+                { name: 'KuCoin',   id: 'kucoin',   fee: '0.10%', tier: 'Low fee',    url: 'https://www.kucoin.com',    note: 'Large altcoin selection, active community' },
+                { name: 'Bitget',   id: 'bitget',   fee: '0.10%', tier: 'Low fee',    url: 'https://www.bitget.com',    note: 'Spot & derivatives, competitive fees' },
+                { name: 'Phemex',   id: 'phemex',   fee: '0.10%', tier: 'Low fee',    url: 'https://phemex.com',        note: 'Fast execution, low-fee platform' },
+                { name: 'Poloniex', id: 'poloniex', fee: '0.155%', tier: 'Mid fee',   url: 'https://poloniex.com',      note: 'Established exchange, many altcoins' },
+                { name: 'Gate.io',  id: 'gateio',   fee: '0.20%', tier: 'Standard',  url: 'https://www.gate.io',       note: 'Huge variety — 1,400+ trading pairs' },
+                { name: 'MEXC',     id: 'mexc',     fee: '0.20%', tier: 'Standard',  url: 'https://www.mexc.com',      note: 'Wide market coverage, new listings fast' },
+                { name: 'HTX (Huobi)', id: 'huobi', fee: '0.20%', tier: 'Standard',  url: 'https://www.htx.com',       note: 'Major Asian exchange, deep liquidity' },
+              ].map((ex) => (
+                <div
+                  key={ex.id}
+                  className="flex flex-col gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-brandDark-800 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
                 >
-                  Select Top {MAX_EXCHANGES}
-                </button>
-                <button
-                  onClick={() => handleSelectAllExchanges(false)}
-                  className="text-sm btn-secondary flex-1 sm:flex-none"
-                >
-                  Clear All
-                </button>
-              </div>
+                  {/* Name + active badge */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-gray-900 dark:text-white">{ex.name}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">
+                      Active
+                    </span>
+                  </div>
+
+                  {/* Fee */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Taker fee:</span>
+                    <span className={`text-sm font-bold ${
+                      ex.fee === '0.10%'
+                        ? 'text-green-600 dark:text-green-400'
+                        : ex.fee === '0.155%'
+                          ? 'text-yellow-600 dark:text-yellow-400'
+                          : 'text-orange-600 dark:text-orange-400'
+                    }`}>
+                      {ex.fee}
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 flex-1">{ex.note}</p>
+
+                  {/* Visit link */}
+                  <a
+                    href={ex.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 w-full py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    Open Account
+                  </a>
+                </div>
+              ))}
             </div>
 
-            {/* Selected Count */}
-            <div className={`flex items-center justify-between p-3 mb-4 rounded-lg ${
-              arbitrage.selectedExchanges.length >= MAX_EXCHANGES
-                ? 'bg-amber-50 dark:bg-amber-900/20'
-                : 'bg-primary-50 dark:bg-primary-900/20'
-            }`}>
-              <div className="flex items-center gap-2">
-                <Check className={`w-4 h-4 ${
-                  arbitrage.selectedExchanges.length >= MAX_EXCHANGES
-                    ? 'text-amber-600'
-                    : 'text-primary-600'
-                }`} />
-                <span className={`text-sm font-medium ${
-                  arbitrage.selectedExchanges.length >= MAX_EXCHANGES
-                    ? 'text-amber-700 dark:text-amber-300'
-                    : 'text-primary-700 dark:text-primary-300'
-                }`}>
-                  {arbitrage.selectedExchanges.length} / {MAX_EXCHANGES} exchanges selected
-                  {arbitrage.selectedExchanges.length >= MAX_EXCHANGES && ' (Maximum reached)'}
-                </span>
-              </div>
-              {hasChanges && (
-                <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full dark:bg-amber-900/30 dark:text-amber-300">
-                  Unsaved changes
-                </span>
-              )}
-            </div>
-
-            {/* Exchange Grid */}
-            {exchangesLoading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <RefreshCw className="w-8 h-8 animate-spin text-primary-600 mb-3" />
-                <p className="text-gray-500">Loading exchanges...</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                {filteredExchanges.map((exchange) => {
-                  const isSelected = arbitrage.selectedExchanges.includes(exchange.exchangeId);
-                  const isDisabled = !isSelected && arbitrage.selectedExchanges.length >= MAX_EXCHANGES;
-                  return (
-                    <label
-                      key={exchange.exchangeId}
-                      className={`
-                        flex items-center gap-3 p-3 border rounded-lg transition-all
-                        ${isDisabled
-                          ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700'
-                          : 'cursor-pointer'
-                        }
-                        ${isSelected
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-500'
-                          : !isDisabled
-                            ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-brandDark-700'
-                            : ''
-                        }
-                      `}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={isDisabled}
-                        onChange={() => handleExchangeToggle(exchange.exchangeId)}
-                        className="w-5 h-5 rounded text-primary-600 disabled:opacity-50"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className={`font-medium truncate ${isDisabled ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>
-                          {exchange.name}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate">
-                          {exchange.exchangeId}
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-
-            {filteredExchanges.length === 0 && !exchangesLoading && (
-              <div className="py-8 text-center">
-                <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No exchanges found matching "{exchangeSearch}"</p>
-              </div>
-            )}
-
-            {/* Save Button */}
-            <div className="flex justify-end mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={handleSaveArbitrageSettings}
-                disabled={loading.updateExchanges || !hasChanges}
-                className="btn-primary"
-              >
-                <Save className={`w-4 h-4 ${loading.updateExchanges ? 'animate-pulse' : ''}`} />
-                {loading.updateExchanges ? 'Saving...' : 'Save Exchange Selection'}
-              </button>
+            {/* Fee comparison note */}
+            <div className="p-4 rounded-lg bg-gray-50 dark:bg-brandDark-800 border border-gray-200 dark:border-gray-700">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                <strong className="text-gray-900 dark:text-white">Tip:</strong>{' '}
+                For the best arbitrage results, prioritise accounts on the <span className="text-green-600 dark:text-green-400 font-medium">0.10% fee exchanges</span> (OKX, KuCoin, Bitget, Phemex).
+                Lower fees mean a smaller spread is needed to be profitable — giving you more opportunities.
+              </p>
             </div>
           </div>
         )}
