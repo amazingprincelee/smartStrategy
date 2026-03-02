@@ -30,7 +30,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     console.log('🔄 Initializing socket connection...');
 
-    const apiUrl = import.meta.env.VITE_LOCAL_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = import.meta.env.VITE_SOCKET_URL ;
     const socketUrl = new URL(apiUrl).origin;
 
     // Connect for everyone — anonymous users get public signal feed,
@@ -38,7 +38,8 @@ export const SocketProvider = ({ children }) => {
     const socket = io(socketUrl, {
       path: '/socket.io/',
       auth: token ? { token } : {},
-      transports: ['websocket', 'polling'],
+      transports: ['polling'],
+      upgrade: false,
       reconnection: true,
       reconnectionDelay: 2000,
       reconnectionDelayMax: 10000,
