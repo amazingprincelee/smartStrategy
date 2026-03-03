@@ -228,7 +228,8 @@ const Signals = () => {
   // History tab filters
   const [histMkt,  setHistMkt]  = useState('');      // '' = all, 'spot', 'futures'
   const [histType, setHistType] = useState('');      // '' = all, 'LONG', 'SHORT'
-  const [histSkip, setHistSkip] = useState(0);
+  const [histPage, setHistPage] = useState(1);
+  const HIST_PAGE_SIZE = 20;
 
   // Backtest form
   const [btForm, setBtForm] = useState({
@@ -255,10 +256,10 @@ const Signals = () => {
     dispatch(fetchSignalHistory({
       marketType:    histMkt  || undefined,
       type:          histType || undefined,
-      limit:         50,
-      skip:          histSkip,
+      limit:         HIST_PAGE_SIZE,
+      skip:          (histPage - 1) * HIST_PAGE_SIZE,
     }));
-  }, [activeTab, histMkt, histType, histSkip, dispatch]);
+  }, [activeTab, histMkt, histType, histPage, dispatch]);
 
   // Fetch pair list from exchange on mount; refetch when market type changes
   useEffect(() => {
@@ -595,7 +596,7 @@ const Signals = () => {
               {['', 'spot', 'futures'].map(v => (
                 <button
                   key={v || 'all-mkt'}
-                  onClick={() => { setHistMkt(v); setHistSkip(0); }}
+                  onClick={() => { setHistMkt(v); setHistPage(1); }}
                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
                     histMkt === v
                       ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
@@ -609,7 +610,7 @@ const Signals = () => {
               {['', 'LONG', 'SHORT'].map(v => (
                 <button
                   key={v || 'all-type'}
-                  onClick={() => { setHistType(v); setHistSkip(0); }}
+                  onClick={() => { setHistType(v); setHistPage(1); }}
                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
                     histType === v
                       ? v === 'LONG'
@@ -624,7 +625,8 @@ const Signals = () => {
                 </button>
               ))}
               <span className="ml-auto text-xs text-gray-600">
-                {historyMeta?.total ?? 0} signals total
+                {historyMeta?.total ?? 0} total
+                {historyLoading && <RefreshCw className="inline w-3 h-3 ml-1.5 animate-spin" />}
               </span>
             </div>
 
@@ -728,27 +730,84 @@ const Signals = () => {
               </div>
             )}
 
-            {/* ── Load more / premium gate ── */}
-            <div className="flex items-center justify-between">
-              {!isPremium && (
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Lock className="w-3.5 h-3.5 text-amber-400" />
-                  <span>
-                    <span className="text-amber-400 font-semibold">Premium</span> unlocks entry, SL, and TP prices.
-                  </span>
+            {/* ── Pagination footer ── */}
+            {(() => {
+              const total      = historyMeta?.total ?? 0;
+              const totalPages = Math.max(1, Math.ceil(total / HIST_PAGE_SIZE));
+              const from       = total === 0 ? 0 : (histPage - 1) * HIST_PAGE_SIZE + 1;
+              const to         = Math.min(histPage * HIST_PAGE_SIZE, total);
+
+              // Build page number list: always show first, last, and a window around current
+              const pages = [];
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+              } else {
+                pages.push(1);
+                if (histPage > 3) pages.push('…');
+                for (let i = Math.max(2, histPage - 1); i <= Math.min(totalPages - 1, histPage + 1); i++) pages.push(i);
+                if (histPage < totalPages - 2) pages.push('…');
+                pages.push(totalPages);
+              }
+
+              return (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                  {/* Left: info + premium note */}
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <span className="text-xs text-gray-500">
+                      {total === 0
+                        ? 'No signals'
+                        : `Showing ${from}–${to} of ${total}`}
+                    </span>
+                    {!isPremium && (
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <Lock className="w-3 h-3 text-amber-400" />
+                        <span><span className="text-amber-400 font-semibold">Premium</span> unlocks entry, SL &amp; TP.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: page controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setHistPage(p => Math.max(1, p - 1))}
+                        disabled={histPage === 1 || historyLoading}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-white/10 text-gray-400 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        ‹ Prev
+                      </button>
+
+                      {pages.map((p, idx) =>
+                        p === '…' ? (
+                          <span key={`ellipsis-${idx}`} className="px-2 text-xs text-gray-600 select-none">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => setHistPage(p)}
+                            disabled={historyLoading}
+                            className={`min-w-[28px] h-7 rounded-lg text-xs font-medium border transition-all disabled:opacity-40 ${
+                              p === histPage
+                                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                                : 'border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+
+                      <button
+                        onClick={() => setHistPage(p => Math.min(totalPages, p + 1))}
+                        disabled={histPage === totalPages || historyLoading}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-white/10 text-gray-400 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        Next ›
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-              {historyMeta?.total > (histSkip + 50) && (
-                <button
-                  onClick={() => setHistSkip(s => s + 50)}
-                  disabled={historyLoading}
-                  className="ml-auto flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all disabled:opacity-40"
-                >
-                  {historyLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
-                  Load older signals
-                </button>
-              )}
-            </div>
+              );
+            })()}
 
           </div>
         );
