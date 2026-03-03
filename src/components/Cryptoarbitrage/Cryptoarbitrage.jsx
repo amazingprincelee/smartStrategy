@@ -261,8 +261,8 @@ const CryptoArbitrage = () => {
         <div className="flex items-start gap-3 p-4 border-l-4 border-red-500 rounded-lg bg-red-50 dark:bg-red-900/20">
           <XCircle className="flex-shrink-0 w-5 h-5 text-red-600 dark:text-red-400" />
           <div className="flex-1">
-            <h3 className="font-medium text-red-800 dark:text-red-200">Error Loading Data</h3>
-            <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+            <h3 className="font-medium text-red-800 dark:text-red-200">We are working hard</h3>
+            <p className="mt-1 text-sm text-red-700 dark:text-red-300">to get you an opportunity</p>
           </div>
         </div>
       )}
@@ -472,14 +472,14 @@ const CryptoArbitrage = () => {
 
       {/* ── Live Scanner ─────────────────────────────────────────────── */}
       <div className="order-2">
-        <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center justify-between px-1 mb-2">
           <div className="flex items-center gap-2.5">
             <div className={`w-2.5 h-2.5 rounded-full ${
               status.isLoading ? 'bg-amber-400 animate-pulse' :
               status.isReady   ? 'bg-green-500 animate-pulse' :
                                  'bg-gray-400'
             }`} />
-            <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
+            <h2 className="text-base font-bold tracking-tight text-gray-900 dark:text-white">
               Live Scanner
             </h2>
             <span className="text-xs text-gray-400 dark:text-gray-500">
