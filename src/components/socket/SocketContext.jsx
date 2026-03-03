@@ -100,16 +100,31 @@ export const SocketProvider = ({ children }) => {
       console.log('📡 New signal received:', signal.pair, signal.type);
       dispatch(addLiveSignal(signal));
 
-      const isLong  = signal.type === 'LONG';
-      const icon    = isLong ? '📈' : '📉';
-      const conf    = signal.confidenceScore ? ` (${(signal.confidenceScore * 100).toFixed(0)}%)` : '';
-      const delayed = signal.delayedBy > 0 ? ' — upgrade for instant signals' : '';
-      const msg     = `${icon} ${signal.type} ${signal.pair}${conf}${delayed}`;
+      const isLong = signal.type === 'LONG';
+      const pair   = (signal.pair || '').replace('USDT', '/USDT');
+      const conf   = signal.confidenceScore ? Math.round(signal.confidenceScore * 100) : null;
+      const market = signal.marketType ? ` · ${signal.marketType}` : '';
+
+      const content = (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>
+            {isLong ? '▲' : '▼'} {pair}
+          </div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '2px' }}>
+            {signal.type}{market}{conf ? ` · ${conf}% conf` : ''}
+          </div>
+          {signal.delayedBy > 0 && (
+            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '3px' }}>
+              ⚡ Upgrade for instant access
+            </div>
+          )}
+        </div>
+      );
 
       if (isLong) {
-        toast.success(msg, { autoClose: 8000 });
+        toast.success(content, { autoClose: 7000, toastId: `sig-${signal.pair}`, icon: '📈' });
       } else {
-        toast.error(msg, { autoClose: 8000 });
+        toast.error(content, { autoClose: 7000, toastId: `sig-${signal.pair}`, icon: '📉' });
       }
     });
 
@@ -119,8 +134,8 @@ export const SocketProvider = ({ children }) => {
       console.log(`📡 Sweep: ${signals.length} signal(s) received`);
       signals.forEach(signal => dispatch(addLiveSignal(signal)));
       toast.info(
-        `${signals.length} new signal${signals.length > 1 ? 's' : ''} from market sweep`,
-        { autoClose: 5000, toastId: 'sweep-update' }
+        `${signals.length} new signal${signals.length > 1 ? 's' : ''} — market sweep`,
+        { autoClose: 4000, toastId: 'sweep-update', icon: '📊' }
       );
     });
 

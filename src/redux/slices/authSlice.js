@@ -37,6 +37,10 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem("token", tokens.accessToken);
       localStorage.setItem("role", role || user?.role || "");
       localStorage.setItem("user", JSON.stringify(user));
+      // Persist theme so it's applied immediately on next page load
+      if (user?.preferences?.theme) {
+        localStorage.setItem("theme", user.preferences.theme);
+      }
 
       return {
         token: tokens.accessToken,

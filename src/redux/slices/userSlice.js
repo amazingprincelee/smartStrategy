@@ -123,6 +123,52 @@ export const archiveNotification = createAsyncThunk(
 );
 
 /* ======================
+  UPDATE THEME
+====================== */
+export const updateTheme = createAsyncThunk(
+  'user/updateTheme',
+  async (theme, { rejectWithValue }) => {
+    try {
+      await authAPI.put('/user/preferences', { theme });
+      localStorage.setItem('theme', theme);
+      return theme;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+/* ======================
+  UPDATE NOTIFICATION PREFERENCES
+====================== */
+export const updateNotificationPreferences = createAsyncThunk(
+  'user/updateNotificationPreferences',
+  async (prefs, { rejectWithValue }) => {
+    try {
+      const response = await authAPI.put('/user/preferences', prefs);
+      return response.data.data.preferences;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+/* ======================
+  CHANGE PASSWORD
+====================== */
+export const changePassword = createAsyncThunk(
+  'user/changePassword',
+  async ({ currentPassword, newPassword }, { rejectWithValue }) => {
+    try {
+      const response = await authAPI.put('/user/password', { currentPassword, newPassword });
+      return response.data.message;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+/* ======================
   FETCH USER PROFILE
 ====================== */
 export const fetchUserProfile = createAsyncThunk(
@@ -383,6 +429,51 @@ const userSlice = createSlice({
         state.loading.profile = false;
         state.error = action.payload?.message || "Failed to update profile";
       });
+
+    /* ===== UPDATE THEME ===== */
+    builder
+      .addCase(updateTheme.fulfilled, (state, action) => {
+        if (state.profile?.preferences) {
+          state.profile.preferences.theme = action.payload;
+        }
+        state.successMessage = "Theme saved";
+      })
+      .addCase(updateTheme.rejected, (state, action) => {
+        state.error = action.payload || "Failed to save theme";
+      });
+
+    /* ===== UPDATE NOTIFICATION PREFERENCES ===== */
+    builder
+      .addCase(updateNotificationPreferences.pending, (state) => {
+        state.loading.action = true;
+        state.error = null;
+      })
+      .addCase(updateNotificationPreferences.fulfilled, (state, action) => {
+        state.loading.action = false;
+        if (state.profile?.preferences && action.payload) {
+          state.profile.preferences = action.payload;
+        }
+        state.successMessage = "Notification preferences saved";
+      })
+      .addCase(updateNotificationPreferences.rejected, (state, action) => {
+        state.loading.action = false;
+        state.error = action.payload || "Failed to save preferences";
+      });
+
+    /* ===== CHANGE PASSWORD ===== */
+    builder
+      .addCase(changePassword.pending, (state) => {
+        state.loading.action = true;
+        state.error = null;
+      })
+      .addCase(changePassword.fulfilled, (state, action) => {
+        state.loading.action = false;
+        state.successMessage = action.payload || "Password changed successfully";
+      })
+      .addCase(changePassword.rejected, (state, action) => {
+        state.loading.action = false;
+        state.error = action.payload || "Failed to change password";
+      });
   },
 });
 
@@ -393,5 +484,6 @@ export const {
   clearUserMessages,
   resetUserState,
 } = userSlice.actions;
+
 
 export default userSlice.reducer;

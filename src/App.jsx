@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
 import CryptoArbitrage from './components/Cryptoarbitrage/Cryptoarbitrage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -38,54 +39,79 @@ const queryClient = new QueryClient({
   },
 });
 
+function applyTheme(theme) {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+  document.documentElement.classList.toggle('dark', isDark);
+}
+
+function AppInner() {
+  const userTheme = useSelector(state => state.auth.user?.preferences?.theme);
+
+  // Apply theme whenever user logs in / changes theme / on initial load
+  useEffect(() => {
+    const theme = userTheme || localStorage.getItem('theme') || 'system';
+    applyTheme(theme);
+  }, [userTheme]);
+
+  // Also apply immediately on mount from localStorage (before auth state loads)
+  useEffect(() => {
+    applyTheme(localStorage.getItem('theme') || 'system');
+  }, []);
+
+  return (
+    <Router>
+      <div className="min-h-screen transition-colors duration-300 bg-gray-50 dark:bg-brandDark-900">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Protected Routes */}
+          <Route element={<Layout />}>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/bots" element={<BotDashboard />} />
+              <Route path="/bots/create" element={<CreateBot />} />
+              <Route path="/bots/:id" element={<BotDetail />} />
+              <Route path="/demo" element={<DemoAccount />} />
+              <Route path="/strategies" element={<StrategyLibrary />} />
+              <Route path="/signals" element={<Signals />} />
+              <Route path="/arbitrage" element={<CryptoArbitrage />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+          </Route>
+
+          {/* 404 Route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+
+        <ToastContainer
+          position="top-center"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={true}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+          className="mt-16"
+        />
+      </div>
+    </Router>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SocketProvider>
         <WalletProvider>
-          <Router>
-            <div className="min-h-screen transition-colors duration-300 bg-gray-50 dark:bg-brandDark-900">
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-
-                {/* Protected Routes */}
-                <Route element={<Layout />}>
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/bots" element={<BotDashboard />} />
-                    <Route path="/bots/create" element={<CreateBot />} />
-                    <Route path="/bots/:id" element={<BotDetail />} />
-                    <Route path="/demo" element={<DemoAccount />} />
-                    <Route path="/strategies" element={<StrategyLibrary />} />
-                    <Route path="/signals" element={<Signals />} />
-                    <Route path="/arbitrage" element={<CryptoArbitrage />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Route>
-                </Route>
-
-                {/* 404 Route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-
-              <ToastContainer
-                position="top-right"
-                autoClose={5000}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme="colored"
-                className="mt-16"
-              />
-            </div>
-          </Router>
+          <AppInner />
         </WalletProvider>
       </SocketProvider>
     </QueryClientProvider>
