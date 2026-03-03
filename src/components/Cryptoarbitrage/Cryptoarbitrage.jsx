@@ -12,7 +12,7 @@ import {
   Info,
   Clock,
   AlertTriangle,
-  Shield,
+
   Activity,
   History,
   Bell,
@@ -68,6 +68,20 @@ const CryptoArbitrage = () => {
   const [pastPage, setPastPage] = useState(1);
   const [pastPagination, setPastPagination] = useState({ page: 1, pages: 1, total: 0, hasNext: false, hasPrev: false });
 
+  // Summary stats for stat cards (aggregated DB history)
+  const [historySummary, setHistorySummary] = useState({
+    total: null, activeCount: null, clearedCount: null, bestNetProfit: null, avgNetProfit: null
+  });
+
+  const fetchHistorySummary = useCallback(async () => {
+    try {
+      const res = await authAPI.get('/arbitrage/past-opportunities/summary');
+      if (res.data.success) setHistorySummary(res.data.summary);
+    } catch (err) {
+      console.error('Failed to load summary:', err.message);
+    }
+  }, []);
+
   const fetchPastOpportunities = useCallback(async (statusFilter = 'all', page = 1) => {
     setPastLoading(true);
     try {
@@ -92,6 +106,13 @@ const CryptoArbitrage = () => {
     const id = setInterval(() => fetchPastOpportunities(pastFilter, pastPage), 60_000);
     return () => clearInterval(id);
   }, [fetchPastOpportunities, pastFilter, pastPage]);
+
+  // Load summary stats on mount and refresh every 60 seconds
+  useEffect(() => {
+    fetchHistorySummary();
+    const id = setInterval(fetchHistorySummary, 60_000);
+    return () => clearInterval(id);
+  }, [fetchHistorySummary]);
 
   // Check status on mount and set up status polling
   useEffect(() => {
@@ -267,41 +288,66 @@ const CryptoArbitrage = () => {
         </div>
       )}
 
-      {/* Stats Cards - Always show */}
+      {/* Stats Cards — sourced from DB history, loads instantly */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+        {/* Card 1 — Total Recorded */}
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Opportunities</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Recorded</p>
               <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {stats.totalOpportunities || status.opportunitiesCount || opportunities.length || 0}
+                {historySummary.total !== null ? historySummary.total : '—'}
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                {opportunities.filter(o => (o.isProfitableAfterFees ?? (o.netProfitPercent || 0) > 0)).length} executable,{' '}
-                {opportunities.filter(o => !(o.isProfitableAfterFees ?? (o.netProfitPercent || 0) > 0)).length} near-miss
+                opportunities ever saved (≥0.20%)
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-primary-500" />
           </div>
         </div>
 
+        {/* Card 2 — Active vs Cleared */}
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Best Profit</p>
-              {opportunities.length > 0 ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400">Active / Cleared</p>
+              {historySummary.activeCount !== null ? (
                 <>
-                  <p className="mt-1 text-2xl font-bold text-green-600">
-                    {Math.max(...opportunities.map(o => o.netProfitPercent || o.profitPercent || 0)).toFixed(3)}%
+                  <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                    <span className="text-emerald-600">{historySummary.activeCount}</span>
+                    <span className="mx-1 text-gray-400">/</span>
+                    <span className="text-gray-500">{historySummary.clearedCount}</span>
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    ${Math.max(...opportunities.map(o => o.expectedProfitUSD || 0)).toFixed(2)} potential
-                  </p>
+                  <p className="mt-1 text-xs text-gray-500">still open · closed</p>
                 </>
               ) : (
                 <>
-                  <p className="mt-1 text-2xl font-bold text-gray-400">N/A</p>
-                  <p className="mt-1 text-xs text-gray-500">No data yet</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-400">—</p>
+                  <p className="mt-1 text-xs text-gray-500">loading…</p>
+                </>
+              )}
+            </div>
+            <Activity className="w-8 h-8 text-emerald-500" />
+          </div>
+        </div>
+
+        {/* Card 3 — Best Profit Ever */}
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Best Profit Ever</p>
+              {historySummary.bestNetProfit !== null ? (
+                <>
+                  <p className="mt-1 text-2xl font-bold text-green-600">
+                    {historySummary.bestNetProfit.toFixed(3)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">net after fees</p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-2xl font-bold text-gray-400">—</p>
+                  <p className="mt-1 text-xs text-gray-500">no history yet</p>
                 </>
               )}
             </div>
@@ -309,23 +355,26 @@ const CryptoArbitrage = () => {
           </div>
         </div>
 
+        {/* Card 4 — Avg Net Profit */}
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Potential</p>
-              {opportunities.length > 0 ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400">Avg Net Profit</p>
+              {historySummary.avgNetProfit !== null ? (
                 <>
-                  <p className="mt-1 text-2xl font-bold text-purple-600">
-                    ${opportunities.reduce((sum, o) => sum + (o.expectedProfitUSD || 0), 0).toFixed(2)}
+                  <p className={`mt-1 text-2xl font-bold ${
+                    historySummary.avgNetProfit >= 0.5 ? 'text-green-600'
+                    : historySummary.avgNetProfit >= 0.2 ? 'text-yellow-600'
+                    : 'text-gray-600 dark:text-gray-300'
+                  }`}>
+                    {historySummary.avgNetProfit.toFixed(3)}%
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Combined profit
-                  </p>
+                  <p className="mt-1 text-xs text-gray-500">across all saved opportunities</p>
                 </>
               ) : (
                 <>
-                  <p className="mt-1 text-2xl font-bold text-gray-400">$0.00</p>
-                  <p className="mt-1 text-xs text-gray-500">Load data to see</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-400">—</p>
+                  <p className="mt-1 text-xs text-gray-500">no history yet</p>
                 </>
               )}
             </div>
@@ -333,38 +382,6 @@ const CryptoArbitrage = () => {
           </div>
         </div>
 
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Avg Confidence</p>
-              {opportunities.length > 0 && opportunities[0].confidenceScore ? (
-                <>
-                  <p className={`mt-1 text-2xl font-bold ${
-                    (opportunities.reduce((sum, o) => sum + (o.confidenceScore || 50), 0) / opportunities.length) >= 60
-                      ? 'text-green-600' : 'text-yellow-600'
-                  }`}>
-                    {Math.round(opportunities.reduce((sum, o) => sum + (o.confidenceScore || 50), 0) / opportunities.length)}%
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Order book based
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-xs font-medium text-green-600">L:{opportunities.filter(o => o.riskLevel === 'Low').length}</span>
-                    <span className="text-xs font-medium text-yellow-600">M:{opportunities.filter(o => o.riskLevel === 'Medium').length}</span>
-                    <span className="text-xs font-medium text-red-600">H:{opportunities.filter(o => o.riskLevel === 'High').length}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Risk breakdown
-                  </p>
-                </>
-              )}
-            </div>
-            <Shield className="w-8 h-8 text-blue-500" />
-          </div>
-        </div>
       </div>
 
       {/* ── Scanning Exchanges ── */}

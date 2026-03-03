@@ -7,6 +7,7 @@ import {
   clearAnalysis,
   fetchAvailablePairs,
   fetchSignals,
+  fetchSignalHistory,
 } from '../redux/slices/signalSlice';
 import {
   Activity,
@@ -25,6 +26,7 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
+  History,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────── helpers ── */
@@ -183,6 +185,7 @@ function BacktestTradeRow({ t, i }) {
 const TABS = [
   { key: 'spot',     label: 'Spot',     icon: TrendingUp   },
   { key: 'futures',  label: 'Futures',  icon: Zap          },
+  { key: 'history',  label: 'History',  icon: History      },
   { key: 'analyze',  label: 'Analyze',  icon: Search       },
   { key: 'backtest', label: 'Backtest', icon: FlaskConical },
 ];
@@ -212,7 +215,8 @@ const Signals = () => {
   const { backtestResult, analysis,
           backtestLoading, analysisLoading,
           backtestError, analysisError,
-          availablePairs, spot, futures, loading } =
+          availablePairs, spot, futures, loading,
+          history, historyLoading, historyMeta } =
     useSelector(state => state.signals);
 
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
@@ -220,6 +224,11 @@ const Signals = () => {
 
   const [activeTab, setActiveTab] = useState('spot');
   const [showAll, setShowAll]     = useState(false);
+
+  // History tab filters
+  const [histMkt,  setHistMkt]  = useState('');      // '' = all, 'spot', 'futures'
+  const [histType, setHistType] = useState('');      // '' = all, 'LONG', 'SHORT'
+  const [histSkip, setHistSkip] = useState(0);
 
   // Backtest form
   const [btForm, setBtForm] = useState({
@@ -239,6 +248,17 @@ const Signals = () => {
     }
     setShowAll(false);
   }, [activeTab, dispatch]);
+
+  // Fetch signal history whenever the history tab is active or filters/page change
+  useEffect(() => {
+    if (activeTab !== 'history') return;
+    dispatch(fetchSignalHistory({
+      marketType:    histMkt  || undefined,
+      type:          histType || undefined,
+      limit:         50,
+      skip:          histSkip,
+    }));
+  }, [activeTab, histMkt, histType, histSkip, dispatch]);
 
   // Fetch pair list from exchange on mount; refetch when market type changes
   useEffect(() => {
@@ -556,6 +576,183 @@ const Signals = () => {
           </div>
         </div>
       )}
+
+      {/* ════════════ HISTORY ════════════ */}
+      {activeTab === 'history' && (() => {
+        const statusMeta = {
+          active:  { label: 'Active',   cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/25'     },
+          hit_tp:  { label: 'TP Hit',   cls: 'bg-green-500/15 text-green-300 border-green-500/25'  },
+          hit_sl:  { label: 'SL Hit',   cls: 'bg-red-500/15 text-red-300 border-red-500/25'        },
+          expired: { label: 'Expired',  cls: 'bg-gray-500/15 text-gray-400 border-gray-500/25'     },
+        };
+
+        return (
+          <div className="space-y-4">
+
+            {/* ── Filter bar ── */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-500">Filter:</span>
+              {['', 'spot', 'futures'].map(v => (
+                <button
+                  key={v || 'all-mkt'}
+                  onClick={() => { setHistMkt(v); setHistSkip(0); }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    histMkt === v
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'border-white/10 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {v === '' ? 'All markets' : v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              ))}
+              <span className="w-px h-4 bg-white/10" />
+              {['', 'LONG', 'SHORT'].map(v => (
+                <button
+                  key={v || 'all-type'}
+                  onClick={() => { setHistType(v); setHistSkip(0); }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    histType === v
+                      ? v === 'LONG'
+                        ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                        : v === 'SHORT'
+                          ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                          : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'border-white/10 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {v === '' ? 'All types' : v}
+                </button>
+              ))}
+              <span className="ml-auto text-xs text-gray-600">
+                {historyMeta?.total ?? 0} signals total
+              </span>
+            </div>
+
+            {/* ── Table ── */}
+            {historyLoading && history.length === 0 ? (
+              <div className="space-y-2 animate-pulse">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-12 rounded-xl bg-white/4" />
+                ))}
+              </div>
+            ) : history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <History className="w-12 h-12 text-gray-600 mb-3" />
+                <p className="text-gray-400 font-medium">No signal history yet</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Signals are saved automatically when the engine scans every 30 min.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-white/8">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-white/8 bg-white/3 text-[11px] uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3">Pair</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Market</th>
+                      <th className="px-4 py-3">Entry</th>
+                      <th className="px-4 py-3">Stop Loss</th>
+                      <th className="px-4 py-3">Take Profit</th>
+                      <th className="px-4 py-3">Confidence</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((s, i) => {
+                      const isLong = s.type === 'LONG';
+                      const conf   = Math.round((s.confidenceScore || 0) * 100);
+                      const st     = statusMeta[s.status] || statusMeta.expired;
+                      return (
+                        <tr
+                          key={s._id || i}
+                          className="border-b border-white/5 hover:bg-white/3 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-mono text-white font-medium whitespace-nowrap">
+                            {(s.pair || '').replace('USDT', '/USDT')}
+                            <span className="ml-1.5 text-[10px] text-gray-600">{s.timeframe}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${
+                              isLong
+                                ? 'bg-green-500/15 text-green-300 border-green-500/25'
+                                : 'bg-red-500/15 text-red-300 border-red-500/25'
+                            }`}>
+                              {isLong ? '▲' : '▼'} {s.type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-400 capitalize">{s.marketType}</td>
+                          <td className="px-4 py-3 font-mono text-cyan-300">
+                            {isPremium
+                              ? `$${fmt(s.entry, 4)}`
+                              : <span className="blur-[5px] select-none text-gray-500">${fmt(s.entry, 4)}</span>
+                            }
+                          </td>
+                          <td className="px-4 py-3 font-mono text-red-400">
+                            {isPremium
+                              ? `$${fmt(s.stopLoss, 4)}`
+                              : <span className="blur-[5px] select-none text-gray-500">${fmt(s.stopLoss, 4)}</span>
+                            }
+                          </td>
+                          <td className="px-4 py-3 font-mono text-green-400">
+                            {isPremium
+                              ? `$${fmt(s.takeProfit, 4)}`
+                              : <span className="blur-[5px] select-none text-gray-500">${fmt(s.takeProfit, 4)}</span>
+                            }
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-12 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                <div
+                                  className={`h-1.5 rounded-full ${conf >= 80 ? 'bg-emerald-500' : conf >= 60 ? 'bg-yellow-500' : 'bg-gray-500'}`}
+                                  style={{ width: `${conf}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-gray-400">{conf}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${st.cls}`}>
+                              {st.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                            <span title={fmtTime(s.timestamp)}>{timeAgo(s.timestamp)}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ── Load more / premium gate ── */}
+            <div className="flex items-center justify-between">
+              {!isPremium && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>
+                    <span className="text-amber-400 font-semibold">Premium</span> unlocks entry, SL, and TP prices.
+                  </span>
+                </div>
+              )}
+              {historyMeta?.total > (histSkip + 50) && (
+                <button
+                  onClick={() => setHistSkip(s => s + 50)}
+                  disabled={historyLoading}
+                  className="ml-auto flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all disabled:opacity-40"
+                >
+                  {historyLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
+                  Load older signals
+                </button>
+              )}
+            </div>
+
+          </div>
+        );
+      })()}
 
       {/* ════════════ ANALYZE ════════════ */}
       {activeTab === 'analyze' && (
