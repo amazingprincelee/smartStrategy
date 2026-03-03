@@ -58,19 +58,26 @@ const CryptoArbitrage = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
 
-  // Past opportunities (stored, ≥2% profit)
+  const PAST_LIMIT = 10; // rows per page
+
+  // Past opportunities (stored, ≥0.20% profit)
   const [pastOpps, setPastOpps] = useState([]);
   const [pastLoading, setPastLoading] = useState(false);
   const [pastFilter, setPastFilter] = useState('all'); // all | active | cleared
   const [pastMeta, setPastMeta] = useState({ activeCount: 0, clearedCount: 0, total: 0 });
+  const [pastPage, setPastPage] = useState(1);
+  const [pastPagination, setPastPagination] = useState({ page: 1, pages: 1, total: 0, hasNext: false, hasPrev: false });
 
-  const fetchPastOpportunities = useCallback(async (statusFilter = 'all') => {
+  const fetchPastOpportunities = useCallback(async (statusFilter = 'all', page = 1) => {
     setPastLoading(true);
     try {
-      const res = await authAPI.get(`/arbitrage/past-opportunities?status=${statusFilter}&limit=100`);
+      const res = await authAPI.get(
+        `/arbitrage/past-opportunities?status=${statusFilter}&limit=${PAST_LIMIT}&page=${page}`
+      );
       if (res.data.success) {
         setPastOpps(res.data.data || []);
         setPastMeta(res.data.meta || {});
+        setPastPagination(res.data.pagination || { page: 1, pages: 1, total: 0, hasNext: false, hasPrev: false });
       }
     } catch (err) {
       console.error('Failed to load past opportunities:', err.message);
@@ -81,10 +88,10 @@ const CryptoArbitrage = () => {
 
   // Load past opportunities on mount and auto-refresh every 60 seconds
   useEffect(() => {
-    fetchPastOpportunities(pastFilter);
-    const id = setInterval(() => fetchPastOpportunities(pastFilter), 60_000);
+    fetchPastOpportunities(pastFilter, pastPage);
+    const id = setInterval(() => fetchPastOpportunities(pastFilter, pastPage), 60_000);
     return () => clearInterval(id);
-  }, [fetchPastOpportunities, pastFilter]);
+  }, [fetchPastOpportunities, pastFilter, pastPage]);
 
   // Check status on mount and set up status polling
   useEffect(() => {
@@ -811,7 +818,7 @@ const CryptoArbitrage = () => {
               {pastMeta.clearedCount} Cleared
             </span>
             <button
-              onClick={() => fetchPastOpportunities(pastFilter)}
+              onClick={() => fetchPastOpportunities(pastFilter, pastPage)}
               disabled={pastLoading}
               className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
@@ -829,7 +836,7 @@ const CryptoArbitrage = () => {
           ].map(tab => (
             <button
               key={tab.key}
-              onClick={() => setPastFilter(tab.key)}
+              onClick={() => { setPastFilter(tab.key); setPastPage(1); }}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                 pastFilter === tab.key
                   ? 'bg-white dark:bg-brandDark-700 text-gray-900 dark:text-white shadow-sm'
@@ -961,6 +968,78 @@ const CryptoArbitrage = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pastPagination.pages > 1 && (
+          <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100 dark:border-brandDark-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Showing{' '}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {(pastPagination.page - 1) * PAST_LIMIT + 1}–{Math.min(pastPagination.page * PAST_LIMIT, pastPagination.total)}
+              </span>{' '}
+              of <span className="font-medium text-gray-700 dark:text-gray-300">{pastPagination.total}</span> opportunities
+            </p>
+
+            <div className="flex items-center gap-1">
+              {/* First page */}
+              <button
+                onClick={() => setPastPage(1)}
+                disabled={!pastPagination.hasPrev || pastLoading}
+                className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="First page"
+              >
+                «
+              </button>
+
+              {/* Previous */}
+              <button
+                onClick={() => setPastPage(p => Math.max(1, p - 1))}
+                disabled={!pastPagination.hasPrev || pastLoading}
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                ‹ Prev
+              </button>
+
+              {/* Page numbers */}
+              {Array.from({ length: pastPagination.pages }, (_, i) => i + 1)
+                .filter(p => Math.abs(p - pastPagination.page) <= 2)
+                .map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPastPage(p)}
+                    disabled={pastLoading}
+                    className={`w-8 h-8 text-xs rounded-lg border transition-colors ${
+                      p === pastPagination.page
+                        ? 'border-primary-500 bg-primary-500 text-white font-semibold'
+                        : 'border-gray-200 dark:border-brandDark-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700'
+                    } disabled:cursor-not-allowed`}
+                  >
+                    {p}
+                  </button>
+                ))
+              }
+
+              {/* Next */}
+              <button
+                onClick={() => setPastPage(p => Math.min(pastPagination.pages, p + 1))}
+                disabled={!pastPagination.hasNext || pastLoading}
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next ›
+              </button>
+
+              {/* Last page */}
+              <button
+                onClick={() => setPastPage(pastPagination.pages)}
+                disabled={!pastPagination.hasNext || pastLoading}
+                className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="Last page"
+              >
+                »
+              </button>
+            </div>
           </div>
         )}
       </div>
