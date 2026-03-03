@@ -1079,12 +1079,12 @@ const CryptoArbitrage = () => {
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Buy on</p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedOpportunity.buyExchange}</p>
-                  <p className="text-sm text-gray-600">${selectedOpportunity.buyPrice.toLocaleString()}</p>
+                  <p className="text-sm text-gray-600">${selectedOpportunity.buyPrice?.toLocaleString() ?? '—'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Sell on</p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedOpportunity.sellExchange}</p>
-                  <p className="text-sm text-gray-600">${selectedOpportunity.sellPrice.toLocaleString()}</p>
+                  <p className="text-sm text-gray-600">${selectedOpportunity.sellPrice?.toLocaleString() ?? '—'}</p>
                 </div>
               </div>
 
@@ -1163,7 +1163,7 @@ const CryptoArbitrage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                   <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Tradeable Volume</p>
-                  <p className="text-lg font-bold text-blue-600">{selectedOpportunity.tradeableVolume.toFixed(4)} {selectedOpportunity.coin}</p>
+                  <p className="text-lg font-bold text-blue-600">{selectedOpportunity.tradeableVolume?.toFixed(4) ?? '—'} {selectedOpportunity.coin ?? ''}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
                   <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Risk Level</p>
@@ -1174,9 +1174,11 @@ const CryptoArbitrage = () => {
                 </div>
               </div>
 
-              <div className="p-3 border-l-4 border-blue-500 rounded bg-blue-50 dark:bg-blue-900/20">
-                <p className="text-sm text-blue-700 dark:text-blue-300">{selectedOpportunity.fees.note}</p>
-              </div>
+              {selectedOpportunity.fees?.note && (
+                <div className="p-3 border-l-4 border-blue-500 rounded bg-blue-50 dark:bg-blue-900/20">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">{selectedOpportunity.fees.note}</p>
+                </div>
+              )}
 
               {/* Order Book Depth */}
               <div className="grid grid-cols-2 gap-4">
