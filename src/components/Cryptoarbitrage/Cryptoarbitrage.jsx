@@ -386,16 +386,11 @@ const CryptoArbitrage = () => {
 
       {/* ── Scanning Exchanges ── */}
       <div className="py-4 card">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                Live — Scanning 8 Exchanges
-              </span>
-            </div>
-            <span className="hidden text-xs text-gray-500 dark:text-gray-400 sm:inline">
-              · 
+        <div className="flex flex-col gap-1 mb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0" />
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+              Live — Scanning 8 Exchanges
             </span>
           </div>
           <span className="text-xs text-gray-400 dark:text-gray-500">
@@ -403,7 +398,7 @@ const CryptoArbitrage = () => {
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
           {[
             { name: 'OKX',      fee: '0.10%', url: 'https://www.okx.com',    tier: 'low' },
             { name: 'KuCoin',   fee: '0.10%', url: 'https://www.kucoin.com', tier: 'low' },
@@ -419,21 +414,23 @@ const CryptoArbitrage = () => {
               href={ex.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-brandDark-600 bg-white dark:bg-brandDark-700 hover:border-primary-400 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+              className="group flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-brandDark-600 bg-white dark:bg-brandDark-700 hover:border-primary-400 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
             >
-              <span className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400">
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 truncate">
                 {ex.name}
               </span>
-              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                ex.tier === 'low'
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                  : ex.tier === 'mid'
-                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
-                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
-              }`}>
-                {ex.fee}
-              </span>
-              <ExternalLink className="w-3 h-3 text-gray-300 transition-colors dark:text-gray-600 group-hover:text-primary-400" />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                  ex.tier === 'low'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                    : ex.tier === 'mid'
+                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
+                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
+                }`}>
+                  {ex.fee}
+                </span>
+                <ExternalLink className="hidden w-3 h-3 text-gray-300 transition-colors dark:text-gray-600 group-hover:text-primary-400 sm:block" />
+              </div>
             </a>
           ))}
         </div>
