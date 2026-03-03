@@ -86,10 +86,10 @@ const SignalCard = ({ s, isPremium = false }) => {
           <p className="text-base font-semibold text-gray-900 dark:text-white">{fmtPrice(displayPrice)}</p>
         ) : (
           <div className="flex items-center gap-1.5">
-            <p className="text-base font-semibold text-gray-900 dark:text-white blur-sm select-none">
+            <p className="text-base font-semibold text-gray-900 select-none dark:text-white blur-sm">
               {fmtPrice(displayPrice)}
             </p>
-            <Lock className="w-3 h-3 text-amber-500 flex-shrink-0" />
+            <Lock className="flex-shrink-0 w-3 h-3 text-amber-500" />
           </div>
         )}
         {s.riskReward != null ? (
@@ -120,7 +120,7 @@ const SignalCard = ({ s, isPremium = false }) => {
       {/* Premium upgrade nudge */}
       {!isPremium && (
         <div className="flex items-center gap-1.5 pt-1 border-t border-current/10">
-          <Crown className="w-3 h-3 text-amber-500 flex-shrink-0" />
+          <Crown className="flex-shrink-0 w-3 h-3 text-amber-500" />
           <span className="text-xs text-amber-600 dark:text-amber-400">
             Upgrade for exact entry &amp; SL/TP
           </span>
@@ -254,13 +254,13 @@ const Home = () => {
 
             {/* Live badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-medium">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
+              <span className="relative flex w-2 h-2">
+                <span className="absolute inline-flex w-full h-full bg-green-400 rounded-full opacity-75 animate-ping" />
+                <span className="relative inline-flex w-2 h-2 bg-green-400 rounded-full" />
               </span>
-              LIVE — refreshes every 5 min
+              LIVE — Crypto Currency Trading Signal
               {lastRefresh && (
-                <span className="text-cyan-600 text-xs">
+                <span className="text-xs text-cyan-600">
                   · updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
@@ -326,7 +326,7 @@ const Home = () => {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 text-xs font-semibold text-green-700 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping inline-flex" />
-                LIVE — refreshes every 5 min
+                LIVE — Trading signal
               </div>
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">Real-Time Trading Signals</h2>
               <p className="max-w-xl mt-2 text-gray-600 dark:text-gray-400">
@@ -370,10 +370,10 @@ const Home = () => {
                     <SignalCard key={s.pair ?? s.symbol ?? i} s={s} isPremium={isPremium} />
                   ))
                 : (
-                  <div className="col-span-full flex flex-col items-center justify-center py-16 gap-3 text-gray-400 dark:text-gray-500">
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-400 col-span-full dark:text-gray-500">
                     <Activity className="w-10 h-10 opacity-40" />
                     <p className="text-sm font-medium">No {activeTab} signals yet — next sweep in a few minutes</p>
-                    <button onClick={handleRefresh} className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1">
+                    <button onClick={handleRefresh} className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
                       <RefreshCw className="w-3.5 h-3.5" /> Check now
                     </button>
                   </div>

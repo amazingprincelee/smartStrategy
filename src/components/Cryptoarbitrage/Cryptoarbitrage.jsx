@@ -102,6 +102,13 @@ const CryptoArbitrage = () => {
     }
   }, [status.isReady, dispatch]);
 
+  // Re-fetch when the scanner discovers live opportunities after returning stale data
+  useEffect(() => {
+    if (metadata.isStale && status.opportunitiesCount > 0) {
+      dispatch(fetchArbitrageOpportunities());
+    }
+  }, [metadata.isStale, status.opportunitiesCount, dispatch]);
+
   // Handle success messages
   useEffect(() => {
     if (successMessage) {
@@ -144,6 +151,14 @@ const CryptoArbitrage = () => {
     return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
   };
 
+  const getProfitTier = (netProfitPercent) => {
+    const pct = netProfitPercent || 0;
+    if (pct >= 1)   return { label: 'High',      cls: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' };
+    if (pct >= 0.3) return { label: 'Medium',    cls: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' };
+    if (pct >= 0)   return { label: 'Low',       cls: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' };
+    return              { label: 'Near Miss', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' };
+  };
+
   const getTransferBadge = (status) => {
     if (status === 'Verified') return { color: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300', icon: CheckCircle };
     if (status === 'Blocked') return { color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: XCircle };
@@ -155,7 +170,7 @@ const CryptoArbitrage = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
               Crypto Arbitrage Scanner
             </h1>
@@ -177,7 +192,7 @@ const CryptoArbitrage = () => {
             )}
           </div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Real-time price gaps across 8 exchanges — scanned every 5 minutes
+            Real-time price gaps across 8 exchanges — continues scanning for opportunities
           </p>
           {metadata.lastUpdate && (
             <div className="flex items-center gap-4 mt-2">
@@ -197,28 +212,28 @@ const CryptoArbitrage = () => {
 
       {/* Free-tier upgrade banner */}
       {!isPremium && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="p-4 border rounded-xl border-amber-200 dark:border-amber-800/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-1">
+              <p className="flex items-center gap-2 mb-1 font-semibold text-gray-900 dark:text-white">
                 <Crown className="w-4 h-4 text-amber-500" />
                 Unlock the full arbitrage edge
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mt-2">
+              <div className="grid grid-cols-1 mt-2 sm:grid-cols-2 gap-x-6 gap-y-1">
                 {[
                   'Exact profit % on every opportunity',
                   'Gross spread & expected USD gain',
-                  'Instant email alerts for ≥2% gaps',
+                  'Instant email alerts for ≥1% gaps',
                   'Priority access before gaps close',
                 ].map(f => (
                   <p key={f} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-                    <Zap className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                    <Zap className="flex-shrink-0 w-3 h-3 text-amber-500" />
                     {f}
                   </p>
                 ))}
               </div>
             </div>
-            <button className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
+            <button className="flex items-center flex-shrink-0 gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors rounded-lg bg-amber-500 hover:bg-amber-600 whitespace-nowrap">
               <Crown className="w-4 h-4" />
               Upgrade to Premium
             </button>
@@ -255,7 +270,8 @@ const CryptoArbitrage = () => {
                 {stats.totalOpportunities || status.opportunitiesCount || opportunities.length || 0}
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                {opportunities.filter(o => (o.netProfitPercent || 0) > 0).length} executable
+                {opportunities.filter(o => (o.isProfitableAfterFees ?? (o.netProfitPercent || 0) > 0)).length} executable,{' '}
+                {opportunities.filter(o => !(o.isProfitableAfterFees ?? (o.netProfitPercent || 0) > 0)).length} near-miss
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-primary-500" />
@@ -345,21 +361,21 @@ const CryptoArbitrage = () => {
       </div>
 
       {/* ── Scanning Exchanges ── */}
-      <div className="card py-4">
+      <div className="py-4 card">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-sm font-semibold text-gray-900 dark:text-white">
                 Live — Scanning 8 Exchanges
               </span>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
-              · every 5 minutes
+            <span className="hidden text-xs text-gray-500 dark:text-gray-400 sm:inline">
+              · 
             </span>
           </div>
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            Open accounts on 2+ to execute manually
+            Open accounts on all to execute manually
           </span>
         </div>
 
@@ -393,7 +409,7 @@ const CryptoArbitrage = () => {
               }`}>
                 {ex.fee}
               </span>
-              <ExternalLink className="w-3 h-3 text-gray-300 dark:text-gray-600 group-hover:text-primary-400 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-gray-300 transition-colors dark:text-gray-600 group-hover:text-primary-400" />
             </a>
           ))}
         </div>
@@ -477,11 +493,18 @@ const CryptoArbitrage = () => {
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
               {opportunities.length === 0
-                ? 'No arbitrage opportunities at the moment. The scanner runs every 5 minutes.'
-                : 'Try adjusting your filters to see more opportunities.'}
+                ? 'The scanner is running every 5 minutes across 8 exchanges. Real-time spread data will appear here shortly.'
+                : 'All currently detected spreads are shown — try removing filters or disabling "profitable only" to see near-miss opportunities.'}
             </p>
           </div>
         ) : /* Data Table */ (
+            <div>
+              {metadata.isStale && (
+                <div className="flex items-center gap-2 px-4 py-2.5 mb-0 text-sm text-amber-700 bg-amber-50 border-b border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
+                  <Clock className="flex-shrink-0 w-4 h-4" />
+                  <span>No live opportunities right now — showing last known data. The scanner updates every 5 minutes.</span>
+                </div>
+              )}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-brandDark-800">
@@ -523,12 +546,15 @@ const CryptoArbitrage = () => {
                     const coin = opp.coin || opp.symbol?.split('/')[0] || '?';
                     const isProfitable = opp.isProfitableAfterFees ?? (opp.netProfitPercent > 0);
 
+                    const profitTier = getProfitTier(opp.netProfitPercent);
+
                     return (
                       <tr
                         key={opp.id || `${opp.symbol}-${opp.buyExchange}-${opp.sellExchange}`}
                         className={`hover:bg-gray-50 dark:hover:bg-brandDark-800 transition-colors ${
-                          index === 0 && isProfitable ? 'bg-green-50 dark:bg-green-900/10' : ''
-                        }`}
+                          index === 0 && isProfitable ? 'bg-green-50 dark:bg-green-900/10' :
+                          !isProfitable ? 'bg-orange-50/30 dark:bg-orange-900/5' : ''
+                        } ${opp.isStale ? 'opacity-60' : ''}`}
                       >
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -550,6 +576,16 @@ const CryptoArbitrage = () => {
                                     opp.confidenceScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'
                                   }`} />
                                   <span className="text-xs text-gray-400">{opp.confidenceScore}% conf</span>
+                                </div>
+                              )}
+                              {/* Profit tier badge — visible to all tiers */}
+                              <span className={`inline-flex mt-1 px-1.5 py-0.5 text-[10px] font-semibold rounded ${profitTier.cls}`}>
+                                {profitTier.label} profit
+                              </span>
+                              {/* Stale indicator */}
+                              {opp.isStale && opp.staleSince && (
+                                <div className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">
+                                  Last seen: {new Date(opp.staleSince).toLocaleDateString()}
                                 </div>
                               )}
                             </div>
@@ -623,6 +659,12 @@ const CryptoArbitrage = () => {
                                 Gross: {opp.grossSpreadPercent.toFixed(3)}%
                               </div>
                             )}
+                            {/* Near-miss fee info — show how close to breakeven */}
+                            {isPremium && !isProfitable && opp.feesPercent && (
+                              <div className="mt-1 text-[10px] text-orange-600 dark:text-orange-400">
+                                Need {opp.feesPercent.toFixed(2)}% to break even
+                              </div>
+                            )}
                             {/* Expected USD profit — premium only */}
                             {isPremium && (opp.expectedProfitUSD ? (
                               <div className="mt-1 text-xs font-medium text-green-600 dark:text-green-400">
@@ -693,7 +735,7 @@ const CryptoArbitrage = () => {
                               {opp.transferStatus}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full dark:bg-gray-800 dark:text-gray-400">
                               <Info className="w-3 h-3" />
                               N/A
                             </span>
@@ -715,25 +757,26 @@ const CryptoArbitrage = () => {
                 </tbody>
               </table>
             </div>
+            </div>
           )}
       </div>
 
-      {/* ── Past Opportunities (≥2% stored) ──────────────────────── */}
+      {/* ── Past Opportunities (≥1% stored) ──────────────────────── */}
       <div className="card">
         {/* Section header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+        <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
               <History className="w-5 h-5 text-amber-500" />
               Notable Opportunities History
             </h2>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              High-value opportunities with ≥2% net profit — {isPremium ? 'emailed to you instantly when detected.' : 'upgrade to Premium to receive instant email alerts.'}
+              High-value opportunities with ≥1% net profit — {isPremium ? 'emailed to you instantly when detected.' : 'upgrade to Premium to receive instant email alerts.'}
             </p>
           </div>
 
           {/* Summary pills */}
-          <div className="flex items-center gap-2 text-xs flex-shrink-0">
+          <div className="flex items-center flex-shrink-0 gap-2 text-xs">
             <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-flex" />
               {pastMeta.activeCount} Active
@@ -752,7 +795,7 @@ const CryptoArbitrage = () => {
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-1 mb-4 p-1 bg-gray-100 dark:bg-brandDark-800 rounded-lg w-fit">
+        <div className="flex gap-1 p-1 mb-4 bg-gray-100 rounded-lg dark:bg-brandDark-800 w-fit">
           {[
             { key: 'all',     label: 'All' },
             { key: 'active',  label: 'Active' },
@@ -774,36 +817,36 @@ const CryptoArbitrage = () => {
 
         {/* Email alert banner — premium gets active alerts, free gets upgrade nudge */}
         {isPremium ? (
-          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+          <div className="flex items-start gap-2 p-3 mb-4 border rounded-lg bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40">
             <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              <strong>Email alerts active.</strong> You'll be notified instantly by email whenever a new opportunity with ≥2% net profit is detected — before it closes.
+              <strong>Email alerts active.</strong> You'll be notified instantly by email whenever a new opportunity with ≥1% net profit is detected — before it closes.
             </p>
           </div>
         ) : (
-          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-cyan-50 dark:bg-cyan-900/10 border border-cyan-200 dark:border-cyan-800/40">
+          <div className="flex items-start gap-2 p-3 mb-4 border rounded-lg bg-cyan-50 dark:bg-cyan-900/10 border-cyan-200 dark:border-cyan-800/40">
             <Bell className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-xs text-cyan-700 dark:text-cyan-300">
                 <strong>Get instant email alerts.</strong> Premium members are notified the moment a high-profit opportunity is detected — with full profit details and exchange info.
               </p>
-              <p className="text-xs text-gray-400 mt-1">Upgrade to Premium to unlock email alerts and full profit data.</p>
+              <p className="mt-1 text-xs text-gray-400">Upgrade to Premium to unlock email alerts and full profit data.</p>
             </div>
           </div>
         )}
 
         {/* Table */}
         {pastLoading && pastOpps.length === 0 ? (
-          <div className="flex items-center justify-center py-10 gap-3 text-gray-500">
+          <div className="flex items-center justify-center gap-3 py-10 text-gray-500">
             <RefreshCw className="w-5 h-5 animate-spin" />
             <span className="text-sm">Loading history...</span>
           </div>
         ) : pastOpps.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <History className="w-12 h-12 text-gray-300 dark:text-gray-700 mb-3" />
-            <p className="text-gray-500 dark:text-gray-400 font-medium">No notable opportunities yet</p>
-            <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
-              Opportunities with ≥2% net profit will appear here when detected.
+            <History className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-700" />
+            <p className="font-medium text-gray-500 dark:text-gray-400">No notable opportunities yet</p>
+            <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
+              Opportunities with ≥1% net profit will appear here when detected.
             </p>
           </div>
         ) : (
@@ -811,16 +854,16 @@ const CryptoArbitrage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 dark:bg-brandDark-800">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Pair</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Buy Exchange</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Sell Exchange</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Net Profit</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Peak Profit</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Expected $</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Risk</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">First Detected</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Last Seen / Cleared</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Pair</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Buy Exchange</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Sell Exchange</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-right text-gray-500 uppercase">Net Profit</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-right text-gray-500 uppercase">Peak Profit</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-right text-gray-500 uppercase">Expected $</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-500 uppercase">Risk</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">First Detected</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Last Seen / Cleared</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-brandDark-700">
@@ -832,7 +875,7 @@ const CryptoArbitrage = () => {
                     <tr key={opp._id} className={`hover:bg-gray-50 dark:hover:bg-brandDark-800 transition-colors ${isActive ? 'bg-green-50/40 dark:bg-green-900/5' : ''}`}>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white bg-gradient-to-br from-primary-500 to-secondary-500">
+                          <div className="flex items-center justify-center text-xs font-bold text-white rounded-full w-7 h-7 bg-gradient-to-br from-primary-500 to-secondary-500">
                             {coin.charAt(0)}
                           </div>
                           <div>
@@ -851,25 +894,25 @@ const CryptoArbitrage = () => {
                           {opp.sellExchange}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
                         <span className="font-bold text-green-600 dark:text-green-400">
                           {opp.netProfitPercent?.toFixed(2)}%
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
-                        <span className="text-gray-700 dark:text-gray-300 font-medium">
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">
                           {opp.peakProfitPercent?.toFixed(2)}%
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right text-green-600 dark:text-green-400 font-medium">
+                      <td className="px-4 py-3 font-medium text-right text-green-600 whitespace-nowrap dark:text-green-400">
                         ${(opp.expectedProfitUSD || 0).toFixed(2)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRiskBadgeColor(opp.riskLevel)}`}>
                           {opp.riskLevel || 'Medium'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
                         {isActive ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -881,10 +924,10 @@ const CryptoArbitrage = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {fmtDate(opp.firstDetectedAt)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {isActive ? fmtDate(opp.lastSeenAt) : fmtDate(opp.clearedAt)}
                       </td>
                     </tr>

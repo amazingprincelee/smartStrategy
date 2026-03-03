@@ -68,6 +68,8 @@ const NotificationDropdown = () => {
         return '🔒';
       case 'announcement':
         return '📢';
+      case 'arbitrage_alert':
+        return '📈';
       default:
         return '📢';
     }
@@ -93,6 +95,8 @@ const NotificationDropdown = () => {
         return 'text-red-600';
       case 'announcement':
         return 'text-blue-600';
+      case 'arbitrage_alert':
+        return 'text-emerald-600';
       default:
         return 'text-blue-600';
     }

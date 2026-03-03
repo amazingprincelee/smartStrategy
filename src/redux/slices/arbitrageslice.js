@@ -88,7 +88,8 @@ const initialState = {
     nextUpdate: null,
     isRefreshing: false,
     dataAge: null,
-    dataAgeFormatted: null
+    dataAgeFormatted: null,
+    isStale: false
   },
   
   // Calculated stats
@@ -141,12 +142,13 @@ const arbitrageSlice = createSlice({
       state.stats = { ...state.stats, ...action.payload };
     },
 
-    // Live push from Socket.IO arbitrage:update event
+    // Live push from Socket.IO arbitrage:update event — always fresh, never stale
     setLiveArbitrageOpportunities: (state, action) => {
       const opportunities = action.payload || [];
       state.opportunities = opportunities;
       state.metadata.lastUpdate = new Date().toISOString();
       state.metadata.isRefreshing = false;
+      state.metadata.isStale = false;
       state.stats.totalOpportunities = opportunities.length;
     },
   },
@@ -172,7 +174,8 @@ const arbitrageSlice = createSlice({
           nextUpdate: metadata?.nextUpdate || null,
           isRefreshing: metadata?.isRefreshing || false,
           dataAge: metadata?.dataAge || null,
-          dataAgeFormatted: metadata?.dataAgeFormatted || null
+          dataAgeFormatted: metadata?.dataAgeFormatted || null,
+          isStale: action.payload.isStale || false
         };
         
         // Calculate comprehensive stats

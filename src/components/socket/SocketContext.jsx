@@ -158,9 +158,19 @@ export const SocketProvider = ({ children }) => {
       // Arbitrage real-time updates
       socket.on('arbitrage:update', (data) => {
         dispatch(setLiveArbitrageOpportunities(data.opportunities || []));
-        if ((data.opportunities?.length || 0) > 0) {
+
+        const opps = data.opportunities || [];
+        const highProfit = opps.filter(o => (o.netProfitPercent || 0) >= 1);
+
+        if (highProfit.length > 0) {
+          const best = highProfit[0];
+          toast.success(
+            `🚨 ${best.symbol}: ${best.netProfitPercent.toFixed(2)}% profit — ${best.buyExchange} → ${best.sellExchange}`,
+            { autoClose: 8000, toastId: 'arb-high-profit' }
+          );
+        } else if (opps.length > 0) {
           toast.info(
-            `Arbitrage: ${data.opportunities.length} opportunit${data.opportunities.length === 1 ? 'y' : 'ies'} found`,
+            `Arbitrage: ${opps.length} opportunit${opps.length === 1 ? 'y' : 'ies'} found`,
             { autoClose: 4000, toastId: 'arb-update' }
           );
         }
