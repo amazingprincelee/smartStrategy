@@ -152,7 +152,7 @@ const PREMIUM_STRATEGIES = [
 const BotDashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { list: bots, loading } = useSelector(state => state.bots);
+  const { list: bots, loading, error } = useSelector(state => state.bots);
   const demo = useSelector(state => state.demo);
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
   const isPremium = isPremiumUser(role);
@@ -160,6 +160,15 @@ const BotDashboard = () => {
   useEffect(() => {
     dispatch(fetchBots());
   }, [dispatch]);
+
+  // Auto-retry once after 3 s if the initial fetch failed (handles transient server/network hiccups)
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => dispatch(fetchBots()), 3000);
+    return () => clearTimeout(timer);
+  }, [error, dispatch]);
+
+  const handleRefresh = () => dispatch(fetchBots());
 
   const handleStart = async (id) => {
     try {
@@ -237,13 +246,23 @@ const BotDashboard = () => {
             Manage your automated trading bots
           </p>
         </div>
-        <button
-          onClick={() => navigate('/bots/create')}
-          className="flex items-center gap-2 px-3 py-2 md:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm flex-shrink-0"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span className="hidden sm:inline">Create Bot</span>
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleRefresh}
+            disabled={loading.list}
+            title="Refresh bots"
+            className="p-2 rounded-lg border border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brandDark-700 transition-colors disabled:opacity-50"
+          >
+            <Loader className={`w-4 h-4 ${loading.list ? 'animate-spin text-primary-500' : ''}`} />
+          </button>
+          <button
+            onClick={() => navigate('/bots/create')}
+            className="flex items-center gap-2 px-3 py-2 md:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Create Bot</span>
+          </button>
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -297,8 +316,24 @@ const BotDashboard = () => {
 
       {/* Bot Grid */}
       {loading.list ? (
-        <div className="flex justify-center py-16">
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader className="w-8 h-8 text-primary-500 animate-spin" />
+          <p className="text-sm text-gray-400 dark:text-gray-500">Loading your bots…</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-16 bg-white dark:bg-brandDark-800 rounded-xl border border-red-200 dark:border-red-800/50 text-center px-6">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-gray-800 dark:text-white mb-1">Could not load bots</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-sm">
+            {error} — Retrying automatically. You can also try manually.
+          </p>
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Loader className="w-4 h-4" />
+            Retry Now
+          </button>
         </div>
       ) : bots.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700">
