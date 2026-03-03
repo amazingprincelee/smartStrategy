@@ -4,9 +4,7 @@ import {
   Palette,
   Key,
   Bell,
-  Sun,
   Moon,
-  Monitor,
   Check,
   CheckCircle,
   AlertCircle,
@@ -25,6 +23,7 @@ import {
   updateTheme,
   updateNotificationPreferences,
 } from '../../redux/slices/userSlice';
+import { applyThemeClass } from '../../redux/useTheme';
 import {
   fetchAccounts,
   fetchSupportedExchanges,
@@ -32,13 +31,6 @@ import {
   testAccount,
   removeAccount,
 } from '../../redux/slices/exchangeAccountSlice';
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
-function applyTheme(theme) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
-  document.documentElement.classList.toggle('dark', isDark);
-}
 
 // ─── component ────────────────────────────────────────────────────────────────
 const Settings = () => {
@@ -57,7 +49,7 @@ const Settings = () => {
 
   // Theme local state (mirrors DB value, applied immediately)
   const [localTheme, setLocalTheme] = useState(
-    () => localStorage.getItem('theme') || 'system'
+    () => localStorage.getItem('theme') || 'dark'
   );
   const [themeSaved, setThemeSaved] = useState(false);
 
@@ -109,8 +101,8 @@ const Settings = () => {
   // ── Theme handlers ─────────────────────────────────────────────────────────
   const handleThemeChange = (theme) => {
     setLocalTheme(theme);
-    applyTheme(theme);
     localStorage.setItem('theme', theme);
+    applyThemeClass(theme);
     dispatch(updateTheme(theme)).then(() => {
       setThemeSaved(true);
       setTimeout(() => setThemeSaved(false), 2000);
@@ -237,11 +229,10 @@ const Settings = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {[
-                { value: 'light',  label: 'Light',  icon: Sun,     desc: 'Always light' },
-                { value: 'dark',   label: 'Dark',   icon: Moon,    desc: 'Always dark' },
-                { value: 'system', label: 'System', icon: Monitor, desc: 'Match OS setting' },
+                { value: 'dark',    label: 'Navy',       icon: Moon, desc: 'Default brand theme — deep navy' },
+                { value: 'darkest', label: 'Pure Black',  icon: Moon, desc: 'Maximum contrast — true black' },
               ].map(({ value, label, icon: Icon, desc }) => (
                 <button
                   key={value}
@@ -269,13 +260,17 @@ const Settings = () => {
             </div>
 
             {/* Preview strip */}
-            <div className="mt-6 p-4 rounded-xl bg-gray-50 dark:bg-brandDark-700 border border-gray-200 dark:border-gray-600">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide font-medium">Preview</p>
+            <div className={`mt-6 p-4 rounded-xl border ${
+              localTheme === 'darkest'
+                ? 'bg-black border-gray-800'
+                : 'bg-[#0b2447] border-[#1a3a6e]'
+            }`}>
+              <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide font-medium">Preview</p>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex-shrink-0" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-2.5 w-3/4 rounded bg-gray-200 dark:bg-gray-600" />
-                  <div className="h-2 w-1/2 rounded bg-gray-100 dark:bg-gray-700" />
+                  <div className={`h-2.5 w-3/4 rounded ${localTheme === 'darkest' ? 'bg-gray-800' : 'bg-[#1a3a6e]'}`} />
+                  <div className={`h-2 w-1/2 rounded ${localTheme === 'darkest' ? 'bg-gray-900' : 'bg-[#0d2d5a]'}`} />
                 </div>
                 <div className="px-3 py-1 rounded-full bg-primary-500 text-white text-xs font-medium">Live</div>
               </div>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
+import { applyThemeClass } from './redux/useTheme';
 import CryptoArbitrage from './components/Cryptoarbitrage/Cryptoarbitrage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -39,25 +40,23 @@ const queryClient = new QueryClient({
   },
 });
 
-function applyTheme(theme) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
-  document.documentElement.classList.toggle('dark', isDark);
-}
-
 function AppInner() {
-  const userTheme = useSelector(state => state.auth.user?.preferences?.theme);
+  const profileTheme = useSelector(state => state.user.profile?.preferences?.theme);
+  const authTheme    = useSelector(state => state.auth.user?.preferences?.theme);
 
-  // Apply theme whenever user logs in / changes theme / on initial load
+  // Apply from localStorage immediately (avoids flash before Redux loads)
   useEffect(() => {
-    const theme = userTheme || localStorage.getItem('theme') || 'system';
-    applyTheme(theme);
-  }, [userTheme]);
-
-  // Also apply immediately on mount from localStorage (before auth state loads)
-  useEffect(() => {
-    applyTheme(localStorage.getItem('theme') || 'system');
+    applyThemeClass(localStorage.getItem('theme') || 'dark');
   }, []);
+
+  // Re-apply whenever the user's saved theme arrives from the DB
+  useEffect(() => {
+    const theme = profileTheme || authTheme;
+    if (theme) {
+      localStorage.setItem('theme', theme);
+      applyThemeClass(theme);
+    }
+  }, [profileTheme, authTheme]);
 
   return (
     <Router>
