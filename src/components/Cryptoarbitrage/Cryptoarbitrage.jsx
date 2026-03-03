@@ -166,7 +166,7 @@ const CryptoArbitrage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -223,7 +223,7 @@ const CryptoArbitrage = () => {
                 {[
                   'Exact profit % on every opportunity',
                   'Gross spread & expected USD gain',
-                  'Instant email alerts for ≥1% gaps',
+                  'Instant email alerts for ≥0.20% gaps',
                   'Priority access before gaps close',
                 ].map(f => (
                   <p key={f} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
@@ -463,7 +463,32 @@ const CryptoArbitrage = () => {
         </div>
       </div>
 
-      {/* Opportunities Table - Always show */}
+      {/* ── Live Scanner ─────────────────────────────────────────────── */}
+      <div className="order-2">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-2.5 h-2.5 rounded-full ${
+              status.isLoading ? 'bg-amber-400 animate-pulse' :
+              status.isReady   ? 'bg-green-500 animate-pulse' :
+                                 'bg-gray-400'
+            }`} />
+            <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
+              Live Scanner
+            </h2>
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              {status.isLoading && !status.isReady
+                ? '· scanning…'
+                : filteredOpportunities.length > 0
+                  ? `· ${filteredOpportunities.length} spread${filteredOpportunities.length !== 1 ? 's' : ''} detected`
+                  : status.isReady ? '· scan complete' : ''}
+            </span>
+          </div>
+          {metadata.lastUpdate && (
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Updated {metadata.dataAgeFormatted || 'just now'} · refreshes every 5 min
+            </p>
+          )}
+        </div>
       <div className="card">
         {/* Loading / Scanning State */}
         {loading.opportunities || (status.isLoading && !status.isReady) ? (
@@ -760,9 +785,10 @@ const CryptoArbitrage = () => {
             </div>
           )}
       </div>
+      </div>{/* end .order-2 Live Scanner wrapper */}
 
-      {/* ── Past Opportunities (≥1% stored) ──────────────────────── */}
-      <div className="card">
+      {/* ── Notable Opportunities History ─────────────────────────── */}
+      <div className="order-1 card">
         {/* Section header */}
         <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -771,7 +797,7 @@ const CryptoArbitrage = () => {
               Notable Opportunities History
             </h2>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              High-value opportunities with ≥1% net profit — {isPremium ? 'emailed to you instantly when detected.' : 'upgrade to Premium to receive instant email alerts.'}
+              Opportunities with ≥0.20% net profit — recorded here as they're detected. {isPremium ? 'Email alerts are active.' : 'Upgrade to Premium for instant email alerts.'}
             </p>
           </div>
 
@@ -820,7 +846,7 @@ const CryptoArbitrage = () => {
           <div className="flex items-start gap-2 p-3 mb-4 border rounded-lg bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40">
             <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              <strong>Email alerts active.</strong> You'll be notified instantly by email whenever a new opportunity with ≥1% net profit is detected — before it closes.
+              <strong>Email alerts active.</strong> You'll be notified instantly by email whenever a new opportunity with ≥0.20% net profit is detected — before it closes.
             </p>
           </div>
         ) : (
@@ -846,7 +872,7 @@ const CryptoArbitrage = () => {
             <History className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-700" />
             <p className="font-medium text-gray-500 dark:text-gray-400">No notable opportunities yet</p>
             <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
-              Opportunities with ≥1% net profit will appear here when detected.
+              Opportunities with ≥0.20% net profit will appear here as they're detected. Most spreads surface within the first few scans.
             </p>
           </div>
         ) : (
