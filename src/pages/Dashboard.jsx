@@ -141,6 +141,7 @@ const Dashboard = () => {
       icon: Bot,
       color: 'text-cyan-400',
       bg: 'bg-cyan-500/10',
+      href: '/bots',
     },
     {
       label: 'Bot P&L',
@@ -148,6 +149,7 @@ const Dashboard = () => {
       icon: totalPnL >= 0 ? TrendingUp : TrendingDown,
       color: totalPnL >= 0 ? 'text-green-400' : 'text-red-400',
       bg: totalPnL >= 0 ? 'bg-green-500/10' : 'bg-red-500/10',
+      href: '/bots',
     },
     {
       label: 'AI Signals',
@@ -155,6 +157,7 @@ const Dashboard = () => {
       icon: Zap,
       color: 'text-violet-400',
       bg: 'bg-violet-500/10',
+      href: '/signals',
     },
     {
       label: 'Arb Opportunities',
@@ -162,6 +165,7 @@ const Dashboard = () => {
       icon: BarChart3,
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/10',
+      href: '/arbitrage',
     },
   ];
 
@@ -191,10 +195,11 @@ const Dashboard = () => {
 
       {/* ── Quick-stat chips ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {chips.map(({ label, value, icon: Icon, color, bg }) => (
-          <div
+        {chips.map(({ label, value, icon: Icon, color, bg, href }) => (
+          <Link
             key={label}
-            className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-brandDark-800 border border-gray-200 dark:border-brandDark-700 shadow-sm"
+            to={href}
+            className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-brandDark-800 border border-gray-200 dark:border-brandDark-700 shadow-sm hover:border-gray-300 dark:hover:border-brandDark-600 hover:shadow-md transition-all cursor-pointer"
           >
             <div className={`p-2 rounded-lg ${bg}`}>
               <Icon className={`w-4 h-4 ${color}`} />
@@ -203,7 +208,7 @@ const Dashboard = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{label}</p>
               <p className="text-sm font-bold text-gray-900 dark:text-white">{String(value)}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 

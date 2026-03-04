@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   ChevronRight, ChevronLeft, Bot, FlaskConical, Zap, Shield, CheckCircle,
-  Loader, Star, AlertCircle, Plus, Lock, Crown
+  Loader, Star, AlertCircle, Plus, Lock, Crown, Info
 } from 'lucide-react';
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
 import { fetchAccounts } from '../redux/slices/exchangeAccountSlice';
@@ -55,7 +55,49 @@ const RISK_BADGE = {
   high: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
 };
 
+const TP_MODE_INFO = {
+  structure: {
+    label: 'Structure-based (smart)',
+    hint: 'Targets the nearest resistance level based on recent price structure. Most adaptive — exits near a real supply zone rather than a fixed number.',
+  },
+  atr: {
+    label: 'ATR-based',
+    hint: 'Sets take profit at 3× the Average True Range (ATR) above entry. Automatically widens on volatile days and tightens on calm days.',
+  },
+  fixed: {
+    label: 'Fixed %',
+    hint: 'Closes the position once price rises by the % you specify from your entry. Simple and predictable, but ignores actual market structure.',
+  },
+};
+
 const steps = ['Mode & Exchange', 'Market & Pair', 'Strategy', 'Configure', 'Review & Launch'];
+
+/* ── Inline tooltip hint ── */
+function FieldHint({ text }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span className="relative inline-flex ml-1 align-middle">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        onClick={() => setShow(v => !v)}
+        className="inline-flex items-center justify-center w-4 h-4 text-gray-500 transition-colors bg-gray-200 rounded-full dark:bg-brandDark-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-brandDark-500"
+        aria-label="More info"
+      >
+        <Info className="w-2.5 h-2.5" />
+      </button>
+      {show && (
+        <span className="absolute z-50 w-56 px-3 py-2 mb-2 text-xs leading-relaxed text-white -translate-x-1/2 bg-gray-900 rounded-lg shadow-xl pointer-events-none bottom-full left-1/2 dark:bg-gray-950">
+          {text}
+          <span className="absolute -translate-x-1/2 border-4 border-transparent top-full left-1/2 border-t-gray-900 dark:border-t-gray-950" />
+        </span>
+      )}
+    </span>
+  );
+}
 
 const CreateBot = () => {
   const [searchParams] = useSearchParams();
@@ -71,10 +113,10 @@ const CreateBot = () => {
   const [form, setForm] = useState({
     isDemo: true,
     exchangeAccountId: '',
-    exchange: 'binance',
+    exchange: '',
     symbol: 'BTC/USDT',
     marketType: 'spot',
-    strategyId: searchParams.get('strategy') || 'adaptive_grid',
+    strategyId: searchParams.get('strategy') || 'dca',
     name: '',
     capitalAllocation: { totalCapital: 100, currency: 'USDT', maxOpenPositions: 5 },
     riskParams: { globalDrawdownLimitPercent: 15, dailyLossLimitPercent: 5 },
@@ -112,7 +154,10 @@ const CreateBot = () => {
     }
   }, [form.strategyId]);
 
-  const portionSize = (form.capitalAllocation.totalCapital / (form.strategyParams.portions || form.capitalAllocation.maxOpenPositions || 5)).toFixed(2);
+  const portionSize = (
+    (form.capitalAllocation.totalCapital || 0) /
+    (form.strategyParams.portions || form.capitalAllocation.maxOpenPositions || 5)
+  ).toFixed(2);
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
@@ -132,7 +177,7 @@ const CreateBot = () => {
     if (step === 0) return form.isDemo || form.exchangeAccountId;
     if (step === 1) return form.symbol && form.exchange;
     if (step === 2) return !!form.strategyId;
-    if (step === 3) return form.capitalAllocation.totalCapital >= 10;
+    if (step === 3) return (form.capitalAllocation.totalCapital || 0) >= 10;
     return true;
   };
 
@@ -142,43 +187,43 @@ const CreateBot = () => {
   const renderStep0 = () => (
     <div className="space-y-5">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Choose Trading Mode</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <button
           onClick={() => update('isDemo', true)}
           className={`p-5 rounded-xl border-2 text-left transition-colors ${form.isDemo ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-brandDark-700 hover:border-blue-300'}`}
         >
-          <FlaskConical className="w-8 h-8 text-blue-500 mb-3" />
+          <FlaskConical className="w-8 h-8 mb-3 text-blue-500" />
           <p className="font-semibold text-gray-900 dark:text-white">Demo Account</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Practice with $10,000 virtual balance. No real money at risk.
           </p>
-          {form.isDemo && <CheckCircle className="w-5 h-5 text-blue-500 mt-3" />}
+          {form.isDemo && <CheckCircle className="w-5 h-5 mt-3 text-blue-500" />}
         </button>
 
         <button
           onClick={() => update('isDemo', false)}
           className={`p-5 rounded-xl border-2 text-left transition-colors ${!form.isDemo ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-brandDark-700 hover:border-primary-300'}`}
         >
-          <Zap className="w-8 h-8 text-primary-500 mb-3" />
+          <Zap className="w-8 h-8 mb-3 text-primary-500" />
           <p className="font-semibold text-gray-900 dark:text-white">Live Trading</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Trade with real funds on your connected exchange.
           </p>
-          {!form.isDemo && <CheckCircle className="w-5 h-5 text-primary-500 mt-3" />}
+          {!form.isDemo && <CheckCircle className="w-5 h-5 mt-3 text-primary-500" />}
         </button>
       </div>
 
       {!form.isDemo && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Exchange Account</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-300">Select Exchange Account</h3>
           {accounts.length === 0 ? (
-            <div className="p-4 border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+            <div className="flex items-center gap-3 p-4 border border-yellow-200 rounded-lg dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
+              <AlertCircle className="flex-shrink-0 w-5 h-5 text-yellow-600" />
               <div>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300">No exchange accounts connected.</p>
                 <button
                   onClick={() => navigate('/settings')}
-                  className="text-sm text-primary-600 hover:underline mt-1 flex items-center gap-1"
+                  className="flex items-center gap-1 mt-1 text-sm text-primary-600 hover:underline"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add exchange in Settings
@@ -198,11 +243,11 @@ const CreateBot = () => {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gray-100 dark:bg-brandDark-700 rounded-full flex items-center justify-center text-xs font-bold uppercase">
+                    <div className="flex items-center justify-center w-8 h-8 text-xs font-bold uppercase bg-gray-100 rounded-full dark:bg-brandDark-700">
                       {acc.exchange[0]}
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-900 dark:text-white text-sm">{acc.label}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{acc.label}</p>
                       <p className="text-xs text-gray-500 capitalize">{acc.exchange}</p>
                     </div>
                   </div>
@@ -227,12 +272,17 @@ const CreateBot = () => {
 
       {form.isDemo && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Exchange</label>
+          <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-300">
+            Exchange
+            <FieldHint text="The exchange whose live price data the bot will use to simulate trades in demo mode." />
+          </label>
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Choose an exchange to pull live market data from.</p>
           <select
             value={form.exchange}
             onChange={e => update('exchange', e.target.value)}
-            className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
           >
+            <option value="" disabled>Select Exchange</option>
             {[
               { id: 'okx',    name: 'OKX'         },
               { id: 'kucoin', name: 'KuCoin'       },
@@ -250,7 +300,8 @@ const CreateBot = () => {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Market Type</label>
+        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-300">Market Type</label>
+        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Spot buys actual coins; Futures trades contracts with optional leverage.</p>
         <div className="flex gap-3">
           {['spot', 'futures'].map(type => (
             <button
@@ -269,17 +320,18 @@ const CreateBot = () => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trading Pair</label>
+        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-300">Trading Pair</label>
+        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">The asset the bot will trade. Format: BASE/QUOTE (e.g. BTC/USDT).</p>
         <input
           type="text"
           value={form.symbol}
           onChange={e => update('symbol', e.target.value.toUpperCase())}
           placeholder="e.g. BTC/USDT"
-          className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white mb-3"
+          className="w-full px-3 py-2 mb-3 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
         />
         {COIN_GROUPS.map(group => (
           <div key={group.label} className="mb-3">
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">{group.label}</p>
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">{group.label}</p>
             <div className="flex flex-wrap gap-2">
               {group.coins.map(pair => (
                 <button
@@ -317,7 +369,7 @@ const CreateBot = () => {
       </div>
 
       {!isPremium && (
-        <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-300">
+        <div className="flex items-start gap-3 p-3 text-xs border rounded-lg bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300">
           <Crown className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>Free plan includes <strong>DCA</strong> only. Upgrade to Premium to unlock AI Signal Bot, Scalper, RSI Reversal, EMA Crossover, Adaptive Grid, and Breakout strategies.</span>
         </div>
@@ -350,12 +402,12 @@ const CreateBot = () => {
                   } ${isLocked ? '' : RISK_COLORS[s.riskLevel]}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {isLocked && <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-                      <span className="font-semibold text-gray-900 dark:text-white text-sm leading-tight">{s.name}</span>
-                      {s.isDefault && !isLocked && <Star className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
+                    <div className="flex items-center min-w-0 gap-2">
+                      {isLocked && <Lock className="flex-shrink-0 w-4 h-4 text-gray-400" />}
+                      <span className="text-sm font-semibold leading-tight text-gray-900 dark:text-white">{s.name}</span>
+                      {s.isDefault && !isLocked && <Star className="flex-shrink-0 w-4 h-4 text-yellow-500" />}
                     </div>
-                    <div className="flex flex-wrap justify-end items-center gap-1 flex-shrink-0">
+                    <div className="flex flex-wrap items-center justify-end flex-shrink-0 gap-1">
                       {isLocked ? (
                         <span className="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap">
                           <Crown className="w-3 h-3" />
@@ -375,14 +427,14 @@ const CreateBot = () => {
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{s.description}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{s.description}</p>
                   {!isLocked && STRATEGY_ACTIVITY[s.id] && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{STRATEGY_ACTIVITY[s.id].detail}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">{STRATEGY_ACTIVITY[s.id].detail}</p>
                   )}
                   <div className="flex gap-2 mt-2">
-                    <span className="text-xs text-gray-400">{s.timeframe}</span>
+                    <span className="text-xs text-gray-500">{s.timeframe}</span>
                     <span className="text-gray-300">·</span>
-                    {s.supportedMarkets.map(m => <span key={m} className="text-xs text-gray-400 capitalize">{m}</span>)}
+                    {s.supportedMarkets.map(m => <span key={m} className="text-xs text-gray-500 capitalize">{m}</span>)}
                   </div>
                 </button>
               </div>
@@ -401,115 +453,158 @@ const CreateBot = () => {
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configure Bot</h2>
 
       {/* Capital */}
-      <div className="space-y-4 p-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Capital Allocation</h3>
+      <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
+        <h3 className="text-sm font-semibold text-black">Capital Allocation</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Total Capital (USDT)</label>
+            <label className="flex items-center mb-1 text-xs font-medium text-black">
+              Total Capital (USDT)
+              <FieldHint text="Total USDT the bot is allowed to use. This amount is split into equal portions across multiple buy orders." />
+            </label>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               min="10"
               value={form.capitalAllocation.totalCapital}
-              onChange={e => updateNested('capitalAllocation', 'totalCapital', parseFloat(e.target.value))}
-              className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+              onFocus={e => e.target.select()}
+              onChange={e => updateNested('capitalAllocation', 'totalCapital', e.target.value === '' ? '' : parseFloat(e.target.value))}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max Open Positions</label>
+            <label className="flex items-center mb-1 text-xs font-medium text-black">
+              Max Open Positions
+              <FieldHint text="Maximum number of concurrent trades. Your capital is divided by this number — e.g. $500 capital ÷ 5 positions = $100 per trade." />
+            </label>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               min="1"
               max="10"
               value={form.capitalAllocation.maxOpenPositions}
-              onChange={e => updateNested('capitalAllocation', 'maxOpenPositions', parseInt(e.target.value))}
-              className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+              onFocus={e => e.target.select()}
+              onChange={e => updateNested('capitalAllocation', 'maxOpenPositions', e.target.value === '' ? '' : parseInt(e.target.value))}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
             />
           </div>
         </div>
-        <p className="text-xs text-gray-400">Portion size: ~${portionSize} USDT each</p>
+        <p className="text-xs text-gray-900 dark:text-gray-900">Portion size: ~${portionSize} USDT each</p>
       </div>
 
-      {/* Strategy params */}
+      {/* Adaptive Grid params */}
       {selectedStrategy?.id === 'adaptive_grid' && (
-        <div className="space-y-4 p-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Strategy Parameters</h3>
+        <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
+          <h3 className="text-sm font-semibold text-black">Strategy Parameters</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Grid Portions</label>
-              <input type="number" min="2" max="10" value={form.strategyParams.portions || 5}
-                onChange={e => updateParams('portions', parseInt(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+              <label className="flex items-center mb-1 text-xs font-medium text-black">
+                Grid Portions
+                <FieldHint text="Number of buy orders spread across the dip range. More portions = smaller individual orders, better average entry price. Recommended: 4–6." />
+              </label>
+              <input type="text" inputMode="numeric" min="2" max="10" value={form.strategyParams.portions ?? ''}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('portions', e.target.value === '' ? '' : parseInt(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-black bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">RSI Oversold Threshold</label>
-              <input type="number" min="10" max="40" value={form.strategyParams.rsiOversold || 30}
-                onChange={e => updateParams('rsiOversold', parseInt(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+              <label className="flex items-center mb-1 text-xs font-medium text-black">
+                RSI Oversold Threshold
+                <FieldHint text="Bot enters a buy order when RSI falls below this level. Lower values (e.g. 25) trigger fewer but stronger signals. Higher values (e.g. 35) trigger more entries. Default 30 is a good balance." />
+              </label>
+              <input type="text" inputMode="numeric" min="10" max="40" value={form.strategyParams.rsiOversold ?? ''}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('rsiOversold', e.target.value === '' ? '' : parseInt(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Take Profit Mode</label>
+
+            {/* Take Profit Mode */}
+            <div className="col-span-2">
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                Take Profit Mode
+                <FieldHint text="Determines how the bot decides when to close a profitable position." />
+              </label>
               <select value={form.strategyParams.takeProfitMode || 'structure'}
                 onChange={e => updateParams('takeProfitMode', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white">
-                <option value="structure">Structure-based (smart)</option>
-                <option value="atr">ATR-based</option>
-                <option value="fixed">Fixed %</option>
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white">
+                {Object.entries(TP_MODE_INFO).map(([val, { label }]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
               </select>
+              {/* Description for selected mode */}
+              <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                {TP_MODE_INFO[form.strategyParams.takeProfitMode || 'structure']?.hint}
+              </p>
             </div>
+
             {form.strategyParams.takeProfitMode === 'fixed' && (
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Take Profit %</label>
-                <input type="number" step="0.1" min="0.5" max="10" value={form.strategyParams.fixedTakeProfitPercent || 1.5}
-                  onChange={e => updateParams('fixedTakeProfitPercent', parseFloat(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+              <div className="col-span-2">
+                <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                  Take Profit %
+                  <FieldHint text="Price must rise this % above your entry for the bot to close the position and lock in profit." />
+                </label>
+                <input type="text" inputMode="numeric" step="0.1" min="0.5" max="10" value={form.strategyParams.fixedTakeProfitPercent ?? ''}
+                  onFocus={e => e.target.select()}
+                  onChange={e => updateParams('fixedTakeProfitPercent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
               </div>
             )}
           </div>
         </div>
       )}
 
+      {/* DCA params */}
       {selectedStrategy?.id === 'dca' && (
-        <div className="space-y-4 p-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">DCA Parameters</h3>
+        <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
+          <h3 className="text-sm font-semibold text-black">DCA Parameters</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Interval (hours)</label>
-              <input type="number" min="1" value={form.strategyParams.dcaIntervalHours || 24}
-                onChange={e => updateParams('dcaIntervalHours', parseInt(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 ">
+                Interval (hours)
+                <FieldHint text="How often the bot places a new buy order. 24 = once per day, 168 = once per week. Smaller intervals accumulate faster but use capital quicker." />
+              </label>
+              <input type="text" inputMode="numeric" min="1" value={form.strategyParams.dcaIntervalHours ?? ''}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('dcaIntervalHours', e.target.value === '' ? '' : parseInt(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Amount per order (USDT)</label>
-              <input type="number" min="10" value={form.strategyParams.dcaAmountPerOrder || 100}
-                onChange={e => updateParams('dcaAmountPerOrder', parseFloat(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+              <label className="flex items-center mb-1 text-xs font-medium text-black">
+                Amount per order (USDT)
+                <FieldHint text="How much USDT is spent on each scheduled buy. Keep this within your Total Capital budget to avoid running out of funds." />
+              </label>
+              <input type="text" inputMode="numeric" min="10" value={form.strategyParams.dcaAmountPerOrder ?? ''}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('dcaAmountPerOrder', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
           </div>
         </div>
       )}
 
       {selectedStrategy?.id === 'ai_signal' && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-300 space-y-1">
-          <p className="font-semibold">AI Signal Bot — fully automated</p>
-          <p className="text-xs">Entry, stop-loss, and take-profit are calculated automatically from live market indicators. No manual parameters needed.</p>
+        <div className="p-4 space-y-1 text-sm text-blue-700 border border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 rounded-xl dark:text-blue-300">
+          <p className="font-semibold text-blue-800 dark:text-blue-300">AI Signal Bot — fully automated</p>
+          <p className="text-xs text-blue-700 dark:text-blue-400">Entry, stop-loss, and take-profit are calculated automatically from live market indicators. No manual parameters needed.</p>
         </div>
       )}
 
       {/* Leverage — shown for futures bots using DCA or AI Signal */}
       {form.marketType === 'futures' && ['dca', 'ai_signal'].includes(selectedStrategy?.id) && (
-        <div className="space-y-3 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl">
-          <h3 className="text-sm font-semibold text-orange-700 dark:text-orange-300">Futures Leverage</h3>
+        <div className="p-4 space-y-3 border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800 rounded-xl">
+          <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300">Futures Leverage</h3>
           <div>
-            <label className="block text-xs text-orange-600 dark:text-orange-400 mb-1">
-              Leverage (1×–20×) — position size = margin × leverage
+            <label className="flex items-center mb-1 text-xs font-medium text-orange-700 dark:text-orange-400">
+              Leverage (1×–20×)
+              <FieldHint text="Multiplies your position size. 2× means $100 USDT controls a $200 position. Higher leverage = bigger potential profit AND bigger potential loss. New users should start at 1× (no leverage)." />
             </label>
             <input
-              type="number" min="1" max="20" step="1"
-              value={form.strategyParams.leverage || 1}
-              onChange={e => updateParams('leverage', Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
-              className="w-full rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+              type="text" inputMode="numeric" min="1" max="20" step="1"
+              value={form.strategyParams.leverage ?? ''}
+              onFocus={e => e.target.select()}
+              onChange={e => updateParams('leverage', Math.max(1, Math.min(20, e.target.value === '' ? 1 : parseInt(e.target.value) || 1)))}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-orange-300 rounded-lg dark:border-orange-700 dark:bg-brandDark-800 dark:text-white"
             />
-            <p className="text-xs text-orange-500 dark:text-orange-400 mt-1">
+            <p className="mt-1 text-xs text-orange-600 dark:text-orange-400">
               ⚠ Higher leverage increases both potential profit and risk of liquidation.
             </p>
           </div>
@@ -517,23 +612,31 @@ const CreateBot = () => {
       )}
 
       {/* Risk */}
-      <div className="space-y-4 p-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
+      <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-red-500" />
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Risk Management</h3>
+          <h3 className="text-sm font-semibold text-gray-900 ">Risk Management</h3>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Global Drawdown Limit (%)</label>
-            <input type="number" min="5" max="50" value={form.riskParams.globalDrawdownLimitPercent}
-              onChange={e => updateNested('riskParams', 'globalDrawdownLimitPercent', parseFloat(e.target.value))}
-              className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 ">
+              Global Drawdown Limit (%)
+              <FieldHint text="If your account loses this % of its starting capital in total, the bot stops all trading automatically to prevent further losses. E.g. 15 means the bot halts when you're down 15%." />
+            </label>
+            <input type="text" inputMode="numeric" min="5" max="50" value={form.riskParams.globalDrawdownLimitPercent}
+              onFocus={e => e.target.select()}
+              onChange={e => updateNested('riskParams', 'globalDrawdownLimitPercent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Daily Loss Limit (%)</label>
-            <input type="number" min="1" max="20" value={form.riskParams.dailyLossLimitPercent}
-              onChange={e => updateNested('riskParams', 'dailyLossLimitPercent', parseFloat(e.target.value))}
-              className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 ">
+              Daily Loss Limit (%)
+              <FieldHint text="Maximum loss the bot is allowed to take within a single day. Once hit, the bot pauses until the next trading session. Helps contain runaway losses on bad market days." />
+            </label>
+            <input type="text" inputMode="numeric" min="1" max="20" value={form.riskParams.dailyLossLimitPercent}
+              onFocus={e => e.target.select()}
+              onChange={e => updateNested('riskParams', 'dailyLossLimitPercent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
           </div>
         </div>
       </div>
@@ -548,7 +651,7 @@ const CreateBot = () => {
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Review & Launch</h2>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bot Name</label>
+        <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">Bot Name</label>
         <input
           type="text"
           value={form.name}
@@ -558,10 +661,10 @@ const CreateBot = () => {
         />
       </div>
 
-      <div className="space-y-2 p-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl text-sm">
+      <div className="p-4 space-y-2 text-sm bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
         {[
           ['Mode', form.isDemo ? 'Demo (Paper Trading)' : 'Live Trading'],
-          ['Exchange', form.exchange],
+          ['Exchange', form.exchange || '—'],
           ['Pair', form.symbol],
           ['Market', form.marketType],
           ['Strategy', selectedStrategy?.name || form.strategyId],
@@ -570,15 +673,15 @@ const CreateBot = () => {
           ['Global Stop', `${form.riskParams.globalDrawdownLimitPercent}% drawdown`],
         ].map(([label, value]) => (
           <div key={label} className="flex justify-between">
-            <span className="text-gray-500 dark:text-gray-400">{label}</span>
-            <span className="font-medium text-gray-900 dark:text-white capitalize">{value}</span>
+            <span className="text-gray-600 dark:text-gray-400">{label}</span>
+            <span className="font-medium text-gray-900 capitalize dark:text-white">{value}</span>
           </div>
         ))}
       </div>
 
       {form.isDemo && (
-        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-700 dark:text-blue-300">
-          <FlaskConical className="w-4 h-4 flex-shrink-0" />
+        <div className="flex items-center gap-2 p-3 text-sm text-blue-800 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300">
+          <FlaskConical className="flex-shrink-0 w-4 h-4" />
           Demo mode: Uses $10,000 virtual balance with live market prices.
         </div>
       )}
@@ -597,7 +700,7 @@ const CreateBot = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto">
+    <div className="max-w-2xl p-4 mx-auto md:p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Bot className="w-6 h-6 text-primary-500" />
@@ -622,7 +725,7 @@ const CreateBot = () => {
             </React.Fragment>
           ))}
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           Step {step + 1} of {steps.length}: <span className="font-medium text-gray-700 dark:text-gray-300">{steps[step]}</span>
         </p>
       </div>

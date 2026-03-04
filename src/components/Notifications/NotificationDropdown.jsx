@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Bell, Check, X, ExternalLink } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Bell, Check, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   fetchNotifications,
@@ -13,6 +14,7 @@ const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // Get notifications from Redux store
   const { notifications, unreadCount, loading } = useSelector((state) => state.user);
@@ -157,7 +159,16 @@ const NotificationDropdown = () => {
                 {notifications.map((notification) => (
                   <div
                     key={notification._id}
-                    className={`p-4 hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors ${
+                    onClick={() => {
+                      if (!notification.read) handleMarkAsRead(notification._id);
+                      if (notification.actionUrl) {
+                        setIsOpen(false);
+                        navigate(notification.actionUrl);
+                      }
+                    }}
+                    className={`p-4 transition-colors ${
+                      notification.actionUrl ? 'cursor-pointer' : ''
+                    } hover:bg-gray-50 dark:hover:bg-dark-700 ${
                       !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                     }`}
                   >
@@ -165,9 +176,9 @@ const NotificationDropdown = () => {
                       <span className="text-lg">
                         {getNotificationIcon(notification.type)}
                       </span>
-                      
+
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        <p className={`text-sm font-medium text-gray-900 dark:text-white ${getNotificationColor(notification.type)}`}>
                           {notification.title}
                         </p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -178,7 +189,7 @@ const NotificationDropdown = () => {
                         </p>
                       </div>
 
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1" onClick={e => e.stopPropagation()}>
                         {!notification.read && (
                           <button
                             onClick={() => handleMarkAsRead(notification._id)}
@@ -189,7 +200,7 @@ const NotificationDropdown = () => {
                             <Check className="w-4 h-4" />
                           </button>
                         )}
-                        
+
                         <button
                           onClick={() => handleDeleteNotification(notification._id)}
                           className="p-1 text-gray-400 transition-colors hover:text-red-600 disabled:opacity-50"
@@ -200,18 +211,6 @@ const NotificationDropdown = () => {
                         </button>
                       </div>
                     </div>
-
-                    {notification.actionUrl && (
-                      <div className="mt-3 ml-8">
-                        <a
-                          href={notification.actionUrl}
-                          className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700"
-                        >
-                          View Details
-                          <ExternalLink className="w-3 h-3 ml-1" />
-                        </a>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -219,16 +218,23 @@ const NotificationDropdown = () => {
           </div>
 
           {/* Footer */}
-          {notifications.length > 0 && (
-            <div className="p-4 border-t border-gray-200 dark:border-dark-700">
+          <div className="p-3 border-t border-gray-200 dark:border-dark-700 flex items-center justify-between gap-2">
+            <Link
+              to="/profile"
+              onClick={() => setIsOpen(false)}
+              className="text-xs font-medium text-primary-600 hover:text-primary-700"
+            >
+              View all notifications
+            </Link>
+            {notifications.length > 0 && (
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full text-sm font-medium text-center text-primary-600 hover:text-primary-700"
+                className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               >
                 Close
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
