@@ -107,7 +107,7 @@ const SignalCard = ({ s, isPremium = false }) => {
           <span className="text-xs text-gray-500 dark:text-gray-400">AI Confidence</span>
           <span className={`text-xs font-bold ${st.text}`}>{strengthPct}%</span>
         </div>
-        <div className="h-1.5 bg-white/50 dark:bg-brandDark-900/50 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-white/50 dark:bg-brandDark-900 rounded-full overflow-hidden">
           <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${strengthPct}%` }} />
         </div>
       </div>

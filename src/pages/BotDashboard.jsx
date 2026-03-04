@@ -72,13 +72,13 @@ const BotCard = ({ bot, onStart, onStop, loading }) => {
 
       {/* Capital + Balance row */}
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="bg-gray-50 dark:bg-brandDark-700/60 rounded-lg p-2.5">
+        <div className="bg-gray-50 dark:bg-brandDark-700 rounded-lg p-2.5">
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Allocated</p>
           <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
             ${allocated.toLocaleString()} <span className="text-xs font-normal text-gray-400">{currency}</span>
           </p>
         </div>
-        <div className="bg-gray-50 dark:bg-brandDark-700/60 rounded-lg p-2.5">
+        <div className="bg-gray-50 dark:bg-brandDark-700 rounded-lg p-2.5">
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Current Value</p>
           <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
             ${currentCapital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-normal text-gray-400">{currency}</span>
