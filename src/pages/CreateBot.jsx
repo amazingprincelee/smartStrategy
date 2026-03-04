@@ -215,7 +215,7 @@ const CreateBot = () => {
 
       {!form.isDemo && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-300">Select Exchange Account</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Select Exchange Account</h3>
           {accounts.length === 0 ? (
             <div className="flex items-center gap-3 p-4 border border-yellow-200 rounded-lg dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
               <AlertCircle className="flex-shrink-0 w-5 h-5 text-yellow-600" />
@@ -272,7 +272,7 @@ const CreateBot = () => {
 
       {form.isDemo && (
         <div>
-          <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-300">
+          <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">
             Exchange
             <FieldHint text="The exchange whose live price data the bot will use to simulate trades in demo mode." />
           </label>
@@ -300,7 +300,7 @@ const CreateBot = () => {
       )}
 
       <div>
-        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-300">Market Type</label>
+        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Market Type</label>
         <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Spot buys actual coins; Futures trades contracts with optional leverage.</p>
         <div className="flex gap-3">
           {['spot', 'futures'].map(type => (
@@ -320,7 +320,7 @@ const CreateBot = () => {
       </div>
 
       <div>
-        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-300">Trading Pair</label>
+        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Trading Pair</label>
         <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">The asset the bot will trade. Format: BASE/QUOTE (e.g. BTC/USDT).</p>
         <input
           type="text"
@@ -393,22 +393,32 @@ const CreateBot = () => {
                     }
                     update('strategyId', s.id);
                   }}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-colors ${
+                  className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 relative overflow-hidden ${
                     isLocked
-                      ? 'border-gray-200 dark:border-brandDark-700 opacity-60 cursor-not-allowed'
+                      ? 'opacity-60 cursor-not-allowed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800'
                       : isSelected
-                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                        : 'border-gray-200 dark:border-brandDark-700 hover:border-gray-300'
-                  } ${isLocked ? '' : RISK_COLORS[s.riskLevel]}`}
+                        ? 'border-primary-500 bg-primary-50 dark:bg-gray-700 shadow-lg ring-1 ring-primary-400/30'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-primary-400 dark:hover:border-primary-500 hover:shadow-md'
+                  }`}
                 >
+                  {/* Left accent strip for selected */}
+                  {isSelected && !isLocked && (
+                    <span className="absolute inset-y-0 left-0 w-1 bg-primary-500 rounded-l-xl" />
+                  )}
+
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center min-w-0 gap-2">
+                    <div className="flex items-center min-w-0 gap-2 pl-1">
                       {isLocked && <Lock className="flex-shrink-0 w-4 h-4 text-gray-400" />}
                       <span className="text-sm font-semibold leading-tight text-gray-900 dark:text-white">{s.name}</span>
                       {s.isDefault && !isLocked && <Star className="flex-shrink-0 w-4 h-4 text-yellow-500" />}
                     </div>
-                    <div className="flex flex-wrap items-center justify-end flex-shrink-0 gap-1">
-                      {isLocked ? (
+                    <div className="flex flex-wrap items-center justify-end flex-shrink-0 gap-1.5">
+                      {isSelected && !isLocked ? (
+                        <span className="flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-primary-500 text-white">
+                          <CheckCircle className="w-3 h-3" />
+                          Selected
+                        </span>
+                      ) : isLocked ? (
                         <span className="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap">
                           <Crown className="w-3 h-3" />
                           Premium
@@ -427,14 +437,14 @@ const CreateBot = () => {
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{s.description}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">{s.description}</p>
                   {!isLocked && STRATEGY_ACTIVITY[s.id] && (
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">{STRATEGY_ACTIVITY[s.id].detail}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{STRATEGY_ACTIVITY[s.id].detail}</p>
                   )}
                   <div className="flex gap-2 mt-2">
-                    <span className="text-xs text-gray-500">{s.timeframe}</span>
-                    <span className="text-gray-300">·</span>
-                    {s.supportedMarkets.map(m => <span key={m} className="text-xs text-gray-500 capitalize">{m}</span>)}
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{s.timeframe}</span>
+                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                    {s.supportedMarkets.map(m => <span key={m} className="text-xs text-gray-400 dark:text-gray-500 capitalize">{m}</span>)}
                   </div>
                 </button>
               </div>
@@ -453,11 +463,11 @@ const CreateBot = () => {
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configure Bot</h2>
 
       {/* Capital */}
-      <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
-        <h3 className="text-sm font-semibold text-black">Capital Allocation</h3>
+      <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Capital Allocation</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="flex items-center mb-1 text-xs font-medium text-black">
+            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
               Total Capital (USDT)
               <FieldHint text="Total USDT the bot is allowed to use. This amount is split into equal portions across multiple buy orders." />
             </label>
@@ -472,7 +482,7 @@ const CreateBot = () => {
             />
           </div>
           <div>
-            <label className="flex items-center mb-1 text-xs font-medium text-black">
+            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
               Max Open Positions
               <FieldHint text="Maximum number of concurrent trades. Your capital is divided by this number — e.g. $500 capital ÷ 5 positions = $100 per trade." />
             </label>
@@ -488,26 +498,26 @@ const CreateBot = () => {
             />
           </div>
         </div>
-        <p className="text-xs text-gray-900 dark:text-gray-900">Portion size: ~${portionSize} USDT each</p>
+        <p className="text-xs text-gray-600 dark:text-gray-300">Portion size: ~${portionSize} USDT each</p>
       </div>
 
       {/* Adaptive Grid params */}
       {selectedStrategy?.id === 'adaptive_grid' && (
-        <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
-          <h3 className="text-sm font-semibold text-black">Strategy Parameters</h3>
+        <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Strategy Parameters</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="flex items-center mb-1 text-xs font-medium text-black">
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
                 Grid Portions
                 <FieldHint text="Number of buy orders spread across the dip range. More portions = smaller individual orders, better average entry price. Recommended: 4–6." />
               </label>
               <input type="text" inputMode="numeric" min="2" max="10" value={form.strategyParams.portions ?? ''}
                 onFocus={e => e.target.select()}
                 onChange={e => updateParams('portions', e.target.value === '' ? '' : parseInt(e.target.value))}
-                className="w-full px-3 py-2 text-sm text-black bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+                className="w-full px-3 py-2 text-sm text-gray-900 dark:text-white bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
-              <label className="flex items-center mb-1 text-xs font-medium text-black">
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
                 RSI Oversold Threshold
                 <FieldHint text="Bot enters a buy order when RSI falls below this level. Lower values (e.g. 25) trigger fewer but stronger signals. Higher values (e.g. 35) trigger more entries. Default 30 is a good balance." />
               </label>
@@ -554,11 +564,11 @@ const CreateBot = () => {
 
       {/* DCA params */}
       {selectedStrategy?.id === 'dca' && (
-        <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
-          <h3 className="text-sm font-semibold text-black">DCA Parameters</h3>
+        <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">DCA Parameters</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 ">
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
                 Interval (hours)
                 <FieldHint text="How often the bot places a new buy order. 24 = once per day, 168 = once per week. Smaller intervals accumulate faster but use capital quicker." />
               </label>
@@ -568,7 +578,7 @@ const CreateBot = () => {
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
-              <label className="flex items-center mb-1 text-xs font-medium text-black">
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
                 Amount per order (USDT)
                 <FieldHint text="How much USDT is spent on each scheduled buy. Keep this within your Total Capital budget to avoid running out of funds." />
               </label>
@@ -612,14 +622,14 @@ const CreateBot = () => {
       )}
 
       {/* Risk */}
-      <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
+      <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-red-500" />
-          <h3 className="text-sm font-semibold text-gray-900 ">Risk Management</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Risk Management</h3>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 ">
+            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
               Global Drawdown Limit (%)
               <FieldHint text="If your account loses this % of its starting capital in total, the bot stops all trading automatically to prevent further losses. E.g. 15 means the bot halts when you're down 15%." />
             </label>
@@ -629,7 +639,7 @@ const CreateBot = () => {
               className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
           </div>
           <div>
-            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 ">
+            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
               Daily Loss Limit (%)
               <FieldHint text="Maximum loss the bot is allowed to take within a single day. Once hit, the bot pauses until the next trading session. Helps contain runaway losses on bad market days." />
             </label>
@@ -651,7 +661,7 @@ const CreateBot = () => {
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Review & Launch</h2>
 
       <div>
-        <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">Bot Name</label>
+        <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">Bot Name</label>
         <input
           type="text"
           value={form.name}
@@ -661,7 +671,7 @@ const CreateBot = () => {
         />
       </div>
 
-      <div className="p-4 space-y-2 text-sm bg-gray-50 dark:bg-brandDark-700/50 rounded-xl">
+      <div className="p-4 space-y-2 text-sm bg-gray-50 dark:bg-brandDark-700 rounded-xl">
         {[
           ['Mode', form.isDemo ? 'Demo (Paper Trading)' : 'Live Trading'],
           ['Exchange', form.exchange || '—'],
@@ -726,7 +736,7 @@ const CreateBot = () => {
           ))}
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Step {step + 1} of {steps.length}: <span className="font-medium text-gray-700 dark:text-gray-300">{steps[step]}</span>
+          Step {step + 1} of {steps.length}: <span className="font-medium text-gray-700 dark:text-gray-100">{steps[step]}</span>
         </p>
       </div>
 
