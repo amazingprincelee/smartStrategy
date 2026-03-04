@@ -61,8 +61,8 @@ const Profile = () => {
 
   // Notification prefs
   const [notifPrefs, setNotifPrefs] = useState({
-    emailNotifications: { botAlert: true, signalAlert: true, tradeExecuted: true, platformUpdates: false },
-    inAppNotifications: { botAlert: true, signalAlert: true, tradeExecuted: true, platformUpdates: true },
+    emailNotifications: { botAlert: true, signalAlert: true, tradeExecuted: true, platformUpdates: false, arbitrageAlert: true },
+    inAppNotifications: { botAlert: true, signalAlert: true, tradeExecuted: true, platformUpdates: true, arbitrageAlert: true },
   });
   const [notifDirty, setNotifDirty] = useState(false);
 
@@ -415,10 +415,11 @@ const Profile = () => {
 
               <div className="space-y-1">
                 {[
-                  { field: 'botAlert',       label: 'Bot alerts',          desc: 'Errors, pauses and trade events from your bots' },
-                  { field: 'signalAlert',    label: 'AI signal alerts',    desc: 'New signals from the AI trading engine' },
-                  { field: 'tradeExecuted',  label: 'Trade confirmations', desc: 'Order filled confirmations' },
-                  { field: 'platformUpdates',label: 'Platform updates',    desc: 'Maintenance and feature announcements' },
+                  { field: 'botAlert',        label: 'Bot alerts',          desc: 'Errors, pauses and trade events from your bots' },
+                  { field: 'signalAlert',     label: 'AI signal alerts',    desc: 'New signals from the AI trading engine' },
+                  { field: 'tradeExecuted',   label: 'Trade confirmations', desc: 'Order filled confirmations' },
+                  { field: 'arbitrageAlert',  label: 'Arbitrage alerts',    desc: 'High-profit arbitrage opportunities (max once per 6 hours per pair)' },
+                  { field: 'platformUpdates', label: 'Platform updates',    desc: 'Maintenance and feature announcements' },
                 ].map(({ field, label: fLabel, desc: fDesc }) => (
                   <label
                     key={field}
