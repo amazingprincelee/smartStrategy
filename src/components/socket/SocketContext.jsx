@@ -30,7 +30,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     console.log('🔄 Initializing socket connection...');
 
-    const socketUrl = import.meta.env.VITE_API_URL; 
+    const socketUrl = "https://lionfish-app-irgo6.ondigitalocean.app"; 
       
   //  const socketUrl =  'http://localhost:5000'
 
