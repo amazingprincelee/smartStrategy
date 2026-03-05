@@ -36,18 +36,31 @@ export const SocketProvider = ({ children }) => {
 
     // Connect for everyone — anonymous users get public signal feed,
     // authenticated users additionally get notifications, bots, arbitrage.
+    
+    // const socket = io(socketUrl, {
+    //   path: '/socket.io/',
+    //   auth: token ? { token } : {},
+    //   transports: ['polling'],
+    //   upgrade: false,
+    //   reconnection: true,
+    //   reconnectionDelay: 2000,
+    //   reconnectionDelayMax: 10000,
+    //   reconnectionAttempts: 10,
+    //   timeout: 20000,
+    //   autoConnect: true,
+    // });
+
     const socket = io(socketUrl, {
-      path: '/socket.io/',
-      auth: token ? { token } : {},
-      transports: ['polling'],
-      upgrade: false,
-      reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionDelayMax: 10000,
-      reconnectionAttempts: 10,
-      timeout: 20000,
-      autoConnect: true,
-    });
+  auth: token ? { token } : {},
+  transports: ['websocket', 'polling'],  // Prefer WS, fallback to polling
+  withCredentials: true,  // Enables credentials for CORS
+  reconnection: true,
+  reconnectionDelay: 2000,
+  reconnectionDelayMax: 10000,
+  reconnectionAttempts: 10,
+  timeout: 60000,  // Increase to match backend/proxy (was 20000)
+  autoConnect: true,
+});
 
     socketRef.current = socket;
 
