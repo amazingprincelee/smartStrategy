@@ -2,7 +2,7 @@ import axios from "axios";
 
 export const authAPI = axios.create({
    baseURL: import.meta.env.VITE_API_URL        // production
- //  baseURL: import.meta.env.VITE_LOCAL_API_URL    // local dev
+  // baseURL: import.meta.env.VITE_LOCAL_API_URL    // local dev
 });
 
 // Request interceptor — attach Bearer token from localStorage
