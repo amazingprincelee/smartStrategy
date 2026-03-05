@@ -36,7 +36,7 @@ export const SocketProvider = ({ children }) => {
 
     // Connect for everyone — anonymous users get public signal feed,
     // authenticated users additionally get notifications, bots, arbitrage.
-    
+
     // const socket = io(socketUrl, {
     //   path: '/socket.io/',
     //   auth: token ? { token } : {},
@@ -82,9 +82,11 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
+   
+
     socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error.message);
-    });
+  console.error('❌ Socket connection error:', error.message, error.type, error.description);
+});
 
     socket.on('disconnect', (reason) => {
       console.log('🔌 Socket disconnected:', reason);
