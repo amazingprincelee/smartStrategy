@@ -30,8 +30,9 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     console.log('🔄 Initializing socket connection...');
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL
-      || new URL(import.meta.env.VITE_API_URL || 'http://localhost:5000').origin;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL; 
+      
+   // const socketUrl =  'http://localhost:5000'
 
     // Connect for everyone — anonymous users get public signal feed,
     // authenticated users additionally get notifications, bots, arbitrage.
