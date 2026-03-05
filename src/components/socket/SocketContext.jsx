@@ -30,9 +30,9 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     console.log('🔄 Initializing socket connection...');
 
-    const socketUrl = "https://lionfish-app-irgo6.ondigitalocean.app"; 
+    const socketUrl = import.meta.env.VITE_SOCKET_URL; 
       
-  //  const socketUrl =  'http://localhost:5000'
+  // const socketUrl =  'http://localhost:5000'
 
     // Connect for everyone — anonymous users get public signal feed,
     // authenticated users additionally get notifications, bots, arbitrage.
