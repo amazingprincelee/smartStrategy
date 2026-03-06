@@ -48,10 +48,28 @@ export const loginUser = createAsyncThunk(
         user,
       };
     } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        "Invalid email or password";
-      return thunkAPI.rejectWithValue({ message });
+      const status = err.response?.status;
+  const serverMessage = err.response?.data?.message;
+
+  let message;
+
+  if (!err.response) {
+    // Network error — server unreachable
+    message = "Unable to connect. Please check your internet connection.";
+  } else if (status === 401) {
+    // Wrong credentials — use server message or fallback
+    message = serverMessage || "Invalid email or password.";
+  } else if (status === 400) {
+    // Validation error
+    message = serverMessage || "Please check your input and try again.";
+  } else if (status === 500) {
+    // Server-side error
+    message = "Something went wrong on our end. Please try again later.";
+  } else {
+    message = serverMessage || "Login failed. Please try again.";
+  }
+
+  return thunkAPI.rejectWithValue({ message });
     }
   }
 );
