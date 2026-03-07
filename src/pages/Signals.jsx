@@ -27,6 +27,7 @@ import {
   TrendingDown,
   Clock,
   History,
+  Newspaper,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────── helpers ── */
@@ -134,6 +135,21 @@ function LiveSignalCard({ s, isPremium }) {
                 {r}
               </span>
             ))}
+          </div>
+        )}
+        {s.newsSentiment && s.newsSentiment.sentiment !== 'neutral' && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border flex items-center gap-1 ${
+              s.newsSentiment.sentiment === 'bullish'
+                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                : 'bg-red-500/10 text-red-400 border-red-500/20'
+            }`}>
+              <Newspaper className="w-2.5 h-2.5" />
+              News: {s.newsSentiment.sentiment}
+              <span className="opacity-60">
+                ({s.newsSentiment.score > 0 ? '+' : ''}{Number(s.newsSentiment.score).toFixed(2)})
+              </span>
+            </span>
           </div>
         )}
         {!isPremium && (
@@ -1176,6 +1192,50 @@ const Signals = () => {
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  )}
+
+                  {/* ── News Sentiment ── */}
+                  {az.newsSentiment && (
+                    <div className="p-4 rounded-xl bg-white/3 border border-white/8 space-y-2">
+                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Newspaper className="w-3.5 h-3.5" /> News Sentiment
+                      </h4>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                          az.newsSentiment.sentiment === 'bullish'
+                            ? 'bg-green-500/15 text-green-400 border-green-500/25'
+                            : az.newsSentiment.sentiment === 'bearish'
+                              ? 'bg-red-500/15 text-red-400 border-red-500/25'
+                              : 'bg-gray-500/15 text-gray-400 border-gray-500/25'
+                        }`}>
+                          {az.newsSentiment.sentiment.charAt(0).toUpperCase() + az.newsSentiment.sentiment.slice(1)}
+                        </span>
+                        <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              az.newsSentiment.score > 0 ? 'bg-green-500' : az.newsSentiment.score < 0 ? 'bg-red-500' : 'bg-gray-500'
+                            }`}
+                            style={{ width: `${Math.abs(az.newsSentiment.score) * 100}%`, marginLeft: az.newsSentiment.score < 0 ? `${(1 + az.newsSentiment.score) * 100}%` : '0' }}
+                          />
+                        </div>
+                        <span className={`text-xs font-mono font-semibold w-14 text-right ${
+                          az.newsSentiment.score > 0 ? 'text-green-400' : az.newsSentiment.score < 0 ? 'text-red-400' : 'text-gray-500'
+                        }`}>
+                          {az.newsSentiment.score > 0 ? '+' : ''}{Number(az.newsSentiment.score).toFixed(2)}
+                        </span>
+                      </div>
+                      {az.newsSentiment.suppresses && (
+                        <p className="text-[10px] text-amber-400/80 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                          News suppressed the {az.newsSentiment.suppresses} signal — sentiment too strong against it
+                        </p>
+                      )}
+                      {az.newsSentiment.articles?.length > 0 && (
+                        <p className="text-[10px] text-gray-600">
+                          Based on {az.newsSentiment.articles.length} recent news article{az.newsSentiment.articles.length !== 1 ? 's' : ''} from Gate.io
+                        </p>
+                      )}
                     </div>
                   )}
 
