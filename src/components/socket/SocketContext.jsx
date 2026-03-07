@@ -32,7 +32,7 @@ export const SocketProvider = ({ children }) => {
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL; 
       
-  // const socketUrl =  'http://localhost:5000'
+   // const socketUrl =  'http://localhost:5000'
 
     // Connect for everyone — anonymous users get public signal feed,
     // authenticated users additionally get notifications, bots, arbitrage.
