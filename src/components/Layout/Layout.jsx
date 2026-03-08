@@ -6,7 +6,7 @@ import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { fetchBots } from '../../redux/slices/botSlice';
 import { fetchPlatformStats, fetchSignals } from '../../redux/slices/signalSlice';
-import { fetchNotifications } from '../../redux/slices/userSlice';
+import { fetchNotifications, fetchUserProfile } from '../../redux/slices/userSlice';
 
 const Layout = () => {
   const dispatch = useDispatch();
@@ -18,6 +18,7 @@ const Layout = () => {
   // regardless of which page the user lands on first.
   useEffect(() => {
     if (!isAuthenticated) return;
+    dispatch(fetchUserProfile());
     dispatch(fetchBots());
     dispatch(fetchPlatformStats());
     dispatch(fetchSignals('spot'));

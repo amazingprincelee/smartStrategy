@@ -175,7 +175,7 @@ export const fetchUserProfile = createAsyncThunk(
   "user/fetchProfile",
   async (_, thunkAPI) => {
     try {
-      const response = await authAPI.get('/user/profile');
+      const response = await authAPI.get('/user/me');
       return response.data.data;
     } catch (err) {
       const message =

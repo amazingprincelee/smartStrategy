@@ -19,7 +19,6 @@ import {
   Settings as SettingsIcon,
 } from 'lucide-react';
 import {
-  fetchUserProfile,
   updateTheme,
   updateNotificationPreferences,
 } from '../../redux/slices/userSlice';
@@ -73,9 +72,8 @@ const Settings = () => {
   const [testingId, setTestingId] = useState(null);
   const [removingId, setRemovingId] = useState(null);
 
-  // Load profile + exchange accounts on mount
+  // Load exchange accounts on mount (profile is preloaded globally by Layout)
   useEffect(() => {
-    dispatch(fetchUserProfile());
     dispatch(fetchAccounts());
     dispatch(fetchSupportedExchanges());
   }, [dispatch]);
