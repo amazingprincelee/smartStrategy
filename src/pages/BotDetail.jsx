@@ -15,12 +15,14 @@ import {
 } from '../redux/slices/botSlice';
 
 const STRATEGY_LABELS = {
+  smart_signal:  'SmartSignal Bot',
+  ai_signal:     'SmartSignal Bot',   // legacy alias
+  dca:           'Simple DCA',
   adaptive_grid: 'Adaptive Grid Averager',
-  dca: 'Simple DCA',
-  rsi_reversal: 'RSI Reversal',
+  rsi_reversal:  'RSI Reversal',
   ema_crossover: 'EMA Crossover',
-  scalper: 'ATR Scalper',
-  breakout: 'N-Day Breakout',
+  scalper:       'ATR Scalper',
+  breakout:      'N-Day Breakout',
 };
 
 const REASON_COLORS = {
@@ -34,12 +36,14 @@ const REASON_COLORS = {
 
 // Timeframe label per strategy
 const STRATEGY_TIMEFRAME = {
+  smart_signal:  '5m',
+  ai_signal:     '5m',
+  dca:           '4h',
   adaptive_grid: '1h',
-  dca: '4h',
-  rsi_reversal: '1h',
+  rsi_reversal:  '1h',
   ema_crossover: '4h',
-  scalper: '5m',
-  breakout: '1d',
+  scalper:       '5m',
+  breakout:      '1d',
 };
 
 // Build condition list per strategy using live analysis values
@@ -49,6 +53,22 @@ function getStrategyConditions(strategyId, params, analysis) {
   const vr  = analysis.volumeRatio;
 
   switch (strategyId) {
+    case 'smart_signal':
+    case 'ai_signal':
+      return [
+        {
+          label: 'Signal confidence',
+          met: true,
+          actual: `≥ ${params?.minConfidencePercent || 70}%`,
+          need: 'threshold met',
+        },
+        {
+          label: 'Concurrent trades',
+          met: true,
+          actual: `max ${params?.maxConcurrentTrades || 2}`,
+          need: 'slots available',
+        },
+      ];
     case 'adaptive_grid':
       return [
         {

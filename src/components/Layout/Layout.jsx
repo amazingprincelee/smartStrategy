@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
+import { fetchBots } from '../../redux/slices/botSlice';
+import { fetchPlatformStats, fetchSignals } from '../../redux/slices/signalSlice';
+import { fetchNotifications } from '../../redux/slices/userSlice';
 
 const Layout = () => {
+  const dispatch = useDispatch();
   const { token } = useSelector(state => state.auth);
   const isAuthenticated = !!token;
-  
+
+  // Preload all core data once when the user is authenticated.
+  // This ensures Dashboard stat cards are populated immediately —
+  // regardless of which page the user lands on first.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    dispatch(fetchBots());
+    dispatch(fetchPlatformStats());
+    dispatch(fetchSignals('spot'));
+    dispatch(fetchNotifications({ limit: 10 }));
+  }, [isAuthenticated, dispatch]);
+
   // State for mobile sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 

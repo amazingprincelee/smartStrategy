@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { fetchPlatformStats, fetchSignals, fetchSignalHistory } from '../redux/slices/signalSlice';
 import { fetchArbitrageOpportunities } from '../redux/slices/arbitrageslice';
+import { fetchBots } from '../redux/slices/botSlice';
 
 /* ─── helpers ────────────────────────────────────────────────── */
 const now = new Date();
@@ -111,6 +112,7 @@ const Dashboard = () => {
   const { opportunities } = useSelector((s) => s.arbitrage || { opportunities: [] });
 
   useEffect(() => {
+    dispatch(fetchBots());
     dispatch(fetchPlatformStats());
     dispatch(fetchSignals('spot'));
     dispatch(fetchArbitrageOpportunities({ minProfit: 0.1, minVolume: 100, topCoins: 10 }));
@@ -153,7 +155,7 @@ const Dashboard = () => {
     },
     {
       label: 'AI Signals',
-      value: platformStats?.totalSignals ?? '—',
+      value: platformStats?.totalSignalsToday ?? '—',
       icon: Zap,
       color: 'text-violet-400',
       bg: 'bg-violet-500/10',

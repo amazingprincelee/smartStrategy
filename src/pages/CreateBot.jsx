@@ -28,13 +28,8 @@ const COIN_GROUPS = [
 ];
 
 const STRATEGY_ACTIVITY = {
+  smart_signal: { label: 'High activity', detail: 'Checks SmartStrategy signals every 5 min and enters the best opportunities on your exchange' },
   dca:          { label: 'Very high activity', detail: 'Buys on a fixed schedule regardless of market conditions' },
-  scalper:      { label: 'High activity',      detail: 'Scans every 5 min and opens tight in-and-out trades' },
-  ai_signal:    { label: 'High activity',      detail: 'Trades SmartStrategy\'s own signals — same engine as the Signals page' },
-  rsi_reversal: { label: 'Medium activity',    detail: 'Enters when RSI crosses oversold / overbought zones' },
-  ema_crossover:{ label: 'Medium activity',    detail: 'Signals on golden cross or uptrend dip entries' },
-  adaptive_grid:{ label: 'Medium activity',    detail: 'Buys RSI dips + volume spikes in bullish or downtrend markets' },
-  breakout:     { label: 'Lower activity',     detail: 'Waits for price to break a multi-day high with volume' },
 };
 
 const ACTIVITY_BADGE = {
@@ -119,16 +114,22 @@ const CreateBot = () => {
     isDemo: true,
     exchangeAccountId: '',
     exchange: '',
-    symbol: 'BTC/USDT',
+    symbol: 'MULTI',          // SmartSignal trades any pair; DCA overrides this in step 2
     marketType: 'futures',
-    strategyId: searchParams.get('strategy') || 'ai_signal',  // AI strategy is default for premium; free users get forced to DCA below
+    strategyId: searchParams.get('strategy') || 'smart_signal',
     name: '',
     capitalAllocation: { totalCapital: 100, currency: 'USDT', maxOpenPositions: 3 },
     riskParams: { globalDrawdownLimitPercent: 10, dailyLossLimitPercent: 5 },
     strategyParams: {
-      // DCA defaults — professional values
-      dcaIntervalHours:   24,   // buy once per day
-      dcaAmountPerOrder:  25,   // 4 orders before capital runs out (100 ÷ 25)
+      // SmartSignal defaults
+      minConfidencePercent: 70,
+      maxConcurrentTrades:  2,
+      riskPerTrade:         2,
+      signalMaxAgeMinutes:  20,
+      leverage:             3,
+      // DCA defaults
+      dcaIntervalHours:   24,
+      dcaAmountPerOrder:  25,
     },
   });
 
@@ -197,7 +198,11 @@ const CreateBot = () => {
 
   const canProceed = () => {
     if (step === 0) return form.isDemo || form.exchangeAccountId;
-    if (step === 1) return form.symbol && form.exchange;
+    if (step === 1) {
+      // SmartSignal doesn't need a pair — only an exchange
+      if (form.strategyId === 'smart_signal') return !!form.exchange;
+      return !!(form.symbol && form.symbol !== 'MULTI' && form.exchange);
+    }
     if (step === 2) return !!form.strategyId;
     if (step === 3) return (form.capitalAllocation.totalCapital || 0) >= 10;
     return true;
@@ -288,155 +293,197 @@ const CreateBot = () => {
   // ────────────────────────────────────
   // Step 1: Market & Pair
   // ────────────────────────────────────
-  const renderStep1 = () => (
-    <div className="space-y-5">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Select Market & Pair</h2>
+  const renderStep1 = () => {
+    const isSmartSignal = form.strategyId === 'smart_signal';
+    const EXCHANGE_LIST = [
+      { id: 'okx',    name: 'OKX'        },
+      { id: 'kucoin', name: 'KuCoin'     },
+      { id: 'bitget', name: 'Bitget'     },
+      { id: 'phemex', name: 'Phemex'     },
+      { id: 'gate',   name: 'Gate.io'    },
+      { id: 'mexc',   name: 'MEXC'       },
+      { id: 'huobi',  name: 'HTX (Huobi)'},
+      { id: 'kraken', name: 'Kraken'     },
+    ];
 
-      {form.isDemo && (
-        <div>
-          <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-            Exchange
-            <FieldHint text="The exchange whose live price data the bot will use to simulate trades in demo mode." />
-          </label>
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Choose an exchange to pull live market data from.</p>
-          <select
-            value={form.exchange}
-            onChange={e => update('exchange', e.target.value)}
-            className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
-          >
-            <option value="" disabled>Select Exchange</option>
-            {[
-              { id: 'okx',    name: 'OKX'         },
-              { id: 'kucoin', name: 'KuCoin'       },
-              { id: 'bitget', name: 'Bitget'       },
-              { id: 'phemex', name: 'Phemex'       },
-              { id: 'gate',   name: 'Gate.io'      },
-              { id: 'mexc',   name: 'MEXC'         },
-              { id: 'huobi',  name: 'HTX (Huobi)'  },
-              { id: 'kraken', name: 'Kraken'       },
-            ].map(ex => (
-              <option key={ex.id} value={ex.id}>{ex.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
+    return (
+      <div className="space-y-5">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Select Market & Exchange</h2>
 
-      <div>
-        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Market Type</label>
-        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Spot buys actual coins; Futures trades contracts with optional leverage.</p>
-        <div className="flex gap-3">
-          {['futures', 'spot'].map(type => (
-            <button
-              key={type}
-              onClick={() => update('marketType', type)}
-              className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium capitalize transition-colors ${
-                form.marketType === type
-                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
-                  : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400'
-              }`}
+        {/* Exchange selector — always shown */}
+        {form.isDemo ? (
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+              Exchange
+              <FieldHint text="The exchange whose live price data the bot will use to simulate trades in demo mode." />
+            </label>
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Choose an exchange to pull live market data from.</p>
+            <select
+              value={form.exchange}
+              onChange={e => update('exchange', e.target.value)}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
             >
-              {type}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Trading Pair</label>
-        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">
-          {form.exchange
-            ? 'Search or type any USDT pair from the selected exchange.'
-            : 'Type any USDT pair (e.g. PEPE/USDT, WIF/USDT) or pick from the list below.'}
-        </p>
-
-        {/* Search / custom pair input */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            value={form.symbol}
-            onChange={e => update('symbol', e.target.value.toUpperCase())}
-            placeholder="Search or type any pair — e.g. BTC/USDT, PEPE/USDT…"
-            className="w-full pl-9 pr-9 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          />
-          {form.symbol && (
-            <button
-              type="button"
-              onClick={() => update('symbol', '')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Loading spinner while fetching the selected exchange's pairs */}
-        {exchangePairsFetching && form.exchange ? (
-          <div className="flex items-center gap-2 py-3 text-xs text-gray-500 dark:text-gray-400">
-            <Loader className="w-4 h-4 animate-spin text-primary-500" />
-            Loading {form.exchange} pairs…
+              <option value="" disabled>Select Exchange</option>
+              {EXCHANGE_LIST.map(ex => (
+                <option key={ex.id} value={ex.id}>{ex.name}</option>
+              ))}
+            </select>
           </div>
-        ) : (() => {
-          const exchangePairs = form.exchange
-            ? (exchangePairsMap[form.exchange]?.[form.marketType] || [])
-            : [];
-          const allCoins   = exchangePairs.length > 0 ? exchangePairs : COIN_GROUPS.flatMap(g => g.coins);
-          const searchTerm = form.symbol.replace('/USDT', '').replace('USDT', '').trim();
-          const isSearching = searchTerm.length > 0;
-          const filtered   = isSearching
-            ? allCoins.filter(c => c.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 50)
-            : allCoins.slice(0, exchangePairs.length > 0 ? 30 : allCoins.length);
-          const isCustom   = form.symbol && form.symbol.includes('/') && !allCoins.includes(form.symbol);
+        ) : (
+          /* Live trading — exchange comes from the selected account */
+          form.exchangeAccountId && (
+            <div className="flex items-center gap-2 px-3 py-2 text-xs text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              Using exchange from your connected account — <span className="font-semibold capitalize">{form.exchange}</span>
+            </div>
+          )
+        )}
 
-          return (
-            <>
-              {isCustom && (
-                <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-xs font-mono font-semibold text-green-700 dark:text-green-300">{form.symbol}</span>
-                  <span className="text-xs text-green-600 dark:text-green-400">— custom pair confirmed</span>
+        {/* Market type */}
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Market Type</label>
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Spot buys actual coins; Futures trades contracts with optional leverage.</p>
+          <div className="flex gap-3">
+            {['futures', 'spot'].map(type => (
+              <button
+                key={type}
+                onClick={() => update('marketType', type)}
+                className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium capitalize transition-colors ${
+                  form.marketType === type
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
+                    : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* SmartSignal — auto-pair info panel */}
+        {isSmartSignal ? (
+          <div className="p-5 rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 space-y-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary-500 flex-shrink-0" />
+              <p className="text-sm font-semibold text-primary-800 dark:text-primary-300">Pairs are selected automatically</p>
+            </div>
+            <p className="text-xs text-primary-700 dark:text-primary-400 leading-relaxed">
+              SmartSignal Bot doesn't trade a single fixed pair. Instead, it continuously monitors
+              SmartStrategy's signal engine and enters trades on whichever pairs currently have the
+              highest-confidence setups — across your entire exchange.
+            </p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              {[
+                ['Signal scan',    'Every 5 minutes'],
+                ['Min confidence', '70%+ (configurable)'],
+                ['Max open trades','2 at once (configurable)'],
+                ['Entry / SL / TP','Set by signal engine'],
+              ].map(([k, v]) => (
+                <div key={k} className="flex flex-col">
+                  <span className="text-[10px] font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">{k}</span>
+                  <span className="text-xs font-semibold text-primary-900 dark:text-primary-200">{v}</span>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* DCA — normal pair picker */
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Trading Pair</label>
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">
+              {form.exchange
+                ? 'Search or type any USDT pair from the selected exchange.'
+                : 'Type any USDT pair (e.g. PEPE/USDT, WIF/USDT) or pick from the list below.'}
+            </p>
 
-              {/* Suggestion chips */}
-              <div>
-                <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">
-                  {exchangePairs.length > 0
-                    ? isSearching
-                      ? `${filtered.length} pair${filtered.length !== 1 ? 's' : ''} found on ${form.exchange} — click to select`
-                      : `Showing top 30 of ${allCoins.length} ${form.exchange} USDT pairs — type to search all`
-                    : isSearching && filtered.length < allCoins.length
-                      ? `${filtered.length} match${filtered.length !== 1 ? 'es' : ''} — click to select`
-                      : 'Popular pairs — click to select'}
-                </p>
-                {filtered.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {filtered.map(pair => (
-                      <button
-                        key={pair}
-                        onClick={() => update('symbol', pair)}
-                        className={`px-3 py-1.5 text-xs rounded-full border transition-colors font-mono ${
-                          form.symbol === pair
-                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
-                            : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400 hover:border-primary-300 dark:hover:border-primary-600'
-                        }`}
-                      >
-                        {pair}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                    No matches — your custom pair above will be used.
-                  </p>
-                )}
+            {/* Search / custom pair input */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={form.symbol === 'MULTI' ? '' : form.symbol}
+                onChange={e => update('symbol', e.target.value.toUpperCase())}
+                placeholder="Search or type any pair — e.g. BTC/USDT, PEPE/USDT…"
+                className="w-full pl-9 pr-9 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              />
+              {form.symbol && form.symbol !== 'MULTI' && (
+                <button
+                  type="button"
+                  onClick={() => update('symbol', '')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {exchangePairsFetching && form.exchange ? (
+              <div className="flex items-center gap-2 py-3 text-xs text-gray-500 dark:text-gray-400">
+                <Loader className="w-4 h-4 animate-spin text-primary-500" />
+                Loading {form.exchange} pairs…
               </div>
-            </>
-          );
-        })()}
+            ) : (() => {
+              const exchangePairs = form.exchange
+                ? (exchangePairsMap[form.exchange]?.[form.marketType] || [])
+                : [];
+              const allCoins    = exchangePairs.length > 0 ? exchangePairs : COIN_GROUPS.flatMap(g => g.coins);
+              const rawSymbol   = form.symbol === 'MULTI' ? '' : form.symbol;
+              const searchTerm  = rawSymbol.replace('/USDT', '').replace('USDT', '').trim();
+              const isSearching = searchTerm.length > 0;
+              const filtered    = isSearching
+                ? allCoins.filter(c => c.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 50)
+                : allCoins.slice(0, exchangePairs.length > 0 ? 30 : allCoins.length);
+              const isCustom    = rawSymbol && rawSymbol.includes('/') && !allCoins.includes(rawSymbol);
+
+              return (
+                <>
+                  {isCustom && (
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span className="text-xs font-mono font-semibold text-green-700 dark:text-green-300">{rawSymbol}</span>
+                      <span className="text-xs text-green-600 dark:text-green-400">— custom pair confirmed</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">
+                      {exchangePairs.length > 0
+                        ? isSearching
+                          ? `${filtered.length} pair${filtered.length !== 1 ? 's' : ''} found on ${form.exchange} — click to select`
+                          : `Showing top 30 of ${allCoins.length} ${form.exchange} USDT pairs — type to search all`
+                        : isSearching && filtered.length < allCoins.length
+                          ? `${filtered.length} match${filtered.length !== 1 ? 'es' : ''} — click to select`
+                          : 'Popular pairs — click to select'}
+                    </p>
+                    {filtered.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {filtered.map(pair => (
+                          <button
+                            key={pair}
+                            onClick={() => update('symbol', pair)}
+                            className={`px-3 py-1.5 text-xs rounded-full border transition-colors font-mono ${
+                              form.symbol === pair
+                                ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
+                                : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400 hover:border-primary-300 dark:hover:border-primary-600'
+                            }`}
+                          >
+                            {pair}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                        No matches — your custom pair above will be used.
+                      </p>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   // ────────────────────────────────────
   // Step 2: Strategy
@@ -456,7 +503,7 @@ const CreateBot = () => {
       {!isPremium && (
         <div className="flex items-start gap-3 p-3 text-xs border rounded-lg bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300">
           <Crown className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>Free plan includes <strong>DCA</strong> only. Upgrade to Premium to unlock AI Signal Bot, Scalper, RSI Reversal, EMA Crossover, Adaptive Grid, and Breakout strategies.</span>
+          <span>Free plan includes <strong>Simple DCA</strong> only. Upgrade to Premium to unlock <strong>SmartSignal Bot</strong> — automated trading on high-confidence signals across any pair.</span>
         </div>
       )}
 
@@ -586,64 +633,59 @@ const CreateBot = () => {
         <p className="text-xs text-gray-600 dark:text-gray-300">Portion size: ~${portionSize} USDT each</p>
       </div>
 
-      {/* Adaptive Grid params */}
-      {selectedStrategy?.id === 'adaptive_grid' && (
+      {/* SmartSignal params */}
+      {selectedStrategy?.id === 'smart_signal' && (
         <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Strategy Parameters</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">SmartSignal Parameters</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
-                Grid Portions
-                <FieldHint text="Number of buy orders spread across the dip range. More portions = smaller individual orders, better average entry price. Recommended: 4–6." />
+                Min Confidence (%)
+                <FieldHint text="Only trade signals with at least this confidence score. Higher = fewer but stronger entries. 70% is a solid starting point." />
               </label>
-              <input type="text" inputMode="numeric" min="2" max="10" value={form.strategyParams.portions ?? ''}
+              <input type="text" inputMode="numeric" min="50" max="99"
+                value={form.strategyParams.minConfidencePercent ?? 70}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('portions', e.target.value === '' ? '' : parseInt(e.target.value))}
-                className="w-full px-3 py-2 text-sm text-gray-900 dark:text-white bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+                onChange={e => updateParams('minConfidencePercent', e.target.value === '' ? '' : Math.max(50, Math.min(99, parseInt(e.target.value) || 70)))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
               <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
-                RSI Oversold Threshold
-                <FieldHint text="Bot enters a buy order when RSI falls below this level. Lower values (e.g. 25) trigger fewer but stronger signals. Higher values (e.g. 35) trigger more entries. Default 30 is a good balance." />
+                Max Concurrent Trades
+                <FieldHint text="The maximum number of open positions the bot can hold at once. Recommended: 2–4." />
               </label>
-              <input type="text" inputMode="numeric" min="10" max="40" value={form.strategyParams.rsiOversold ?? ''}
+              <input type="text" inputMode="numeric" min="1" max="10"
+                value={form.strategyParams.maxConcurrentTrades ?? 2}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('rsiOversold', e.target.value === '' ? '' : parseInt(e.target.value))}
+                onChange={e => updateParams('maxConcurrentTrades', e.target.value === '' ? '' : Math.max(1, Math.min(10, parseInt(e.target.value) || 2)))}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
-
-            {/* Take Profit Mode */}
-            <div className="col-span-2">
+            <div>
               <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
-                Take Profit Mode
-                <FieldHint text="Determines how the bot decides when to close a profitable position." />
+                Risk per Trade (%)
+                <FieldHint text="Percentage of total capital used per trade. 2% means a $1,000 account risks $20 per position." />
               </label>
-              <select value={form.strategyParams.takeProfitMode || 'structure'}
-                onChange={e => updateParams('takeProfitMode', e.target.value)}
-                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white">
-                {Object.entries(TP_MODE_INFO).map(([val, { label }]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
-              {/* Description for selected mode */}
-              <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                {TP_MODE_INFO[form.strategyParams.takeProfitMode || 'structure']?.hint}
-              </p>
+              <input type="text" inputMode="numeric" min="0.5" max="10" step="0.5"
+                value={form.strategyParams.riskPerTrade ?? 2}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('riskPerTrade', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
-
-            {form.strategyParams.takeProfitMode === 'fixed' && (
-              <div className="col-span-2">
-                <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
-                  Take Profit %
-                  <FieldHint text="Price must rise this % above your entry for the bot to close the position and lock in profit." />
-                </label>
-                <input type="text" inputMode="numeric" step="0.1" min="0.5" max="10" value={form.strategyParams.fixedTakeProfitPercent ?? ''}
-                  onFocus={e => e.target.select()}
-                  onChange={e => updateParams('fixedTakeProfitPercent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
-              </div>
-            )}
+            <div>
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                Max Signal Age (min)
+                <FieldHint text="Reject signals older than this many minutes. Fresher signals = closer to original entry price. Recommended: 15–30." />
+              </label>
+              <input type="text" inputMode="numeric" min="5" max="120"
+                value={form.strategyParams.signalMaxAgeMinutes ?? 20}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('signalMaxAgeMinutes', e.target.value === '' ? '' : parseInt(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+            </div>
           </div>
+          <p className="text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 leading-relaxed">
+            Entry price, stop-loss, and take-profit are set automatically by SmartStrategy's signal engine — 1:2 R:R minimum.
+          </p>
         </div>
       )}
 
@@ -676,15 +718,8 @@ const CreateBot = () => {
         </div>
       )}
 
-      {selectedStrategy?.id === 'ai_signal' && (
-        <div className="p-4 space-y-1 text-sm text-blue-700 border border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 rounded-xl dark:text-blue-300">
-          <p className="font-semibold text-blue-800 dark:text-blue-300">SmartSignal Bot — fully automated</p>
-          <p className="text-xs text-blue-700 dark:text-blue-400">Powered by SmartStrategy's built-in signal engine — the same one that generates signals on the Signals page. Entry, stop-loss, and take-profit are set automatically. No manual parameters needed.</p>
-        </div>
-      )}
-
-      {/* Leverage — shown for futures bots using DCA or AI Signal */}
-      {form.marketType === 'futures' && ['dca', 'ai_signal'].includes(selectedStrategy?.id) && (
+      {/* Leverage — shown for futures bots using DCA or SmartSignal */}
+      {form.marketType === 'futures' && ['dca', 'smart_signal'].includes(selectedStrategy?.id) && (
         <div className="p-4 space-y-3 border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800 rounded-xl">
           <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300">Futures Leverage</h3>
           <div>
@@ -760,7 +795,7 @@ const CreateBot = () => {
         {[
           ['Mode', form.isDemo ? 'Demo (Paper Trading)' : 'Live Trading'],
           ['Exchange', form.exchange || '—'],
-          ['Pair', form.symbol],
+          ['Pair', form.symbol === 'MULTI' ? 'Auto (signal-based)' : form.symbol],
           ['Market', form.marketType],
           ['Strategy', selectedStrategy?.name || form.strategyId],
           ['Capital', `$${form.capitalAllocation.totalCapital} USDT`],

@@ -10,12 +10,15 @@ import {
 import { fetchBots, startBot, stopBot } from '../redux/slices/botSlice';
 
 const STRATEGY_LABELS = {
+  smart_signal: 'SmartSignal Bot',
+  ai_signal:    'SmartSignal Bot',   // legacy alias for old bots
+  dca:          'Simple DCA',
+  // kept for backwards-compat display of old bots
   adaptive_grid: 'Adaptive Grid',
-  dca: 'Simple DCA',
-  rsi_reversal: 'RSI Reversal',
+  rsi_reversal:  'RSI Reversal',
   ema_crossover: 'EMA Crossover',
-  scalper: 'ATR Scalper',
-  breakout: 'N-Day Breakout',
+  scalper:       'ATR Scalper',
+  breakout:      'N-Day Breakout',
 };
 
 const RISK_COLORS = {
@@ -61,7 +64,9 @@ const BotCard = ({ bot, onStart, onStop, loading }) => {
 
       {/* Exchange / Symbol / Strategy */}
       <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3 flex-wrap">
-        <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{bot.symbol}</span>
+        <span className="font-mono font-medium text-gray-700 dark:text-gray-300">
+          {bot.symbol === 'MULTI' ? 'Multi-pair' : bot.symbol}
+        </span>
         <span className="text-gray-300">·</span>
         <span className="capitalize">{bot.exchange}</span>
         <span className="text-gray-300">·</span>
