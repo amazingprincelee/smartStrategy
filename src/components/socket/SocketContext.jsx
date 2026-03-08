@@ -179,7 +179,7 @@ export const SocketProvider = ({ children }) => {
       });
 
       socket.on('notification:read', ({ notificationId }) => {
-        dispatch(updateNotification({ _id: notificationId, read: true }));
+        dispatch(updateNotification({ _id: notificationId, isRead: true }));
       });
 
       socket.on('notification:allRead', () => {

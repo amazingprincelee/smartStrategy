@@ -29,12 +29,13 @@ export const fetchPlatformStats = createAsyncThunk(
 
 export const fetchSignalHistory = createAsyncThunk(
   'signals/fetchHistory',
-  async ({ marketType, type, minConfidence, limit = 50, skip = 0 } = {}, { rejectWithValue }) => {
+  async ({ marketType, type, minConfidence, sort = 'newest', limit = 50, skip = 0 } = {}, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams();
       if (marketType)    params.append('marketType', marketType);
       if (type)          params.append('type', type);
       if (minConfidence) params.append('minConfidence', minConfidence);
+      params.append('sort', sort);
       params.append('limit', limit);
       params.append('skip', skip);
 
@@ -82,6 +83,35 @@ export const fetchAvailablePairs = createAsyncThunk(
   }
 );
 
+// Fetches ALL exchanges' USDT pairs in a single call for global preloading.
+// Result shape: { okx: { spot: [...], futures: [...] }, kucoin: {...}, … }
+export const fetchAllExchangePairs = createAsyncThunk(
+  'signals/fetchAllExchangePairs',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/signals/all-exchange-pairs');
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+// Fetches pairs for a single exchange+market on demand.
+// The backend does a live CCXT fetch if the DB record is missing (handles first-run race).
+// Result is merged into exchangePairsMap so it's only fetched once per session.
+export const fetchExchangePairsForExchange = createAsyncThunk(
+  'signals/fetchExchangePairsForExchange',
+  async ({ exchange, market }, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get(`/signals/exchange-pairs?exchange=${exchange}&market=${market}`);
+      return { exchange, market, pairs: res.data.data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 /* ============= SLICE ============= */
 
 const signalSlice = createSlice({
@@ -94,7 +124,10 @@ const signalSlice = createSlice({
     historyMeta:      { total: 0, limit: 50, skip: 0 },
     backtestResult:   null,
     analysis:         null,
-    availablePairs:   [],
+    availablePairs:      [],
+    exchangePairsMap:     {},   // { okx: { spot: [...], futures: [...] }, ... }
+    exchangePairsLoading:  false,
+    exchangePairsFetching: false, // true while fetching a single exchange on demand
     loading:          false,
     statsLoading:     false,
     historyLoading:   false,
@@ -161,6 +194,23 @@ const signalSlice = createSlice({
       .addCase(fetchAvailablePairs.pending,   (state) => { state.pairsLoading = true; })
       .addCase(fetchAvailablePairs.fulfilled, (state, { payload }) => { state.pairsLoading = false; state.availablePairs = payload.pairs; })
       .addCase(fetchAvailablePairs.rejected,  (state) => { state.pairsLoading = false; }); // keep existing pairs on error
+
+    builder
+      .addCase(fetchAllExchangePairs.pending,   (state) => { state.exchangePairsLoading = true; })
+      .addCase(fetchAllExchangePairs.fulfilled, (state, { payload }) => {
+        state.exchangePairsLoading = false;
+        state.exchangePairsMap = payload;
+      })
+      .addCase(fetchAllExchangePairs.rejected,  (state) => { state.exchangePairsLoading = false; });
+
+    builder
+      .addCase(fetchExchangePairsForExchange.pending,   (state) => { state.exchangePairsFetching = true; })
+      .addCase(fetchExchangePairsForExchange.fulfilled, (state, { payload }) => {
+        state.exchangePairsFetching = false;
+        if (!state.exchangePairsMap[payload.exchange]) state.exchangePairsMap[payload.exchange] = {};
+        state.exchangePairsMap[payload.exchange][payload.market] = payload.pairs;
+      })
+      .addCase(fetchExchangePairsForExchange.rejected,  (state) => { state.exchangePairsFetching = false; });
   },
 });
 

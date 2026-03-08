@@ -245,34 +245,34 @@ const userSlice = createSlice({
     // Add notification from socket
     addNotification: (state, action) => {
       state.notifications.unshift(action.payload);
-      if (!action.payload.read) {
+      if (!action.payload.isRead) {
         state.unreadCount += 1;
       }
     },
-    
+
     // Update notification from socket
     updateNotification: (state, action) => {
       const index = state.notifications.findIndex(
         n => n._id === action.payload._id
       );
       if (index !== -1) {
-        const wasUnread = !state.notifications[index].read;
-        const isNowRead = action.payload.read;
-        
-        state.notifications[index] = action.payload;
-        
+        const wasUnread = !state.notifications[index].isRead;
+        const isNowRead = action.payload.isRead;
+
+        state.notifications[index] = { ...state.notifications[index], ...action.payload };
+
         if (wasUnread && isNowRead) {
           state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
       }
     },
-    
+
     // Remove notification from socket
     removeNotification: (state, action) => {
       const notification = state.notifications.find(
         n => n._id === action.payload
       );
-      if (notification && !notification.read) {
+      if (notification && !notification.isRead) {
         state.unreadCount = Math.max(0, state.unreadCount - 1);
       }
       state.notifications = state.notifications.filter(
@@ -330,8 +330,8 @@ const userSlice = createSlice({
         const notification = state.notifications.find(
           n => n._id === action.payload.notificationId
         );
-        if (notification && !notification.read) {
-          notification.read = true;
+        if (notification && !notification.isRead) {
+          notification.isRead = true;
           state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
       })
@@ -348,7 +348,7 @@ const userSlice = createSlice({
       .addCase(markAllNotificationsRead.fulfilled, (state) => {
         state.loading.action = false;
         state.notifications.forEach(notification => {
-          notification.read = true;
+          notification.isRead = true;
         });
         state.unreadCount = 0;
         state.successMessage = "All notifications marked as read";
@@ -368,7 +368,7 @@ const userSlice = createSlice({
         const notification = state.notifications.find(
           n => n._id === action.payload
         );
-        if (notification && !notification.read) {
+        if (notification && !notification.isRead) {
           state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
         state.notifications = state.notifications.filter(

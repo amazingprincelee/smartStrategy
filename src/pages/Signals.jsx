@@ -56,9 +56,12 @@ function fmtTime(iso) {
 function timeAgo(iso) {
   if (!iso) return null;
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (diff < 60)   return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 60)          return `${diff}s ago`;
+  if (diff < 3600)        return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400)       return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 86400 * 30)  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 86400 * 365) return `${Math.floor(diff / (86400 * 30))}mo ago`;
+  return `${Math.floor(diff / (86400 * 365))}y ago`;
 }
 
 /* ─────────────────────────────────────── LiveSignalCard ── */
@@ -199,9 +202,9 @@ function BacktestTradeRow({ t, i }) {
 /* ─────────────────────────────────────── Page ── */
 
 const TABS = [
+  { key: 'history',  label: 'History',  icon: History      },
   { key: 'spot',     label: 'Spot',     icon: TrendingUp   },
   { key: 'futures',  label: 'Futures',  icon: Zap          },
-  { key: 'history',  label: 'History',  icon: History      },
   { key: 'analyze',  label: 'Analyze',  icon: Search       },
   { key: 'backtest', label: 'Backtest', icon: FlaskConical },
 ];
@@ -238,12 +241,13 @@ const Signals = () => {
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
   const isPremium = isPremiumUser(role);
 
-  const [activeTab, setActiveTab] = useState('spot');
+  const [activeTab, setActiveTab] = useState('history');
   const [showAll, setShowAll]     = useState(false);
 
   // History tab filters
-  const [histMkt,  setHistMkt]  = useState('');      // '' = all, 'spot', 'futures'
-  const [histType, setHistType] = useState('');      // '' = all, 'LONG', 'SHORT'
+  const [histMkt,  setHistMkt]  = useState('');         // '' = all, 'spot', 'futures'
+  const [histType, setHistType] = useState('');         // '' = all, 'LONG', 'SHORT'
+  const [histSort, setHistSort] = useState('newest');   // 'newest' | 'confidence'
   const [histPage, setHistPage] = useState(1);
   const HIST_PAGE_SIZE = 20;
 
@@ -272,10 +276,11 @@ const Signals = () => {
     dispatch(fetchSignalHistory({
       marketType:    histMkt  || undefined,
       type:          histType || undefined,
+      sort:          histSort,
       limit:         HIST_PAGE_SIZE,
       skip:          (histPage - 1) * HIST_PAGE_SIZE,
     }));
-  }, [activeTab, histMkt, histType, histPage, dispatch]);
+  }, [activeTab, histMkt, histType, histSort, histPage, dispatch]);
 
   // Fetch pair list from exchange on mount; refetch when market type changes
   useEffect(() => {
@@ -356,7 +361,7 @@ const Signals = () => {
                 {loading
                   ? 'Fetching signals…'
                   : signals.length > 0
-                    ? `${signals.length} signal${signals.length !== 1 ? 's' : ''} — updated every 5 min`
+                    ? `${signals.length} signal${signals.length !== 1 ? 's' : ''} — updated every 15 min`
                     : 'No signals yet — next sweep in a few minutes'}
               </p>
               <button
@@ -409,7 +414,7 @@ const Signals = () => {
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Activity className="w-12 h-12 text-gray-600 mb-3" />
                 <p className="text-gray-400 font-medium">No {activeTab} signals yet</p>
-                <p className="text-xs text-gray-600 mt-1">The engine scans every 5 min — check back soon</p>
+                <p className="text-xs text-gray-600 mt-1">The engine scans every 15 min — check back soon</p>
               </div>
             )}
 
@@ -638,6 +643,24 @@ const Signals = () => {
                   }`}
                 >
                   {v === '' ? 'All types' : v}
+                </button>
+              ))}
+              <span className="w-px h-4 bg-white/10" />
+              <span className="text-xs text-gray-500">Sort:</span>
+              {[
+                { key: 'newest',     label: 'Newest'     },
+                { key: 'confidence', label: 'Top Confidence' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => { setHistSort(key); setHistPage(1); }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    histSort === key
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'border-white/10 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {label}
                 </button>
               ))}
               <span className="ml-auto text-xs text-gray-600">

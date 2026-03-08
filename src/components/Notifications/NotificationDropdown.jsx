@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Check, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Check, Trash2, BellOff, TrendingUp, Bot, AlertTriangle, ShieldAlert, Megaphone, Landmark } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   fetchNotifications,
@@ -50,190 +50,176 @@ const NotificationDropdown = () => {
     dispatch(deleteNotification(notificationId));
   };
 
-  const getNotificationIcon = (type) => {
+  const getNotificationMeta = (type) => {
     switch (type) {
-      case 'vault_created':
-        return '🏦';
-      case 'deposit':
-      case 'deposit_confirmed':
-        return '💰';
-      case 'withdrawal':
-      case 'withdrawal_confirmed':
-        return '💸';
-      case 'vault_unlocked':
-      case 'vault_matured':
-        return '🔓';
-      case 'system':
-      case 'system_maintenance':
-        return '⚙️';
-      case 'security_alert':
-        return '🔒';
-      case 'announcement':
-        return '📢';
+      case 'bot_trade':
+        return { Icon: Bot,           bg: 'bg-blue-100 dark:bg-blue-900/30',    color: 'text-blue-600 dark:text-blue-400' };
+      case 'bot_paused':
+        return { Icon: AlertTriangle,  bg: 'bg-amber-100 dark:bg-amber-900/30',  color: 'text-amber-600 dark:text-amber-400' };
+      case 'bot_error':
+        return { Icon: AlertTriangle,  bg: 'bg-red-100 dark:bg-red-900/30',      color: 'text-red-600 dark:text-red-400' };
       case 'arbitrage_alert':
-        return '📈';
-      default:
-        return '📢';
-    }
-  };
-
-  const getNotificationColor = (type) => {
-    switch (type) {
-      case 'vault_created':
-        return 'text-blue-600';
-      case 'deposit':
-      case 'deposit_confirmed':
-        return 'text-green-600';
-      case 'withdrawal':
-      case 'withdrawal_confirmed':
-        return 'text-orange-600';
-      case 'vault_unlocked':
-      case 'vault_matured':
-        return 'text-purple-600';
-      case 'system':
-      case 'system_maintenance':
-        return 'text-gray-600';
+        return { Icon: TrendingUp,     bg: 'bg-emerald-100 dark:bg-emerald-900/30', color: 'text-emerald-600 dark:text-emerald-400' };
       case 'security_alert':
-        return 'text-red-600';
-      case 'announcement':
-        return 'text-blue-600';
-      case 'arbitrage_alert':
-        return 'text-emerald-600';
+        return { Icon: ShieldAlert,    bg: 'bg-red-100 dark:bg-red-900/30',      color: 'text-red-600 dark:text-red-400' };
+      case 'platform_update':
+      case 'maintenance_notice':
+        return { Icon: Megaphone,      bg: 'bg-purple-100 dark:bg-purple-900/30', color: 'text-purple-600 dark:text-purple-400' };
       default:
-        return 'text-blue-600';
+        return { Icon: Landmark,       bg: 'bg-gray-100 dark:bg-gray-800',       color: 'text-gray-600 dark:text-gray-400' };
     }
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Notification Bell */}
+      {/* Bell button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 transition-colors bg-gray-100 rounded-lg dark:bg-dark-700 hover:bg-gray-200 dark:hover:bg-dark-600"
+        className={`relative p-2 rounded-lg transition-colors ${
+          isOpen
+            ? 'bg-gray-200 dark:bg-dark-600'
+            : 'bg-gray-100 dark:bg-dark-700 hover:bg-gray-200 dark:hover:bg-dark-600'
+        }`}
+        aria-label="Notifications"
       >
         <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         {unreadCount > 0 && (
-          <span className="absolute flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full -top-1 -right-1">
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown panel */}
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg w-80 dark:bg-dark-800 dark:border-dark-700">
+        <div className="absolute right-0 z-50 mt-2 w-96 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl shadow-xl overflow-hidden">
+
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-dark-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Notifications
-            </h3>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-dark-700">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+              {unreadCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 rounded-full">
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="text-sm font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50"
                 disabled={loading.action}
+                className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 disabled:opacity-40"
               >
+                <Check className="w-3 h-3" />
                 Mark all read
               </button>
             )}
           </div>
 
-          {/* Notifications List */}
-          <div className="overflow-y-auto max-h-96">
+          {/* List */}
+          <div className="overflow-y-auto max-h-[420px]">
             {loading.notifications ? (
-              <div className="p-4 text-center">
-                <div className="w-6 h-6 mx-auto border-2 rounded-full spinner border-primary-600 border-t-transparent animate-spin" />
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Loading notifications...
-                </p>
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-gray-400 dark:text-gray-500">Loading...</p>
               </div>
             ) : notifications.length === 0 ? (
-              <div className="p-8 text-center">
-                <Bell className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-                <p className="text-gray-500 dark:text-gray-400">
-                  No notifications yet
-                </p>
+              <div className="flex flex-col items-center justify-center py-14 gap-3">
+                <div className="p-4 bg-gray-100 dark:bg-dark-700 rounded-full">
+                  <BellOff className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">You're all caught up</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Bot trades, alerts and updates will appear here</p>
+                </div>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200 dark:divide-dark-700">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification._id}
-                    onClick={() => {
-                      if (!notification.read) handleMarkAsRead(notification._id);
-                      if (notification.actionUrl) {
-                        setIsOpen(false);
-                        navigate(notification.actionUrl);
-                      }
-                    }}
-                    className={`p-4 transition-colors ${
-                      notification.actionUrl ? 'cursor-pointer' : ''
-                    } hover:bg-gray-50 dark:hover:bg-dark-700 ${
-                      !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <span className="text-lg">
-                        {getNotificationIcon(notification.type)}
-                      </span>
+              <div>
+                {notifications.map((notification) => {
+                  const { Icon, bg, color } = getNotificationMeta(notification.type);
+                  const isUnread = !notification.isRead;
+                  return (
+                    <div
+                      key={notification._id}
+                      onClick={() => {
+                        if (isUnread) handleMarkAsRead(notification._id);
+                        if (notification.data?.actionUrl) {
+                          setIsOpen(false);
+                          navigate(notification.data.actionUrl);
+                        }
+                      }}
+                      className={`group flex items-start gap-3 px-4 py-3 border-b border-gray-100 dark:border-dark-700/60 last:border-0 transition-colors ${
+                        notification.data?.actionUrl ? 'cursor-pointer' : ''
+                      } ${
+                        isUnread
+                          ? 'bg-blue-50/60 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                          : 'hover:bg-gray-50 dark:hover:bg-dark-700/50'
+                      }`}
+                    >
+                      {/* Icon bubble */}
+                      <div className={`flex-shrink-0 p-2 rounded-lg ${bg}`}>
+                        <Icon className={`w-4 h-4 ${color}`} />
+                      </div>
 
+                      {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium text-gray-900 dark:text-white ${getNotificationColor(notification.type)}`}>
-                          {notification.title}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-sm font-medium leading-tight ${
+                            isUnread ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
+                          }`}>
+                            {notification.title}
+                          </p>
+                          {isUnread && (
+                            <span className="flex-shrink-0 mt-1 w-2 h-2 rounded-full bg-blue-500" />
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                           {notification.message}
                         </p>
-                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                        <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
                           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                         </p>
                       </div>
 
-                      <div className="flex items-center space-x-1" onClick={e => e.stopPropagation()}>
-                        {!notification.read && (
+                      {/* Actions */}
+                      <div
+                        className="flex-shrink-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {isUnread && (
                           <button
                             onClick={() => handleMarkAsRead(notification._id)}
-                            className="p-1 text-gray-400 transition-colors hover:text-green-600 disabled:opacity-50"
+                            className="p-1 text-gray-400 hover:text-green-500 dark:hover:text-green-400 transition-colors"
                             title="Mark as read"
                             disabled={loading.action}
                           >
-                            <Check className="w-4 h-4" />
+                            <Check className="w-3.5 h-3.5" />
                           </button>
                         )}
-
                         <button
                           onClick={() => handleDeleteNotification(notification._id)}
-                          className="p-1 text-gray-400 transition-colors hover:text-red-600 disabled:opacity-50"
-                          title="Delete notification"
+                          className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                          title="Dismiss"
                           disabled={loading.action}
                         >
-                          <X className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="p-3 border-t border-gray-200 dark:border-dark-700 flex items-center justify-between gap-2">
-            <Link
-              to="/profile"
-              onClick={() => setIsOpen(false)}
-              className="text-xs font-medium text-primary-600 hover:text-primary-700"
+          <div className="px-4 py-2.5 border-t border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-900/50">
+            <button
+              onClick={() => { navigate('/profile'); setIsOpen(false); }}
+              className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
             >
-              View all notifications
-            </Link>
-            {notifications.length > 0 && (
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                Close
-              </button>
-            )}
+              View all notifications →
+            </button>
           </div>
         </div>
       )}

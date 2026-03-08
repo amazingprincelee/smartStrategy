@@ -4,32 +4,33 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   ChevronRight, ChevronLeft, Bot, FlaskConical, Zap, Shield, CheckCircle,
-  Loader, Star, AlertCircle, Plus, Lock, Crown, Info
+  Loader, Star, AlertCircle, Plus, Lock, Crown, Info, Search, X
 } from 'lucide-react';
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
 import { fetchAccounts } from '../redux/slices/exchangeAccountSlice';
+import { fetchAllExchangePairs, fetchExchangePairsForExchange } from '../redux/slices/signalSlice';
 
 const isPremiumUser = (role) => role === 'premium' || role === 'admin';
 
 // Free tier: only DCA is available
 const FREE_STRATEGIES = ['dca'];
 
-// Volatile altcoins first — they hit RSI extremes more often → more frequent signals
+// Pairs actively scanned by SmartStrategy's signal engine — best signal coverage
 const COIN_GROUPS = [
   {
-    label: 'Higher volatility — triggers signals more often',
-    coins: ['DOGE/USDT', 'SHIB/USDT', 'PEPE/USDT', 'SOL/USDT', 'AVAX/USDT', 'ADA/USDT', 'MATIC/USDT', 'LINK/USDT', 'DOT/USDT', 'ATOM/USDT', 'NEAR/USDT', 'ARB/USDT', 'OP/USDT', 'FTM/USDT', 'INJ/USDT', 'SUI/USDT'],
+    label: 'SmartStrategy signal pairs — actively scanned every 15 min',
+    coins: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT'],
   },
   {
-    label: 'Blue chip — steadier, fewer dips',
-    coins: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'LTC/USDT', 'UNI/USDT'],
+    label: 'Other popular pairs',
+    coins: ['MATIC/USDT', 'ATOM/USDT', 'NEAR/USDT', 'ARB/USDT', 'OP/USDT', 'INJ/USDT', 'SUI/USDT', 'LTC/USDT', 'UNI/USDT'],
   },
 ];
 
 const STRATEGY_ACTIVITY = {
   dca:          { label: 'Very high activity', detail: 'Buys on a fixed schedule regardless of market conditions' },
   scalper:      { label: 'High activity',      detail: 'Scans every 5 min and opens tight in-and-out trades' },
-  ai_signal:    { label: 'High activity',      detail: 'Enters when ≥3 of 6 AI indicators agree on direction' },
+  ai_signal:    { label: 'High activity',      detail: 'Trades SmartStrategy\'s own signals — same engine as the Signals page' },
   rsi_reversal: { label: 'Medium activity',    detail: 'Enters when RSI crosses oversold / overbought zones' },
   ema_crossover:{ label: 'Medium activity',    detail: 'Signals on golden cross or uptrend dip entries' },
   adaptive_grid:{ label: 'Medium activity',    detail: 'Buys RSI dips + volume spikes in bullish or downtrend markets' },
@@ -109,23 +110,35 @@ const CreateBot = () => {
   const role = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
   const isPremium = isPremiumUser(role);
 
+  const exchangePairsMap      = useSelector(state => state.signals.exchangePairsMap);
+  const exchangePairsFetching = useSelector(state => state.signals.exchangePairsFetching);
+
   const [step, setStep] = useState(0);
+
   const [form, setForm] = useState({
     isDemo: true,
     exchangeAccountId: '',
     exchange: '',
     symbol: 'BTC/USDT',
-    marketType: 'spot',
-    strategyId: searchParams.get('strategy') || 'dca',
+    marketType: 'futures',
+    strategyId: searchParams.get('strategy') || 'ai_signal',  // AI strategy is default for premium; free users get forced to DCA below
     name: '',
-    capitalAllocation: { totalCapital: 100, currency: 'USDT', maxOpenPositions: 5 },
-    riskParams: { globalDrawdownLimitPercent: 15, dailyLossLimitPercent: 5 },
-    strategyParams: {},
+    capitalAllocation: { totalCapital: 100, currency: 'USDT', maxOpenPositions: 3 },
+    riskParams: { globalDrawdownLimitPercent: 10, dailyLossLimitPercent: 5 },
+    strategyParams: {
+      // DCA defaults — professional values
+      dcaIntervalHours:   24,   // buy once per day
+      dcaAmountPerOrder:  25,   // 4 orders before capital runs out (100 ÷ 25)
+    },
   });
 
   useEffect(() => {
     dispatch(fetchStrategies());
     dispatch(fetchAccounts());
+    // Preload all exchange pairs into global Redux state (no-op if already loaded)
+    if (Object.keys(exchangePairsMap).length === 0) {
+      dispatch(fetchAllExchangePairs());
+    }
   }, [dispatch]);
 
   // Pre-select strategy if passed via URL
@@ -140,6 +153,15 @@ const CreateBot = () => {
       setForm(f => ({ ...f, strategyId: FREE_STRATEGIES[0] }));
     }
   }, [isPremium]);
+
+  // When user picks an exchange, fetch its pairs if not already in Redux.
+  // This handles the first-run race where the DB refresh hasn't completed yet.
+  useEffect(() => {
+    if (!form.exchange) return;
+    if ((exchangePairsMap[form.exchange]?.[form.marketType] || []).length > 0) return;
+    dispatch(fetchExchangePairsForExchange({ exchange: form.exchange, market: form.marketType }));
+  }, [form.exchange, form.marketType]);
+
 
   const selectedStrategy = strategies.find(s => s.id === form.strategyId);
 
@@ -166,7 +188,7 @@ const CreateBot = () => {
     }
     try {
       const bot = await dispatch(createBot(form)).unwrap();
-      toast.success(`Bot "${form.name}" created!`);
+      toast.success(`"${form.name}" is live and trading!`);
       navigate(`/bots/${bot._id}`);
     } catch (err) {
       toast.error(err || 'Failed to create bot');
@@ -303,7 +325,7 @@ const CreateBot = () => {
         <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Market Type</label>
         <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Spot buys actual coins; Futures trades contracts with optional leverage.</p>
         <div className="flex gap-3">
-          {['spot', 'futures'].map(type => (
+          {['futures', 'spot'].map(type => (
             <button
               key={type}
               onClick={() => update('marketType', type)}
@@ -321,34 +343,97 @@ const CreateBot = () => {
 
       <div>
         <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Trading Pair</label>
-        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">The asset the bot will trade. Format: BASE/QUOTE (e.g. BTC/USDT).</p>
-        <input
-          type="text"
-          value={form.symbol}
-          onChange={e => update('symbol', e.target.value.toUpperCase())}
-          placeholder="e.g. BTC/USDT"
-          className="w-full px-3 py-2 mb-3 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
-        />
-        {COIN_GROUPS.map(group => (
-          <div key={group.label} className="mb-3">
-            <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">{group.label}</p>
-            <div className="flex flex-wrap gap-2">
-              {group.coins.map(pair => (
-                <button
-                  key={pair}
-                  onClick={() => update('symbol', pair)}
-                  className={`px-3 py-1.5 text-xs rounded-full border transition-colors font-mono ${
-                    form.symbol === pair
-                      ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
-                      : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400 hover:border-primary-300'
-                  }`}
-                >
-                  {pair}
-                </button>
-              ))}
-            </div>
+        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">
+          {form.exchange
+            ? 'Search or type any USDT pair from the selected exchange.'
+            : 'Type any USDT pair (e.g. PEPE/USDT, WIF/USDT) or pick from the list below.'}
+        </p>
+
+        {/* Search / custom pair input */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            value={form.symbol}
+            onChange={e => update('symbol', e.target.value.toUpperCase())}
+            placeholder="Search or type any pair — e.g. BTC/USDT, PEPE/USDT…"
+            className="w-full pl-9 pr-9 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+          />
+          {form.symbol && (
+            <button
+              type="button"
+              onClick={() => update('symbol', '')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Loading spinner while fetching the selected exchange's pairs */}
+        {exchangePairsFetching && form.exchange ? (
+          <div className="flex items-center gap-2 py-3 text-xs text-gray-500 dark:text-gray-400">
+            <Loader className="w-4 h-4 animate-spin text-primary-500" />
+            Loading {form.exchange} pairs…
           </div>
-        ))}
+        ) : (() => {
+          const exchangePairs = form.exchange
+            ? (exchangePairsMap[form.exchange]?.[form.marketType] || [])
+            : [];
+          const allCoins   = exchangePairs.length > 0 ? exchangePairs : COIN_GROUPS.flatMap(g => g.coins);
+          const searchTerm = form.symbol.replace('/USDT', '').replace('USDT', '').trim();
+          const isSearching = searchTerm.length > 0;
+          const filtered   = isSearching
+            ? allCoins.filter(c => c.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 50)
+            : allCoins.slice(0, exchangePairs.length > 0 ? 30 : allCoins.length);
+          const isCustom   = form.symbol && form.symbol.includes('/') && !allCoins.includes(form.symbol);
+
+          return (
+            <>
+              {isCustom && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-xs font-mono font-semibold text-green-700 dark:text-green-300">{form.symbol}</span>
+                  <span className="text-xs text-green-600 dark:text-green-400">— custom pair confirmed</span>
+                </div>
+              )}
+
+              {/* Suggestion chips */}
+              <div>
+                <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">
+                  {exchangePairs.length > 0
+                    ? isSearching
+                      ? `${filtered.length} pair${filtered.length !== 1 ? 's' : ''} found on ${form.exchange} — click to select`
+                      : `Showing top 30 of ${allCoins.length} ${form.exchange} USDT pairs — type to search all`
+                    : isSearching && filtered.length < allCoins.length
+                      ? `${filtered.length} match${filtered.length !== 1 ? 'es' : ''} — click to select`
+                      : 'Popular pairs — click to select'}
+                </p>
+                {filtered.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {filtered.map(pair => (
+                      <button
+                        key={pair}
+                        onClick={() => update('symbol', pair)}
+                        className={`px-3 py-1.5 text-xs rounded-full border transition-colors font-mono ${
+                          form.symbol === pair
+                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
+                            : 'border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400 hover:border-primary-300 dark:hover:border-primary-600'
+                        }`}
+                      >
+                        {pair}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                    No matches — your custom pair above will be used.
+                  </p>
+                )}
+              </div>
+            </>
+          );
+        })()}
       </div>
     </div>
   );
@@ -593,8 +678,8 @@ const CreateBot = () => {
 
       {selectedStrategy?.id === 'ai_signal' && (
         <div className="p-4 space-y-1 text-sm text-blue-700 border border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 rounded-xl dark:text-blue-300">
-          <p className="font-semibold text-blue-800 dark:text-blue-300">AI Signal Bot — fully automated</p>
-          <p className="text-xs text-blue-700 dark:text-blue-400">Entry, stop-loss, and take-profit are calculated automatically from live market indicators. No manual parameters needed.</p>
+          <p className="font-semibold text-blue-800 dark:text-blue-300">SmartSignal Bot — fully automated</p>
+          <p className="text-xs text-blue-700 dark:text-blue-400">Powered by SmartStrategy's built-in signal engine — the same one that generates signals on the Signals page. Entry, stop-loss, and take-profit are set automatically. No manual parameters needed.</p>
         </div>
       )}
 
@@ -605,13 +690,13 @@ const CreateBot = () => {
           <div>
             <label className="flex items-center mb-1 text-xs font-medium text-orange-700 dark:text-orange-400">
               Leverage (1×–20×)
-              <FieldHint text="Multiplies your position size. 2× means $100 USDT controls a $200 position. Higher leverage = bigger potential profit AND bigger potential loss. New users should start at 1× (no leverage)." />
+              <FieldHint text="Multiplies your position size. 3× means $100 USDT controls a $300 position. The bot's ATR stop-loss exits well before liquidation risk. Recommended: 2–5×. Avoid going above 10× as a beginner." />
             </label>
             <input
               type="text" inputMode="numeric" min="1" max="20" step="1"
               value={form.strategyParams.leverage ?? ''}
               onFocus={e => e.target.select()}
-              onChange={e => updateParams('leverage', Math.max(1, Math.min(20, e.target.value === '' ? 1 : parseInt(e.target.value) || 1)))}
+              onChange={e => updateParams('leverage', e.target.value === '' ? '' : Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
               className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-orange-300 rounded-lg dark:border-orange-700 dark:bg-brandDark-800 dark:text-white"
             />
             <p className="mt-1 text-xs text-orange-600 dark:text-orange-400">
@@ -771,7 +856,7 @@ const CreateBot = () => {
             className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
           >
             {botLoading.action ? <Loader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-            Launch Bot
+            {botLoading.action ? 'Launching...' : 'Launch & Start Trading'}
           </button>
         )}
       </div>
