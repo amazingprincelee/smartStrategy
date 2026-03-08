@@ -28,7 +28,8 @@ const COIN_GROUPS = [
 ];
 
 const STRATEGY_ACTIVITY = {
-  smart_signal: { label: 'High activity', detail: 'Checks SmartStrategy signals every 5 min and enters the best opportunities on your exchange' },
+  smart_signal: { label: 'High activity',   detail: 'Checks SmartStrategy signals every 5 min and enters the best opportunities on your exchange' },
+  swing_rider:  { label: 'Medium activity', detail: 'Scans price structure every 15 min — enters near support and exits near resistance automatically' },
   dca:          { label: 'Very high activity', detail: 'Buys on a fixed schedule regardless of market conditions' },
 };
 
@@ -127,6 +128,12 @@ const CreateBot = () => {
       riskPerTrade:         2,
       signalMaxAgeMinutes:  20,
       leverage:             3,
+      // SwingRider defaults
+      swingLookback:        5,
+      maxScaleIns:          2,
+      scaleInAtrMultiplier: 1.5,
+      riskPerEntry:         1,
+      minRR:                1.5,
       // DCA defaults
       dcaIntervalHours:   24,
       dcaAmountPerOrder:  25,
@@ -689,6 +696,73 @@ const CreateBot = () => {
         </div>
       )}
 
+      {/* SwingRider params */}
+      {selectedStrategy?.id === 'swing_rider' && (
+        <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Swing Rider Parameters</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                Swing Lookback (candles)
+                <FieldHint text="How many candles each side must confirm a swing high or low. Higher = fewer but stronger pivot points. Recommended: 3–7." />
+              </label>
+              <input type="text" inputMode="numeric" min="3" max="10"
+                value={form.strategyParams.swingLookback ?? 5}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('swingLookback', e.target.value === '' ? '' : Math.max(2, Math.min(10, parseInt(e.target.value) || 5)))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+            </div>
+            <div>
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                Max Scale-ins
+                <FieldHint text="Maximum entries per trade. 2 = buy once near support, then again if price drops further. Spreads your risk across a better average entry." />
+              </label>
+              <input type="text" inputMode="numeric" min="1" max="4"
+                value={form.strategyParams.maxScaleIns ?? 2}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('maxScaleIns', e.target.value === '' ? '' : Math.max(1, Math.min(4, parseInt(e.target.value) || 2)))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+            </div>
+            <div>
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                Scale-in Trigger (ATR ×)
+                <FieldHint text="How far price must drop below your first entry before a second buy is placed. 1.5 means 1.5× the Average True Range below entry." />
+              </label>
+              <input type="text" inputMode="decimal" min="0.5" max="5" step="0.1"
+                value={form.strategyParams.scaleInAtrMultiplier ?? 1.5}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('scaleInAtrMultiplier', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+            </div>
+            <div>
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                Risk per Entry (%)
+                <FieldHint text="Capital risked per individual entry. 1% on a $1,000 account = $10 risk. With 2 scale-ins you risk up to 2% total." />
+              </label>
+              <input type="text" inputMode="decimal" min="0.5" max="5" step="0.5"
+                value={form.strategyParams.riskPerEntry ?? 1}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('riskPerEntry', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+            </div>
+            <div className="col-span-2">
+              <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+                Min Reward:Risk Ratio
+                <FieldHint text="Skip the entry if the potential reward doesn't meet this ratio. 1.5 means the target must be at least 1.5× further than the stop-loss. Keeps only quality entries." />
+              </label>
+              <input type="text" inputMode="decimal" min="1" max="5" step="0.1"
+                value={form.strategyParams.minRR ?? 1.5}
+                onFocus={e => e.target.select()}
+                onChange={e => updateParams('minRR', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+            </div>
+          </div>
+          <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 leading-relaxed">
+            Stop-loss is placed below the last swing low. Take-profit targets the next structural resistance — automatically adjusted for trend direction.
+          </p>
+        </div>
+      )}
+
       {/* DCA params */}
       {selectedStrategy?.id === 'dca' && (
         <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
@@ -718,8 +792,8 @@ const CreateBot = () => {
         </div>
       )}
 
-      {/* Leverage — shown for futures bots using DCA or SmartSignal */}
-      {form.marketType === 'futures' && ['dca', 'smart_signal'].includes(selectedStrategy?.id) && (
+      {/* Leverage — shown for futures bots using DCA, SmartSignal, or SwingRider */}
+      {form.marketType === 'futures' && ['dca', 'smart_signal', 'swing_rider'].includes(selectedStrategy?.id) && (
         <div className="p-4 space-y-3 border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800 rounded-xl">
           <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300">Futures Leverage</h3>
           <div>

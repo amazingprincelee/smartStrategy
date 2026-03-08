@@ -16,6 +16,7 @@ import {
 
 const STRATEGY_LABELS = {
   smart_signal:  'SmartSignal Bot',
+  swing_rider:   'Swing Rider',
   ai_signal:     'SmartSignal Bot',   // legacy alias
   dca:           'Simple DCA',
   adaptive_grid: 'Adaptive Grid Averager',
@@ -37,6 +38,7 @@ const REASON_COLORS = {
 // Timeframe label per strategy
 const STRATEGY_TIMEFRAME = {
   smart_signal:  '5m',
+  swing_rider:   '15m',
   ai_signal:     '5m',
   dca:           '4h',
   adaptive_grid: '1h',
@@ -67,6 +69,27 @@ function getStrategyConditions(strategyId, params, analysis) {
           met: true,
           actual: `max ${params?.maxConcurrentTrades || 2}`,
           need: 'slots available',
+        },
+      ];
+    case 'swing_rider':
+      return [
+        {
+          label: 'Price near support',
+          met: rsi != null && rsi < 50,
+          actual: rsi != null ? `RSI ${rsi}` : '—',
+          need: 'near swing low',
+        },
+        {
+          label: 'Max scale-ins',
+          met: true,
+          actual: `${params?.maxScaleIns || 2} entries`,
+          need: 'slots available',
+        },
+        {
+          label: 'Min R:R',
+          met: true,
+          actual: `${params?.minRR || 1.5}:1`,
+          need: 'target ≥ stop',
         },
       ];
     case 'adaptive_grid':

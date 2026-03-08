@@ -10,9 +10,10 @@ import {
 import { fetchBots, startBot, stopBot } from '../redux/slices/botSlice';
 
 const STRATEGY_LABELS = {
-  smart_signal: 'SmartSignal Bot',
-  ai_signal:    'SmartSignal Bot',   // legacy alias for old bots
-  dca:          'Simple DCA',
+  smart_signal:  'SmartSignal Bot',
+  swing_rider:   'Swing Rider',
+  ai_signal:     'SmartSignal Bot',   // legacy alias for old bots
+  dca:           'Simple DCA',
   // kept for backwards-compat display of old bots
   adaptive_grid: 'Adaptive Grid',
   rsi_reversal:  'RSI Reversal',
