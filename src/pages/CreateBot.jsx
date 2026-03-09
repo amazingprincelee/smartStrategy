@@ -67,7 +67,7 @@ const TP_MODE_INFO = {
   },
 };
 
-const steps = ['Mode & Exchange', 'Market & Pair', 'Strategy', 'Configure', 'Review & Launch'];
+const steps = ['Mode & Exchange', 'Strategy', 'Market & Pair', 'Configure', 'Review & Launch'];
 
 /* ── Inline tooltip hint ── */
 function FieldHint({ text }) {
@@ -123,19 +123,19 @@ const CreateBot = () => {
     riskParams: { globalDrawdownLimitPercent: 10, dailyLossLimitPercent: 5 },
     strategyParams: {
       // SmartSignal defaults
-      minConfidencePercent: 70,
-      maxConcurrentTrades:  2,
+      minConfidencePercent: 60,   // accepts more signals (65+ is also safe)
+      maxConcurrentTrades:  3,
       riskPerTrade:         2,
-      signalMaxAgeMinutes:  20,
+      signalMaxAgeMinutes:  120,  // 2 h — always covers a server restart gap
       leverage:             3,
       // SwingRider defaults
       swingLookback:        5,
       maxScaleIns:          2,
       scaleInAtrMultiplier: 1.5,
       riskPerEntry:         1,
-      minRR:                1.5,
+      minRR:                1.2,  // lower bar — more entries
       // DCA defaults
-      dcaIntervalHours:   24,
+      dcaIntervalHours:   4,      // 4 h fires quickly on first tick; change to 24 for daily
       dcaAmountPerOrder:  25,
     },
   });
@@ -177,8 +177,13 @@ const CreateBot = () => {
   const updateNested = (parent, key, value) => setForm(f => ({ ...f, [parent]: { ...f[parent], [key]: value } }));
   const updateParams = (key, value) => setForm(f => ({ ...f, strategyParams: { ...f.strategyParams, [key]: value } }));
 
-  // Build default strategy params when strategy changes
+  // When strategy changes: reset symbol appropriately + merge default params
   useEffect(() => {
+    if (!form.strategyId) return;
+    // smart_signal trades any pair — fix symbol to MULTI
+    // other strategies need the user to pick a specific pair — clear to prompt selection
+    const newSymbol = form.strategyId === 'smart_signal' ? 'MULTI' : '';
+    setForm(f => ({ ...f, symbol: newSymbol }));
     if (selectedStrategy?.defaultParams) {
       setForm(f => ({ ...f, strategyParams: { ...selectedStrategy.defaultParams, ...f.strategyParams } }));
     }
@@ -204,13 +209,12 @@ const CreateBot = () => {
   };
 
   const canProceed = () => {
-    if (step === 0) return form.isDemo || form.exchangeAccountId;
-    if (step === 1) {
-      // SmartSignal doesn't need a pair — only an exchange
+    if (step === 0) return form.isDemo || !!form.exchangeAccountId;
+    if (step === 1) return !!form.strategyId;  // Strategy step
+    if (step === 2) {                           // Market & Pair step (knows strategy now)
       if (form.strategyId === 'smart_signal') return !!form.exchange;
       return !!(form.symbol && form.symbol !== 'MULTI' && form.exchange);
     }
-    if (step === 2) return !!form.strategyId;
     if (step === 3) return (form.capitalAllocation.totalCapital || 0) >= 10;
     return true;
   };
@@ -545,31 +549,33 @@ const CreateBot = () => {
                     <span className="absolute inset-y-0 left-0 w-1 bg-primary-500 rounded-l-xl" />
                   )}
 
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center min-w-0 gap-2 pl-1">
+                  <div className="mb-2">
+                    {/* Title row */}
+                    <div className="flex items-center gap-2 pl-1 mb-1.5">
                       {isLocked && <Lock className="flex-shrink-0 w-4 h-4 text-gray-400" />}
                       <span className="text-sm font-semibold leading-tight text-gray-900 dark:text-white">{s.name}</span>
                       {s.isDefault && !isLocked && <Star className="flex-shrink-0 w-4 h-4 text-yellow-500" />}
                     </div>
-                    <div className="flex flex-wrap items-center justify-end flex-shrink-0 gap-1.5">
+                    {/* Badges row — always on its own line, wraps cleanly on small screens */}
+                    <div className="flex flex-wrap items-center gap-1.5 pl-1">
                       {isSelected && !isLocked ? (
                         <span className="flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-primary-500 text-white">
                           <CheckCircle className="w-3 h-3" />
                           Selected
                         </span>
                       ) : isLocked ? (
-                        <span className="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap">
+                        <span className="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
                           <Crown className="w-3 h-3" />
                           Premium
                         </span>
                       ) : (
                         <>
                           {STRATEGY_ACTIVITY[s.id] && (
-                            <span className={`px-2 py-0.5 text-xs rounded-full font-medium whitespace-nowrap ${ACTIVITY_BADGE[STRATEGY_ACTIVITY[s.id].label]}`}>
+                            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${ACTIVITY_BADGE[STRATEGY_ACTIVITY[s.id].label]}`}>
                               {STRATEGY_ACTIVITY[s.id].label}
                             </span>
                           )}
-                          <span className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${RISK_BADGE[s.riskLevel]}`}>
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${RISK_BADGE[s.riskLevel]}`}>
                             {s.riskLevel} risk
                           </span>
                         </>
@@ -632,7 +638,7 @@ const CreateBot = () => {
               max="10"
               value={form.capitalAllocation.maxOpenPositions}
               onFocus={e => e.target.select()}
-              onChange={e => updateNested('capitalAllocation', 'maxOpenPositions', e.target.value === '' ? '' : parseInt(e.target.value))}
+              onChange={e => { const v = e.target.value.trim(); updateNested('capitalAllocation', 'maxOpenPositions', v === '' ? '' : parseInt(v)); }}
               className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
             />
           </div>
@@ -650,11 +656,14 @@ const CreateBot = () => {
                 Min Confidence (%)
                 <FieldHint text="Only trade signals with at least this confidence score. Higher = fewer but stronger entries. 70% is a solid starting point." />
               </label>
-              <input type="text" inputMode="numeric" min="50" max="99"
-                value={form.strategyParams.minConfidencePercent ?? 70}
-                onFocus={e => e.target.select()}
-                onChange={e => updateParams('minConfidencePercent', e.target.value === '' ? '' : Math.max(50, Math.min(99, parseInt(e.target.value) || 70)))}
-                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
+              <select
+                value={form.strategyParams.minConfidencePercent ?? 60}
+                onChange={e => updateParams('minConfidencePercent', parseInt(e.target.value))}
+                className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white">
+                {[50, 55, 60, 65, 70, 75, 80, 85, 90, 95].map(v => (
+                  <option key={v} value={v}>{v}%</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
@@ -664,7 +673,7 @@ const CreateBot = () => {
               <input type="text" inputMode="numeric" min="1" max="10"
                 value={form.strategyParams.maxConcurrentTrades ?? 2}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('maxConcurrentTrades', e.target.value === '' ? '' : Math.max(1, Math.min(10, parseInt(e.target.value) || 2)))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('maxConcurrentTrades', v === '' ? '' : Math.max(1, Math.min(10, parseInt(v) || 2))); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
@@ -675,7 +684,7 @@ const CreateBot = () => {
               <input type="text" inputMode="numeric" min="0.5" max="10" step="0.5"
                 value={form.strategyParams.riskPerTrade ?? 2}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('riskPerTrade', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('riskPerTrade', v === '' ? '' : parseFloat(v)); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
@@ -686,7 +695,7 @@ const CreateBot = () => {
               <input type="text" inputMode="numeric" min="5" max="120"
                 value={form.strategyParams.signalMaxAgeMinutes ?? 20}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('signalMaxAgeMinutes', e.target.value === '' ? '' : parseInt(e.target.value))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('signalMaxAgeMinutes', v === '' ? '' : parseInt(v)); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
           </div>
@@ -709,7 +718,7 @@ const CreateBot = () => {
               <input type="text" inputMode="numeric" min="3" max="10"
                 value={form.strategyParams.swingLookback ?? 5}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('swingLookback', e.target.value === '' ? '' : Math.max(2, Math.min(10, parseInt(e.target.value) || 5)))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('swingLookback', v === '' ? '' : Math.max(2, Math.min(10, parseInt(v) || 5))); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
@@ -720,7 +729,7 @@ const CreateBot = () => {
               <input type="text" inputMode="numeric" min="1" max="4"
                 value={form.strategyParams.maxScaleIns ?? 2}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('maxScaleIns', e.target.value === '' ? '' : Math.max(1, Math.min(4, parseInt(e.target.value) || 2)))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('maxScaleIns', v === '' ? '' : Math.max(1, Math.min(4, parseInt(v) || 2))); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
@@ -731,7 +740,7 @@ const CreateBot = () => {
               <input type="text" inputMode="decimal" min="0.5" max="5" step="0.1"
                 value={form.strategyParams.scaleInAtrMultiplier ?? 1.5}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('scaleInAtrMultiplier', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('scaleInAtrMultiplier', v === '' ? '' : parseFloat(v)); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
@@ -742,7 +751,7 @@ const CreateBot = () => {
               <input type="text" inputMode="decimal" min="0.5" max="5" step="0.5"
                 value={form.strategyParams.riskPerEntry ?? 1}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('riskPerEntry', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('riskPerEntry', v === '' ? '' : parseFloat(v)); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div className="col-span-2">
@@ -753,7 +762,7 @@ const CreateBot = () => {
               <input type="text" inputMode="decimal" min="1" max="5" step="0.1"
                 value={form.strategyParams.minRR ?? 1.5}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('minRR', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('minRR', v === '' ? '' : parseFloat(v)); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
           </div>
@@ -775,7 +784,7 @@ const CreateBot = () => {
               </label>
               <input type="text" inputMode="numeric" min="1" value={form.strategyParams.dcaIntervalHours ?? ''}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('dcaIntervalHours', e.target.value === '' ? '' : parseInt(e.target.value))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('dcaIntervalHours', v === '' ? '' : parseInt(v)); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
             <div>
@@ -785,7 +794,7 @@ const CreateBot = () => {
               </label>
               <input type="text" inputMode="numeric" min="10" value={form.strategyParams.dcaAmountPerOrder ?? ''}
                 onFocus={e => e.target.select()}
-                onChange={e => updateParams('dcaAmountPerOrder', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                onChange={e => { const v = e.target.value.trim(); updateParams('dcaAmountPerOrder', v === '' ? '' : parseFloat(v)); }}
                 className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white" />
             </div>
           </div>
@@ -805,7 +814,7 @@ const CreateBot = () => {
               type="text" inputMode="numeric" min="1" max="20" step="1"
               value={form.strategyParams.leverage ?? ''}
               onFocus={e => e.target.select()}
-              onChange={e => updateParams('leverage', e.target.value === '' ? '' : Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+              onChange={e => { const v = e.target.value.trim(); updateParams('leverage', v === '' ? '' : Math.max(1, Math.min(20, parseInt(v) || 1))); }}
               className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-orange-300 rounded-lg dark:border-orange-700 dark:bg-brandDark-800 dark:text-white"
             />
             <p className="mt-1 text-xs text-orange-600 dark:text-orange-400">
@@ -895,8 +904,8 @@ const CreateBot = () => {
   const renderCurrentStep = () => {
     switch (step) {
       case 0: return renderStep0();
-      case 1: return renderStep1();
-      case 2: return renderStep2();
+      case 1: return renderStep2(); // Strategy first — so pair step knows which strategy was picked
+      case 2: return renderStep1(); // Market & Pair — conditional on strategy choice
       case 3: return renderStep3();
       case 4: return renderStep4();
       default: return null;

@@ -321,12 +321,15 @@ const BotDashboard = () => {
       )}
 
       {/* Bot Grid */}
-      {loading.list ? (
+      {/* Only show full-page spinner on first load (no bots in state yet).
+          On subsequent visits bots are already in Redux — show them immediately
+          while the background refresh runs silently. */}
+      {loading.list && bots.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader className="w-8 h-8 text-primary-500 animate-spin" />
           <p className="text-sm text-gray-400 dark:text-gray-500">Loading your bots…</p>
         </div>
-      ) : error ? (
+      ) : error && bots.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 bg-white dark:bg-brandDark-800 rounded-xl border border-red-200 dark:border-red-800/50 text-center px-6">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-gray-800 dark:text-white mb-1">Could not load bots</h3>

@@ -113,18 +113,18 @@ const StrategyLibrary = () => {
       </div>
 
       {/* Risk filter */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {['all', 'low', 'medium', 'high'].map(level => (
           <button
             key={level}
             onClick={() => setRiskFilter(level)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
               riskFilter === level
                 ? 'bg-primary-600 text-white'
                 : 'bg-white dark:bg-brandDark-800 border border-gray-200 dark:border-brandDark-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700'
             }`}
           >
-            {level === 'all' ? 'All Strategies' : `${level} Risk`}
+            {level === 'all' ? 'All Strategies' : `${level.charAt(0).toUpperCase() + level.slice(1)} Risk`}
           </button>
         ))}
       </div>
