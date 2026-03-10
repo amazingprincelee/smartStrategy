@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import {
   Bot, PlusCircle, TrendingUp, TrendingDown, Play, Square,
   FlaskConical, BookOpen, Loader, AlertCircle, Activity,
-  Crown, Zap, Lock,
+  Crown, Zap, Lock, CheckCircle, ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import { fetchBots, startBot, stopBot } from '../redux/slices/botSlice';
 
@@ -147,13 +147,157 @@ const BotCard = ({ bot, onStart, onStop, loading }) => {
 
 const isPremiumUser = (role) => role === 'premium' || role === 'admin';
 
-const PREMIUM_STRATEGIES = [
-  { name: 'ATR Scalper',     detail: 'Fast in-and-out trades every 5 min' },
-  { name: 'RSI Reversal',    detail: 'Enter at oversold / overbought extremes' },
-  { name: 'EMA Crossover',   detail: 'Golden / death cross trend signals' },
-  { name: 'Adaptive Grid',   detail: 'Multi-level dip-buying with RSI + volume' },
-  { name: 'N-Day Breakout',  detail: 'Momentum plays on volume-confirmed breakouts' },
+const FEATURE_BULLETS = [
+  { icon: Zap,          text: 'Reads live AI signals and enters trades at the exact right moment' },
+  { icon: ShieldCheck,  text: 'Auto-manages stop-loss & take-profit using ATR-based risk sizing' },
+  { icon: Activity,     text: 'Runs 24/7 — catches moves even while you sleep' },
+  { icon: TrendingUp,   text: 'Targets 2:1 reward-to-risk on every single trade' },
 ];
+
+// A blurred mock of what a running SmartSignal bot card looks like
+const MockBotCard = () => (
+  <div className="relative select-none pointer-events-none">
+    {/* Blur overlay */}
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/40 dark:bg-brandDark-900/60 backdrop-blur-[3px]">
+      <Lock className="w-8 h-8 text-amber-500" />
+      <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Premium only</span>
+    </div>
+    {/* Mock card content (blurred behind overlay) */}
+    <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4 opacity-60">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+          <span className="font-semibold text-gray-900 dark:text-white">SmartSignal Bot</span>
+        </div>
+        <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-brandDark-700 dark:text-gray-300 rounded-full">spot</span>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
+        <span className="font-mono font-medium text-gray-700 dark:text-gray-300">BTCUSDT</span>
+        <span>·</span>
+        <span>binance</span>
+        <span>·</span>
+        <span className="px-1.5 py-0.5 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 rounded-full font-medium">SmartSignal Bot</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="bg-gray-50 dark:bg-brandDark-700 rounded-lg p-2.5">
+          <p className="text-xs text-gray-400 mb-0.5">Allocated</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">$500 <span className="text-xs font-normal text-gray-400">USDT</span></p>
+        </div>
+        <div className="bg-gray-50 dark:bg-brandDark-700 rounded-lg p-2.5">
+          <p className="text-xs text-gray-400 mb-0.5">Current Value</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">$512.00 <span className="text-xs font-normal text-gray-400">USDT</span></p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between mb-4 px-0.5">
+        <div>
+          <p className="text-xs text-gray-400">Total P&L</p>
+          <p className="text-sm font-bold text-green-600">+12.00 <span className="ml-1 text-xs font-medium text-green-500">(+2.4%)</span></p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-400">Positions</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">2</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-400">Trades</p>
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">18</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <div className="flex-1 text-center px-3 py-1.5 text-sm border border-primary-200 rounded-lg text-primary-600">View Details</div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-50 border border-red-200 rounded-lg text-red-600">
+          <Square className="w-3.5 h-3.5" /> Stop
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const PremiumGate = () => (
+  <div className="space-y-6">
+    {/* Hero */}
+    <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-900/20 dark:via-orange-900/10 dark:to-brandDark-800 p-6 md:p-8">
+      <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+
+        {/* Left: value prop */}
+        <div className="flex-1 min-w-0">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700/50 mb-4">
+            <Crown className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Premium Feature</span>
+          </div>
+
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 leading-snug">
+            Let SmartSignal trade<br className="hidden sm:block" /> for you — automatically
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-5 max-w-md">
+            Our AI-powered SmartSignal bot reads live market signals and executes trades on your connected exchange with zero manual effort.
+          </p>
+
+          <ul className="space-y-2.5 mb-6">
+            {FEATURE_BULLETS.map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <span className="text-sm text-gray-700 dark:text-gray-300">{text}</span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Social proof */}
+          <div className="flex flex-wrap gap-4 text-center mb-6">
+            {[
+              { label: 'Active bots right now', value: '247' },
+              { label: 'Avg monthly ROI', value: '+18.3%' },
+              { label: 'Avg win rate', value: '64%' },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex-1 min-w-[80px] bg-white/70 dark:bg-white/5 rounded-xl border border-amber-200/60 dark:border-amber-800/30 px-3 py-2.5">
+                <p className="text-lg font-bold text-gray-900 dark:text-white">{value}</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <Link
+            to="/pricing"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors text-sm shadow-md shadow-amber-200 dark:shadow-none"
+          >
+            <Crown className="w-4 h-4" />
+            Unlock SmartSignal Bot — Go Premium
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {/* Right: blurred mock bot card */}
+        <div className="w-full lg:w-72 flex-shrink-0">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 font-medium uppercase tracking-wider">Preview</p>
+          <MockBotCard />
+        </div>
+      </div>
+    </div>
+
+    {/* Secondary CTA: try demo */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Link
+        to="/demo"
+        className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-left"
+      >
+        <FlaskConical className="w-8 h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+        <div>
+          <p className="font-semibold text-gray-900 dark:text-white">Try Demo Account</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Practice with $10,000 virtual balance — no risk</p>
+        </div>
+      </Link>
+      <Link
+        to="/strategies"
+        className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-left"
+      >
+        <BookOpen className="w-8 h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+        <div>
+          <p className="font-semibold text-gray-900 dark:text-white">How SmartSignal Works</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Read about the strategy before you subscribe</p>
+        </div>
+      </Link>
+    </div>
+  </div>
+);
 
 const BotDashboard = () => {
   const dispatch = useDispatch();
@@ -234,20 +378,27 @@ const BotDashboard = () => {
     },
   ];
 
+  // For free users — show the showcase gate, nothing else
+  if (!isPremium) {
+    return (
+      <div className="p-4 md:p-6 space-y-5 md:space-y-6">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Bot Dashboard</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5 hidden sm:block">
+            Automated trading — Premium feature
+          </p>
+        </div>
+        <PremiumGate />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-5 md:space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Bot Dashboard</h1>
-            {!isPremium && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
-                <Crown className="w-3.5 h-3.5" />
-                Free Tier
-              </span>
-            )}
-          </div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Bot Dashboard</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5 hidden sm:block">
             Manage your automated trading bots
           </p>
@@ -287,38 +438,6 @@ const BotDashboard = () => {
           );
         })}
       </div>
-
-      {/* Free-tier upgrade banner */}
-      {!isPremium && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10 p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-2">
-                <Lock className="w-4 h-4 text-amber-500" />
-                Free plan — DCA strategy only
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                You're currently limited to the DCA bot. Upgrade to Premium to run our advanced strategies that trade more frequently and adapt to market conditions.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {PREMIUM_STRATEGIES.map(s => (
-                  <div key={s.name} className="flex items-start gap-2 p-2 rounded-lg bg-white/60 dark:bg-white/5 border border-amber-200/60 dark:border-amber-800/30">
-                    <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-semibold text-gray-800 dark:text-white">{s.name}</p>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400">{s.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button className="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
-              <Crown className="w-4 h-4" />
-              Upgrade to Premium
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Bot Grid */}
       {/* Only show full-page spinner on first load (no bots in state yet).
