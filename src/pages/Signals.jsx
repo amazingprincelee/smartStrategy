@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import {
   runBacktest,
   clearBacktestResult,
@@ -423,11 +424,14 @@ const Signals = () => {
               <div className="mt-5 p-4 rounded-xl border border-amber-500/25 bg-amber-500/5 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2 text-sm text-amber-400">
                   <Lock className="w-4 h-4 flex-shrink-0" />
-                  <span>Exact entry, stop loss & take profit are hidden on the free plan.</span>
+                  <span>Free plan: up to 2 signals (below 60% confidence). Entry & targets hidden.</span>
                 </div>
-                <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold whitespace-nowrap">
+                <Link
+                  to="/pricing"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold whitespace-nowrap transition-colors"
+                >
                   <Crown className="w-3.5 h-3.5" /> Upgrade
-                </span>
+                </Link>
               </div>
             )}
           </div>

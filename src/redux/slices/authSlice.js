@@ -99,7 +99,6 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.role = null;
-      // isAuthenticated removed - rely on token presence
       state.error = null;
       state.successMessage = null;
 
@@ -111,6 +110,21 @@ const authSlice = createSlice({
     clearAuthMessages: (state) => {
       state.error = null;
       state.successMessage = null;
+    },
+
+    // Called by the /auth/callback page after Google OAuth redirect
+    setGoogleSession: (state, action) => {
+      const { token, user, role } = action.payload;
+      state.token = token;
+      state.user  = user;
+      state.role  = role;
+      state.error = null;
+      localStorage.setItem("token", token);
+      localStorage.setItem("role",  role || "");
+      localStorage.setItem("user",  JSON.stringify(user));
+      if (user?.preferences?.theme) {
+        localStorage.setItem("theme", user.preferences.theme);
+      }
     },
   },
 
@@ -155,5 +169,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearAuthMessages } = authSlice.actions;
+export const { logout, clearAuthMessages, setGoogleSession } = authSlice.actions;
 export default authSlice.reducer;

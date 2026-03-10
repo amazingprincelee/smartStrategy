@@ -13,6 +13,8 @@ import {
   Settings,
   HelpCircle,
   X,
+  Crown,
+  ShieldCheck,
 } from 'lucide-react';
 import SmartStrategyIcon from '../Logo/SmartStrategyIcon';
 
@@ -20,6 +22,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const bots = useSelector((state) => state.bots?.list || []);
   const demo = useSelector((state) => state.demo);
+  const userRole = useSelector(state => state.auth?.user?.role ?? 'user');
 
   const activeBots = bots.filter(b => b.status === 'running').length;
   const totalPnL = bots.reduce((sum, b) => sum + (b.stats?.totalPnL || 0), 0);
@@ -73,6 +76,16 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/settings',
       icon: Settings,
     },
+    {
+      name: 'Pricing',
+      href: '/pricing',
+      icon: Crown,
+    },
+    ...(userRole === 'admin' ? [{
+      name: 'Admin',
+      href: '/admin',
+      icon: ShieldCheck,
+    }] : []),
     {
       name: 'Help',
       href: '/help',

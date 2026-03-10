@@ -17,6 +17,9 @@ import {
   Globe,
   Lock,
   Settings as SettingsIcon,
+  Wallet,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   updateTheme,
@@ -29,6 +32,7 @@ import {
   addAccount,
   testAccount,
   removeAccount,
+  fetchAccountBalance,
 } from '../../redux/slices/exchangeAccountSlice';
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -42,6 +46,7 @@ const Settings = () => {
     supportedExchanges,
     loading: exchLoading,
     error: exchError,
+    balances: accountBalances,
   } = useSelector((state) => state.exchangeAccounts);
 
   const [activeTab, setActiveTab] = useState('appearance');
@@ -69,8 +74,10 @@ const Settings = () => {
     apiPassphrase: '',
     isSandbox: false,
   });
-  const [testingId, setTestingId] = useState(null);
-  const [removingId, setRemovingId] = useState(null);
+  const [testingId, setTestingId]     = useState(null);
+  const [removingId, setRemovingId]   = useState(null);
+  const [balancingId, setBalancingId] = useState(null);   // account being fetched
+  const [openBalanceId, setOpenBalanceId] = useState(null); // panel open/closed
 
   // Load exchange accounts on mount (profile is preloaded globally by Layout)
   useEffect(() => {
@@ -90,7 +97,7 @@ const Settings = () => {
       if (p.theme) {
         setLocalTheme(p.theme);
         localStorage.setItem('theme', p.theme);
-        applyTheme(p.theme);
+        applyThemeClass(p.theme);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,6 +155,23 @@ const Settings = () => {
     await dispatch(removeAccount(id));
     setRemovingId(null);
     dispatch(fetchAccounts());
+  };
+
+  const handleFetchBalance = async (id) => {
+    if (openBalanceId === id) {
+      // toggle off
+      setOpenBalanceId(null);
+      return;
+    }
+    setOpenBalanceId(id);
+    // Only fetch if we don't already have fresh data (<60s old)
+    const existing = accountBalances[id];
+    const isStale = !existing?.fetchedAt || (Date.now() - new Date(existing.fetchedAt).getTime() > 60_000);
+    if (isStale) {
+      setBalancingId(id);
+      await dispatch(fetchAccountBalance(id));
+      setBalancingId(null);
+    }
   };
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -452,62 +476,124 @@ const Settings = () => {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Add an API key above to start live bot trading</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {exchangeAccounts.map((account) => (
-                  <div
-                    key={account._id}
-                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-brandDark-700 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 rounded-lg bg-gray-100 dark:bg-brandDark-600 flex-shrink-0">
-                        <Key className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm text-gray-900 dark:text-white truncate">{account.label}</span>
-                          {account.isSandbox && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 flex-shrink-0">
-                              Sandbox
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-gray-500 capitalize">{account.exchange}</span>
-                          <span className="text-gray-300 dark:text-gray-600">·</span>
-                          {account.isValid ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                              <CheckCircle className="w-3 h-3" /> Valid
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-red-500">
-                              <AlertCircle className="w-3 h-3" /> {account.lastError ? 'Error' : 'Not tested'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+              <div className="space-y-2">
+                {exchangeAccounts.map((account) => {
+                  const balData   = accountBalances[account._id];
+                  const isOpen    = openBalanceId === account._id;
+                  const isLoading = balancingId === account._id;
 
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                      <button
-                        onClick={() => handleTestAccount(account._id)}
-                        disabled={testingId === account._id}
-                        className="btn-secondary btn-sm"
-                        title="Test connection"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${testingId === account._id ? 'animate-spin' : ''}`} />
-                        <span className="hidden sm:inline text-xs">Test</span>
-                      </button>
-                      <button
-                        onClick={() => handleRemoveAccount(account._id)}
-                        disabled={removingId === account._id}
-                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Remove account"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  return (
+                    <div key={account._id} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                      {/* Account row */}
+                      <div className="flex items-center justify-between p-4 bg-white dark:bg-brandDark-800">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-2 rounded-lg bg-gray-100 dark:bg-brandDark-600 flex-shrink-0">
+                            <Key className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm text-gray-900 dark:text-white truncate">{account.label}</span>
+                              {account.isSandbox && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 flex-shrink-0">
+                                  Sandbox
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-xs text-gray-500 capitalize">{account.exchange}</span>
+                              <span className="text-gray-300 dark:text-gray-600">·</span>
+                              {account.isValid ? (
+                                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                                  <CheckCircle className="w-3 h-3" /> Valid
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-xs text-red-500">
+                                  <AlertCircle className="w-3 h-3" /> {account.lastError ? 'Error' : 'Not tested'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                          {/* Balance button — only for valid accounts */}
+                          {account.isValid && (
+                            <button
+                              onClick={() => handleFetchBalance(account._id)}
+                              disabled={isLoading}
+                              className="btn-secondary btn-sm"
+                              title="View live balance"
+                            >
+                              {isLoading
+                                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                : <Wallet className="w-3.5 h-3.5" />}
+                              <span className="hidden sm:inline text-xs">
+                                {isOpen ? 'Hide' : 'Balance'}
+                              </span>
+                              {isOpen
+                                ? <ChevronUp className="w-3 h-3" />
+                                : <ChevronDown className="w-3 h-3" />}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleTestAccount(account._id)}
+                            disabled={testingId === account._id}
+                            className="btn-secondary btn-sm"
+                            title="Test connection"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${testingId === account._id ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline text-xs">Test</span>
+                          </button>
+                          <button
+                            onClick={() => handleRemoveAccount(account._id)}
+                            disabled={removingId === account._id}
+                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="Remove account"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Balance panel */}
+                      {isOpen && (
+                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-brandDark-700 px-4 py-3">
+                          {isLoading ? (
+                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 py-2">
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Fetching balance from {account.exchange}…
+                            </div>
+                          ) : balData?.balances?.length > 0 ? (
+                            <>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">
+                                Live Balance · {new Date(balData.fetchedAt).toLocaleTimeString()}
+                              </p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {balData.balances.slice(0, 12).map(b => (
+                                  <div key={b.currency} className="flex justify-between items-center px-3 py-1.5 bg-white dark:bg-brandDark-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{b.currency}</span>
+                                    <div className="text-right">
+                                      <p className="text-xs font-mono text-gray-900 dark:text-white">{b.total.toLocaleString()}</p>
+                                      {b.used > 0 && (
+                                        <p className="text-[10px] text-gray-400 dark:text-gray-500">{b.free} free</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {balData.balances.length > 12 && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                                  +{balData.balances.length - 12} more assets
+                                </p>
+                              )}
+                            </>
+                          ) : balData ? (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 py-2">No balance found on this account.</p>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

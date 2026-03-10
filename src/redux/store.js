@@ -8,6 +8,8 @@ import botReducer from './slices/botSlice';
 import exchangeAccountReducer from './slices/exchangeAccountSlice';
 import demoReducer from './slices/demoSlice';
 import signalReducer from './slices/signalSlice';
+import subscriptionReducer from './slices/subscriptionSlice';
+import adminReducer from './slices/adminSlice';
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +22,8 @@ export const store = configureStore({
     exchangeAccounts: exchangeAccountReducer,
     demo: demoReducer,
     signals: signalReducer,
+    subscription: subscriptionReducer,
+    admin: adminReducer,
   },
 });
 

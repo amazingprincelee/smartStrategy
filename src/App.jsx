@@ -10,7 +10,6 @@ import 'react-toastify/dist/ReactToastify.css';
 // Components
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
-import WalletProvider from './components/Web3/WalletProvider';
 import { SocketProvider } from './components/socket/SocketContext';
 import Settings from './components/Settings/Settings';
 
@@ -27,6 +26,9 @@ import StrategyLibrary from './pages/StrategyLibrary';
 import Signals from './pages/Signals';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
+import Pricing from './pages/Pricing';
+import AdminDashboard from './pages/AdminDashboard';
+import AuthCallback from './pages/AuthCallback';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -66,6 +68,8 @@ function AppInner() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Protected Routes */}
           <Route element={<Layout />}>
@@ -80,6 +84,7 @@ function AppInner() {
               <Route path="/arbitrage" element={<CryptoArbitrage />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/admin" element={<AdminDashboard />} />
             </Route>
           </Route>
 
@@ -109,9 +114,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SocketProvider>
-        <WalletProvider>
-          <AppInner />
-        </WalletProvider>
+        <AppInner />
       </SocketProvider>
     </QueryClientProvider>
   );

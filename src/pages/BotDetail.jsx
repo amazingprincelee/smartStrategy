@@ -616,8 +616,8 @@ const BotDetail = () => {
                       <td className={`py-2 pr-4 font-medium uppercase text-xs ${trade.side === 'buy' ? 'text-blue-600' : 'text-orange-500'}`}>
                         {trade.side}
                       </td>
-                      <td className="text-right py-2 pr-4">${trade.price?.toFixed(4)}</td>
-                      <td className="text-right py-2 pr-4">{trade.amount?.toFixed(6)}</td>
+                      <td className="text-right py-2 pr-4 text-gray-800 dark:text-gray-200">${trade.price?.toFixed(4)}</td>
+                      <td className="text-right py-2 pr-4 text-gray-800 dark:text-gray-200">{trade.amount?.toFixed(6)}</td>
                       <td className="text-right py-2 pr-4 text-gray-400">${trade.fee?.cost?.toFixed(4) || '—'}</td>
                       <td className={`text-right py-2 pr-4 font-medium ${trade.pnl == null ? 'text-gray-400' : trade.pnl >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                         {trade.pnl != null ? `${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(4)}` : '—'}

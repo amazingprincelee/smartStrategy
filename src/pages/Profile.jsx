@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { Link } from 'react-router-dom';
 import {
   User,
   Shield,
@@ -14,6 +15,8 @@ import {
   Globe,
   Check,
   LogOut,
+  Crown,
+  Copy,
 } from 'lucide-react';
 import {
   fetchUserProfile,
@@ -23,6 +26,7 @@ import {
   clearUserMessages,
 } from '../redux/slices/userSlice';
 import { logout } from '../redux/slices/authSlice';
+import { fetchSubscriptionStatus } from '../redux/slices/subscriptionSlice';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function getInitials(name, email) {
@@ -47,8 +51,11 @@ const Profile = () => {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const { profile, loading, error, successMessage } = useSelector(state => state.user);
+  const { isPremium, subscription, referral, credits, paymentHistory, statusLoading } =
+    useSelector(state => state.subscription);
 
   const [activeTab, setActiveTab] = useState('profile');
+  const [copiedRef, setCopiedRef] = useState(false);
 
   // Profile form
   const [profileForm, setProfileForm] = useState({ fullName: '', email: '' });
@@ -69,6 +76,7 @@ const Profile = () => {
   // Load profile on mount
   useEffect(() => {
     dispatch(fetchUserProfile());
+    dispatch(fetchSubscriptionStatus());
   }, [dispatch]);
 
   // Sync form when profile loads
@@ -142,10 +150,19 @@ const Profile = () => {
 
   // ── tab definitions ─────────────────────────────────────────────────────────
   const tabs = [
-    { id: 'profile',       label: 'Profile',       icon: User },
+    { id: 'profile',       label: 'Profile',       icon: User   },
     { id: 'security',      label: 'Security',      icon: Shield },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'notifications', label: 'Notifications', icon: Bell   },
+    { id: 'subscription',  label: 'Subscription',  icon: Crown  },
   ];
+
+  const handleCopyRef = () => {
+    if (!referral?.code) return;
+    const url = `${window.location.origin}/register?ref=${referral.code}`;
+    navigator.clipboard.writeText(url);
+    setCopiedRef(true);
+    setTimeout(() => setCopiedRef(false), 2000);
+  };
 
   const displayUser = profile || user;
   const initials = getInitials(displayUser?.fullName || displayUser?.name, displayUser?.email);
@@ -459,6 +476,134 @@ const Profile = () => {
               {notifDirty ? 'Save Preferences' : 'Up to date'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          TAB: SUBSCRIPTION
+      ══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'subscription' && (
+        <div className="space-y-5">
+          {statusLoading ? (
+            <div className="card flex items-center justify-center py-10">
+              <RefreshCw className="w-5 h-5 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <>
+              {/* Status card */}
+              <div className="card">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                    <Crown className="w-4 h-4 text-purple-500" />
+                  </div>
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white">Subscription</h2>
+                </div>
+                {isPremium ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Plan</span>
+                      <span className="font-semibold text-green-500">Premium</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Status</span>
+                      <span className="font-semibold capitalize">{subscription?.status ?? 'active'}</span>
+                    </div>
+                    {subscription?.expiresAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Expires</span>
+                        <span className="font-semibold">{new Date(subscription.expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                      </div>
+                    )}
+                    {subscription?.paymentProvider && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Provider</span>
+                        <span className="font-semibold capitalize">{subscription.paymentProvider.replace(/_/g, ' ')}</span>
+                      </div>
+                    )}
+                    <div className="pt-2">
+                      <Link to="/pricing" className="btn-secondary text-sm">Renew / Upgrade</Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm space-y-3">
+                    <p className="text-gray-500 dark:text-gray-400">You are on the <strong>Free</strong> plan.</p>
+                    <Link to="/pricing" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition">
+                      <Crown className="w-4 h-4" /> Upgrade to Premium — $20/mo
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Credits */}
+              {credits > 0 && (
+                <div className="card text-sm">
+                  <p className="text-gray-500 dark:text-gray-400 mb-1">Account Credits</p>
+                  <p className="text-2xl font-bold text-green-400">${credits.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Applied automatically on next renewal</p>
+                </div>
+              )}
+
+              {/* Referral */}
+              {referral?.code && (
+                <div className="card space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Referral Program</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Earn <span className="text-green-400 font-semibold">$5 credit</span> for every friend who subscribes using your link.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-gray-100 dark:bg-brandDark-700 rounded-lg px-3 py-2 text-xs font-mono truncate">
+                      {window.location.origin}/register?ref={referral.code}
+                    </code>
+                    <button
+                      onClick={handleCopyRef}
+                      className="p-2 rounded-lg bg-gray-200 dark:bg-brandDark-600 hover:bg-gray-300 dark:hover:bg-brandDark-500 transition"
+                    >
+                      {copiedRef ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-500" />}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                    <div className="rounded-lg bg-gray-50 dark:bg-brandDark-700 p-3">
+                      <p className="text-lg font-bold">{referral.referrals?.length ?? 0}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Referred</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 dark:bg-brandDark-700 p-3">
+                      <p className="text-lg font-bold text-green-400">${(referral.totalEarned ?? 0).toFixed(0)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Earned</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 dark:bg-brandDark-700 p-3">
+                      <p className="text-lg font-bold text-blue-400">${(referral.pendingCredit ?? 0).toFixed(0)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Pending</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment history */}
+              {paymentHistory.length > 0 && (
+                <div className="card">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Payment History</h3>
+                  <div className="space-y-2">
+                    {paymentHistory.map(p => (
+                      <div key={p._id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100 dark:border-white/5 last:border-0">
+                        <div>
+                          <p className="font-medium capitalize">{p.provider?.replace(/_/g, ' ')}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">${Number(p.amountUSD ?? 0).toFixed(2)}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            p.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                            p.status === 'pending'   ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          }`}>{p.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

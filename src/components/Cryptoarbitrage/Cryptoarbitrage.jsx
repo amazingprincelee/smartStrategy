@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import {
   RefreshCw,
   TrendingUp,
@@ -261,10 +262,13 @@ const CryptoArbitrage = () => {
                 ))}
               </div>
             </div>
-            <button className="flex items-center flex-shrink-0 gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors rounded-lg bg-amber-500 hover:bg-amber-600 whitespace-nowrap">
+            <Link
+              to="/pricing"
+              className="flex items-center flex-shrink-0 gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors rounded-lg bg-amber-500 hover:bg-amber-600 whitespace-nowrap"
+            >
               <Crown className="w-4 h-4" />
               Upgrade to Premium
-            </button>
+            </Link>
           </div>
         </div>
       )}
