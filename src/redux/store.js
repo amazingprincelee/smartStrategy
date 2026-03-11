@@ -10,6 +10,8 @@ import demoReducer from './slices/demoSlice';
 import signalReducer from './slices/signalSlice';
 import subscriptionReducer from './slices/subscriptionSlice';
 import adminReducer from './slices/adminSlice';
+import supportReducer from './slices/supportSlice';
+import withdrawalReducer from './slices/withdrawalSlice';
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +26,8 @@ export const store = configureStore({
     signals: signalReducer,
     subscription: subscriptionReducer,
     admin: adminReducer,
+    support: supportReducer,
+    withdrawals: withdrawalReducer,
   },
 });
 

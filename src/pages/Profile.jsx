@@ -17,6 +17,8 @@ import {
   LogOut,
   Crown,
   Copy,
+  ArrowDownCircle,
+  Loader,
 } from 'lucide-react';
 import {
   fetchUserProfile,
@@ -27,6 +29,9 @@ import {
 } from '../redux/slices/userSlice';
 import { logout } from '../redux/slices/authSlice';
 import { fetchSubscriptionStatus } from '../redux/slices/subscriptionSlice';
+import {
+  requestWithdrawal, fetchUserWithdrawals, clearWithdrawalState,
+} from '../redux/slices/withdrawalSlice';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function getInitials(name, email) {
@@ -53,6 +58,11 @@ const Profile = () => {
   const { profile, loading, error, successMessage } = useSelector(state => state.user);
   const { isPremium, subscription, referral, credits, paymentHistory, statusLoading } =
     useSelector(state => state.subscription);
+  const { myWithdrawals, loading: wLoading, error: wError, success: wSuccess } =
+    useSelector(state => state.withdrawals);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [wForm, setWForm] = useState({ amount: '', walletAddress: '', network: 'ETH' });
+  const dispatch2 = useDispatch();
 
   const [activeTab, setActiveTab] = useState('profile');
   const [copiedRef, setCopiedRef] = useState(false);
@@ -77,6 +87,7 @@ const Profile = () => {
   useEffect(() => {
     dispatch(fetchUserProfile());
     dispatch(fetchSubscriptionStatus());
+    dispatch(fetchUserWithdrawals());
   }, [dispatch]);
 
   // Sync form when profile loads
@@ -534,12 +545,66 @@ const Profile = () => {
                 )}
               </div>
 
-              {/* Credits */}
+              {/* Credits & Withdrawal */}
               {credits > 0 && (
-                <div className="card text-sm">
-                  <p className="text-gray-500 dark:text-gray-400 mb-1">Account Credits</p>
-                  <p className="text-2xl font-bold text-green-400">${credits.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Applied automatically on next renewal</p>
+                <div className="card text-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400 mb-1">Referral Credits</p>
+                      <p className="text-2xl font-bold text-green-400">${Number(credits).toFixed(2)}</p>
+                    </div>
+                    <button onClick={() => setShowWithdraw(v => !v)}
+                      className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium">
+                      <ArrowDownCircle className="w-3.5 h-3.5" /> Withdraw
+                    </button>
+                  </div>
+
+                  {showWithdraw && (
+                    <div className="bg-brandDark-700/50 dark:bg-brandDark-800 rounded-xl p-4 space-y-3 border border-brandDark-600">
+                      {wSuccess && <p className="text-green-400 text-xs">{wSuccess}</p>}
+                      {wError   && <p className="text-red-400 text-xs">{wError}</p>}
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Amount (USD, max ${Number(credits).toFixed(2)})</label>
+                        <input type="number" min={1} max={credits} value={wForm.amount} onChange={e => setWForm(f => ({ ...f, amount: e.target.value }))}
+                          className="w-full bg-brandDark-700 border border-brandDark-600 rounded-lg px-3 py-2 text-sm text-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Wallet Address</label>
+                        <input value={wForm.walletAddress} onChange={e => setWForm(f => ({ ...f, walletAddress: e.target.value }))} placeholder="0x…"
+                          className="w-full bg-brandDark-700 border border-brandDark-600 rounded-lg px-3 py-2 text-sm text-white font-mono" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Network</label>
+                        <select value={wForm.network} onChange={e => setWForm(f => ({ ...f, network: e.target.value }))}
+                          className="w-full bg-brandDark-700 border border-brandDark-600 rounded-lg px-3 py-2 text-sm text-white">
+                          {['ETH','BSC','MATIC','TRX'].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => { dispatch(requestWithdrawal({ amount: parseFloat(wForm.amount), walletAddress: wForm.walletAddress, network: wForm.network })); setShowWithdraw(false); }}
+                        disabled={!wForm.amount || !wForm.walletAddress || wLoading.action}
+                        className="w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50">
+                        {wLoading.action ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowDownCircle className="w-4 h-4" />} Request Withdrawal
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Withdrawal history */}
+                  {myWithdrawals.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Recent withdrawal requests</p>
+                      {myWithdrawals.slice(0, 3).map(w => (
+                        <div key={w._id} className="flex justify-between items-center py-1.5 border-t border-brandDark-700 text-xs">
+                          <span className="text-gray-300">${w.amount} → {w.walletAddress?.slice(0,8)}…</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                            w.status === 'paid'     ? 'bg-teal-500/20 text-teal-400' :
+                            w.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                            w.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                            'bg-yellow-500/20 text-yellow-400'}`}>{w.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

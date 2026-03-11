@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authAPI } from '../../services/api';
 
-// Platform stats
+// ── Existing thunks ───────────────────────────────────────────────────────────
 export const fetchAdminStats = createAsyncThunk(
   'admin/stats',
   async (_, { rejectWithValue }) => {
@@ -14,12 +14,11 @@ export const fetchAdminStats = createAsyncThunk(
   }
 );
 
-// All users
 export const fetchAdminUsers = createAsyncThunk(
   'admin/users',
-  async ({ search = '', role = '', limit = 50, skip = 0 } = {}, { rejectWithValue }) => {
+  async ({ search = '', role = '', limit = 50, page = 1 } = {}, { rejectWithValue }) => {
     try {
-      const params = new URLSearchParams({ limit, skip });
+      const params = new URLSearchParams({ limit, page });
       if (search) params.set('search', search);
       if (role)   params.set('role', role);
       const res = await authAPI.get(`/admin/users?${params}`);
@@ -30,7 +29,6 @@ export const fetchAdminUsers = createAsyncThunk(
   }
 );
 
-// Subscription history
 export const fetchAdminSubscriptions = createAsyncThunk(
   'admin/subscriptions',
   async ({ limit = 50, skip = 0, status = '', provider = '' } = {}, { rejectWithValue }) => {
@@ -46,7 +44,6 @@ export const fetchAdminSubscriptions = createAsyncThunk(
   }
 );
 
-// AppSettings
 export const fetchAdminSettings = createAsyncThunk(
   'admin/settings/fetch',
   async (_, { rejectWithValue }) => {
@@ -71,7 +68,6 @@ export const updateAdminSettings = createAsyncThunk(
   }
 );
 
-// Manual premium activation
 export const adminActivateUser = createAsyncThunk(
   'admin/activateUser',
   async ({ userId, days }, { rejectWithValue }) => {
@@ -84,18 +80,148 @@ export const adminActivateUser = createAsyncThunk(
   }
 );
 
+// ── New thunks ────────────────────────────────────────────────────────────────
+export const adminGrantTrial = createAsyncThunk(
+  'admin/grantTrial',
+  async ({ userId, days }, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.post('/admin/grant-trial', { userId, days });
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const adminUpdateUser = createAsyncThunk(
+  'admin/updateUser',
+  async ({ userId, ...data }, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.put(`/admin/users/${userId}`, data);
+      return res.data.data.user;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const adminDeleteUser = createAsyncThunk(
+  'admin/deleteUser',
+  async (userId, { rejectWithValue }) => {
+    try {
+      await authAPI.delete(`/admin/users/${userId}`);
+      return userId;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchRevenueAnalytics = createAsyncThunk(
+  'admin/revenueAnalytics',
+  async ({ period = 30 } = {}, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get(`/admin/analytics/revenue?period=${period}`);
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchUserAnalytics = createAsyncThunk(
+  'admin/userAnalytics',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/admin/analytics/users');
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchPlatformAnalytics = createAsyncThunk(
+  'admin/platformAnalytics',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/admin/analytics/platform');
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchAuditLogs = createAsyncThunk(
+  'admin/auditLogs',
+  async ({ page = 1, limit = 30, action = '' } = {}, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams({ page, limit });
+      if (action) params.set('action', action);
+      const res = await authAPI.get(`/admin/audit?${params}`);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const sendTargetedEmail = createAsyncThunk(
+  'admin/targetedEmail',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.post('/admin/broadcast/targeted-email', payload);
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const updateAnnouncement = createAsyncThunk(
+  'admin/updateAnnouncement',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.put('/admin/announcement', payload);
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchActiveAnnouncement = createAsyncThunk(
+  'admin/activeAnnouncement',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/admin/announcement/active');
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(null);
+    }
+  }
+);
+
+// ── Slice ─────────────────────────────────────────────────────────────────────
 const adminSlice = createSlice({
   name: 'admin',
   initialState: {
-    stats:         null,
-    users:         [],
-    usersTotal:    0,
-    subscriptions: [],
-    subsTotal:     0,
-    settings:      null,
-    loading:       { stats: false, users: false, subs: false, settings: false, action: false },
-    error:         null,
-    actionSuccess: null,
+    stats:             null,
+    users:             [],
+    usersTotal:        0,
+    subscriptions:     [],
+    subsTotal:         0,
+    settings:          null,
+    revenueAnalytics:  null,
+    userAnalytics:     null,
+    platformAnalytics: null,
+    auditLogs:         [],
+    auditTotal:        0,
+    announcement:      null,
+    loading:           { stats: false, users: false, subs: false, settings: false, action: false, analytics: false, audit: false },
+    error:             null,
+    actionSuccess:     null,
   },
   reducers: {
     clearAdminAction: (state) => {
@@ -113,8 +239,8 @@ const adminSlice = createSlice({
       .addCase(fetchAdminUsers.pending,    (state) => { state.loading.users = true; })
       .addCase(fetchAdminUsers.fulfilled,  (state, action) => {
         state.loading.users = false;
-        state.users         = action.payload.data ?? [];
-        state.usersTotal    = action.payload.pagination?.total ?? 0;
+        state.users         = action.payload.data?.users ?? action.payload.data ?? [];
+        state.usersTotal    = action.payload.data?.pagination?.totalUsers ?? 0;
       })
       .addCase(fetchAdminUsers.rejected,   (state, action) => { state.loading.users = false; state.error = action.payload; });
 
@@ -134,13 +260,69 @@ const adminSlice = createSlice({
 
     builder
       .addCase(updateAdminSettings.pending,   (state) => { state.loading.settings = true; })
-      .addCase(updateAdminSettings.fulfilled, (state, action) => { state.loading.settings = false; state.settings = action.payload; })
+      .addCase(updateAdminSettings.fulfilled, (state, action) => { state.loading.settings = false; state.settings = action.payload; state.actionSuccess = 'Settings saved'; })
       .addCase(updateAdminSettings.rejected,  (state, action) => { state.loading.settings = false; state.error = action.payload; });
 
     builder
       .addCase(adminActivateUser.pending,   (state) => { state.loading.action = true; state.actionSuccess = null; })
       .addCase(adminActivateUser.fulfilled, (state, action) => { state.loading.action = false; state.actionSuccess = action.payload.message; })
       .addCase(adminActivateUser.rejected,  (state, action) => { state.loading.action = false; state.error = action.payload; });
+
+    builder
+      .addCase(adminGrantTrial.pending,   (state) => { state.loading.action = true; state.actionSuccess = null; })
+      .addCase(adminGrantTrial.fulfilled, (state, action) => { state.loading.action = false; state.actionSuccess = action.payload.message; })
+      .addCase(adminGrantTrial.rejected,  (state, action) => { state.loading.action = false; state.error = action.payload; });
+
+    builder
+      .addCase(adminUpdateUser.pending,   (state) => { state.loading.action = true; })
+      .addCase(adminUpdateUser.fulfilled, (state, action) => {
+        state.loading.action = false;
+        state.actionSuccess  = 'User updated';
+        const idx = state.users.findIndex(u => u._id === action.payload._id);
+        if (idx !== -1) state.users[idx] = action.payload;
+      })
+      .addCase(adminUpdateUser.rejected,  (state, action) => { state.loading.action = false; state.error = action.payload; });
+
+    builder
+      .addCase(adminDeleteUser.pending,   (state) => { state.loading.action = true; })
+      .addCase(adminDeleteUser.fulfilled, (state, action) => {
+        state.loading.action = false;
+        state.actionSuccess  = 'User deleted';
+        state.users          = state.users.filter(u => u._id !== action.payload);
+        state.usersTotal     = Math.max(0, state.usersTotal - 1);
+      })
+      .addCase(adminDeleteUser.rejected,  (state, action) => { state.loading.action = false; state.error = action.payload; });
+
+    builder
+      .addCase(fetchRevenueAnalytics.pending,   (state) => { state.loading.analytics = true; })
+      .addCase(fetchRevenueAnalytics.fulfilled, (state, action) => { state.loading.analytics = false; state.revenueAnalytics = action.payload; })
+      .addCase(fetchRevenueAnalytics.rejected,  (state, action) => { state.loading.analytics = false; state.error = action.payload; });
+
+    builder
+      .addCase(fetchUserAnalytics.pending,   (state) => { state.loading.analytics = true; })
+      .addCase(fetchUserAnalytics.fulfilled, (state, action) => { state.loading.analytics = false; state.userAnalytics = action.payload; })
+      .addCase(fetchUserAnalytics.rejected,  (state, action) => { state.loading.analytics = false; state.error = action.payload; });
+
+    builder
+      .addCase(fetchPlatformAnalytics.pending,   (state) => { state.loading.analytics = true; })
+      .addCase(fetchPlatformAnalytics.fulfilled, (state, action) => { state.loading.analytics = false; state.platformAnalytics = action.payload; })
+      .addCase(fetchPlatformAnalytics.rejected,  (state, action) => { state.loading.analytics = false; state.error = action.payload; });
+
+    builder
+      .addCase(fetchAuditLogs.pending,   (state) => { state.loading.audit = true; })
+      .addCase(fetchAuditLogs.fulfilled, (state, action) => { state.loading.audit = false; state.auditLogs = action.payload.data; state.auditTotal = action.payload.meta?.total || 0; })
+      .addCase(fetchAuditLogs.rejected,  (state, action) => { state.loading.audit = false; state.error = action.payload; });
+
+    builder
+      .addCase(sendTargetedEmail.pending,   (state) => { state.loading.action = true; state.actionSuccess = null; })
+      .addCase(sendTargetedEmail.fulfilled, (state, action) => { state.loading.action = false; state.actionSuccess = `Email sent to ${action.payload.successCount} users`; })
+      .addCase(sendTargetedEmail.rejected,  (state, action) => { state.loading.action = false; state.error = action.payload; });
+
+    builder
+      .addCase(updateAnnouncement.fulfilled, (state, action) => { state.settings = action.payload; state.actionSuccess = 'Announcement updated'; });
+
+    builder
+      .addCase(fetchActiveAnnouncement.fulfilled, (state, action) => { state.announcement = action.payload; });
   },
 });
 

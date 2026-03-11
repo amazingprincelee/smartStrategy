@@ -15,6 +15,7 @@ import {
   X,
   Crown,
   ShieldCheck,
+  LifeBuoy,
 } from 'lucide-react';
 import SmartStrategyIcon from '../Logo/SmartStrategyIcon';
 
@@ -86,6 +87,11 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/admin',
       icon: ShieldCheck,
     }] : []),
+    {
+      name: 'Support',
+      href: '/support',
+      icon: LifeBuoy,
+    },
     {
       name: 'Help',
       href: '/help',

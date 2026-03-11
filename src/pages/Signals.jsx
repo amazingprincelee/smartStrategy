@@ -673,6 +673,31 @@ const Signals = () => {
               </span>
             </div>
 
+            {/* ── Free-tier gate banner ── */}
+            {!isPremium && (
+              <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/5">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      Viewing <span className="text-amber-400">2 of {historyMeta?.total ?? '…'} signals</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Entry, stop-loss & take-profit are hidden. Upgrade to unlock full access.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/pricing"
+                  className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold whitespace-nowrap transition-colors shadow-lg shadow-amber-500/20"
+                >
+                  <Crown className="w-3.5 h-3.5" /> Go Premium
+                </Link>
+              </div>
+            )}
+
             {/* ── Table ── */}
             {historyLoading && history.length === 0 ? (
               <div className="space-y-2 animate-pulse">
@@ -706,64 +731,76 @@ const Signals = () => {
                   </thead>
                   <tbody>
                     {history.map((s, i) => {
-                      const isLong = s.type === 'LONG';
-                      const conf   = Math.round((s.confidenceScore || 0) * 100);
-                      const st     = statusMeta[s.status] || statusMeta.expired;
+                      const isLong  = s.type === 'LONG';
+                      const conf    = Math.round((s.confidenceScore || 0) * 100);
+                      const st      = statusMeta[s.status] || statusMeta.expired;
+                      const isGated = !isPremium && !!s._gated;
                       return (
                         <tr
                           key={s._id || i}
-                          className="border-b border-white/5 hover:bg-white/3 transition-colors"
+                          className={`border-b border-white/5 transition-colors ${isGated ? 'opacity-60' : 'hover:bg-white/3'}`}
                         >
                           <td className="px-4 py-3 font-mono text-white font-medium whitespace-nowrap">
-                            {(s.pair || '').replace('USDT', '/USDT')}
-                            <span className="ml-1.5 text-[10px] text-gray-600">{s.timeframe}</span>
+                            {isGated
+                              ? <span className="blur-[4px] select-none">{(s.pair || '').replace('USDT', '/USDT')}</span>
+                              : <>{(s.pair || '').replace('USDT', '/USDT')}<span className="ml-1.5 text-[10px] text-gray-600">{s.timeframe}</span></>
+                            }
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${
-                              isLong
-                                ? 'bg-green-500/15 text-green-300 border-green-500/25'
-                                : 'bg-red-500/15 text-red-300 border-red-500/25'
-                            }`}>
-                              {isLong ? '▲' : '▼'} {s.type}
-                            </span>
+                            {isGated
+                              ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border bg-gray-500/15 text-gray-500 border-gray-500/20">—</span>
+                              : <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${
+                                  isLong
+                                    ? 'bg-green-500/15 text-green-300 border-green-500/25'
+                                    : 'bg-red-500/15 text-red-300 border-red-500/25'
+                                }`}>
+                                  {isLong ? '▲' : '▼'} {s.type}
+                                </span>
+                            }
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-400 capitalize">{s.marketType}</td>
+                          <td className="px-4 py-3 text-xs text-gray-400 capitalize">
+                            {isGated ? <span className="blur-[4px] select-none">futures</span> : s.marketType}
+                          </td>
                           <td className="px-4 py-3 font-mono text-cyan-300">
-                            {isPremium
-                              ? `$${fmt(s.entry, 4)}`
-                              : <span className="blur-[5px] select-none text-gray-500">${fmt(s.entry, 4)}</span>
+                            {isGated
+                              ? <span className="blur-[5px] select-none text-gray-500 pointer-events-none">$0.0000</span>
+                              : `$${fmt(s.entry, 4)}`
                             }
                           </td>
                           <td className="px-4 py-3 font-mono text-red-400">
-                            {isPremium
-                              ? `$${fmt(s.stopLoss, 4)}`
-                              : <span className="blur-[5px] select-none text-gray-500">${fmt(s.stopLoss, 4)}</span>
+                            {isGated
+                              ? <span className="blur-[5px] select-none text-gray-500 pointer-events-none">$0.0000</span>
+                              : `$${fmt(s.stopLoss, 4)}`
                             }
                           </td>
                           <td className="px-4 py-3 font-mono text-green-400">
-                            {isPremium
-                              ? `$${fmt(s.takeProfit, 4)}`
-                              : <span className="blur-[5px] select-none text-gray-500">${fmt(s.takeProfit, 4)}</span>
+                            {isGated
+                              ? <span className="blur-[5px] select-none text-gray-500 pointer-events-none">$0.0000</span>
+                              : `$${fmt(s.takeProfit, 4)}`
                             }
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5">
                               <div className="w-12 h-1.5 rounded-full bg-white/10 overflow-hidden">
                                 <div
-                                  className={`h-1.5 rounded-full ${conf >= 80 ? 'bg-emerald-500' : conf >= 60 ? 'bg-yellow-500' : 'bg-gray-500'}`}
-                                  style={{ width: `${conf}%` }}
+                                  className={`h-1.5 rounded-full ${isGated ? 'bg-gray-600' : conf >= 80 ? 'bg-emerald-500' : conf >= 60 ? 'bg-yellow-500' : 'bg-gray-500'}`}
+                                  style={{ width: isGated ? '60%' : `${conf}%` }}
                                 />
                               </div>
-                              <span className="text-xs text-gray-400">{conf}%</span>
+                              <span className="text-xs text-gray-400">{isGated ? '—' : `${conf}%`}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${st.cls}`}>
-                              {st.label}
-                            </span>
+                            {isGated
+                              ? <Lock className="w-3.5 h-3.5 text-amber-500/60" />
+                              : <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${st.cls}`}>{st.label}</span>
+                            }
                           </td>
                           <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                            <span title={fmtTime(s.timestamp)}>{timeAgo(s.timestamp)}</span>
+                            {isGated
+                              ? <span className="blur-[4px] select-none">1h ago</span>
+                              : <span title={fmtTime(s.timestamp)}>{timeAgo(s.timestamp)}</span>
+                            }
                           </td>
                         </tr>
                       );
@@ -794,20 +831,10 @@ const Signals = () => {
 
               return (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-                  {/* Left: info + premium note */}
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <span className="text-xs text-gray-500">
-                      {total === 0
-                        ? 'No signals'
-                        : `Showing ${from}–${to} of ${total}`}
-                    </span>
-                    {!isPremium && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <Lock className="w-3 h-3 text-amber-400" />
-                        <span><span className="text-amber-400 font-semibold">Premium</span> unlocks entry, SL &amp; TP.</span>
-                      </div>
-                    )}
-                  </div>
+                  {/* Left: count */}
+                  <span className="text-xs text-gray-500">
+                    {total === 0 ? 'No signals' : `Showing ${from}–${to} of ${total}`}
+                  </span>
 
                   {/* Right: page controls */}
                   {totalPages > 1 && (

@@ -7,6 +7,7 @@ import Sidebar from './Sidebar';
 import { fetchBots } from '../../redux/slices/botSlice';
 import { fetchPlatformStats, fetchSignals } from '../../redux/slices/signalSlice';
 import { fetchNotifications, fetchUserProfile } from '../../redux/slices/userSlice';
+import AnnouncementBanner from '../AnnouncementBanner';
 
 const Layout = () => {
   const dispatch = useDispatch();
@@ -38,8 +39,9 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-brandDark-900">
-      <Header 
-        onMenuToggle={toggleSidebar} 
+      <AnnouncementBanner />
+      <Header
+        onMenuToggle={toggleSidebar}
         isSidebarOpen={isSidebarOpen}
       />
       

@@ -29,6 +29,7 @@ import NotFound from './pages/NotFound';
 import Pricing from './pages/Pricing';
 import AdminDashboard from './pages/AdminDashboard';
 import AuthCallback from './pages/AuthCallback';
+import Support from './pages/Support';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -85,6 +86,8 @@ function AppInner() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/support/tickets/:id" element={<Support />} />
             </Route>
           </Route>
 

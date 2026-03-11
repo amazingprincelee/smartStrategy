@@ -545,6 +545,7 @@ const BotDetail = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-brandDark-700">
+                  <th className="text-left py-2 pr-4">Pair</th>
                   <th className="text-left py-2 pr-4">Portion</th>
                   <th className="text-right py-2 pr-4">Entry</th>
                   <th className="text-right py-2 pr-4">Current</th>
@@ -558,14 +559,17 @@ const BotDetail = () => {
                   const upnl = pos.unrealizedPnL || 0;
                   return (
                     <tr key={pos._id} className="border-b border-gray-50 dark:border-brandDark-700 hover:bg-gray-50 dark:hover:bg-brandDark-700">
-                      <td className="py-2 pr-4">#{pos.portionIndex + 1}</td>
-                      <td className="text-right py-2 pr-4">${pos.entryPrice?.toFixed(4)}</td>
-                      <td className="text-right py-2 pr-4">${(pos.currentPrice || pos.entryPrice)?.toFixed(4)}</td>
-                      <td className={`text-right py-2 pr-4 font-medium ${upnl >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      <td className="py-2 pr-4 font-mono font-semibold text-gray-900 dark:text-white">
+                        {(pos.symbol || '—').replace('/', '')}
+                      </td>
+                      <td className="py-2 pr-4 text-gray-700 dark:text-gray-300">#{pos.portionIndex + 1}</td>
+                      <td className="text-right py-2 pr-4 font-mono text-gray-800 dark:text-gray-200">${pos.entryPrice?.toFixed(4)}</td>
+                      <td className="text-right py-2 pr-4 font-mono text-gray-800 dark:text-gray-200">${(pos.currentPrice || pos.entryPrice)?.toFixed(4)}</td>
+                      <td className={`text-right py-2 pr-4 font-medium font-mono ${upnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                         {upnl >= 0 ? '+' : ''}${upnl.toFixed(4)}
                       </td>
-                      <td className="text-right py-2 pr-4 text-red-400">${pos.stopLossPrice?.toFixed(4)}</td>
-                      <td className="text-right py-2 text-green-500">
+                      <td className="text-right py-2 pr-4 font-mono text-red-500 dark:text-red-400">${pos.stopLossPrice?.toFixed(4)}</td>
+                      <td className="text-right py-2 font-mono text-green-600 dark:text-green-400">
                         {pos.takeProfitPrice ? `$${pos.takeProfitPrice.toFixed(4)}` : '—'}
                       </td>
                     </tr>
@@ -592,6 +596,7 @@ const BotDetail = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-brandDark-700">
+                    <th className="text-left py-2 pr-4">Pair</th>
                     <th className="text-left py-2 pr-4">Time</th>
                     <th className="text-left py-2 pr-4">Side</th>
                     <th className="text-right py-2 pr-4">Price</th>
@@ -610,6 +615,15 @@ const BotDetail = () => {
                         trade.pnl != null && trade.pnl > 0 ? 'bg-green-50/30 dark:bg-green-900/10' : ''
                       }`}
                     >
+                      <td className="py-2 pr-4 text-xs">
+                        {(() => {
+                          const sym = (trade.symbol || detail?.tradingPair || '').replace('/', '');
+                          if (!sym || sym === 'MULTI') return (
+                            <span className="text-gray-400 dark:text-gray-500 italic text-[10px]">multi-pair</span>
+                          );
+                          return <span className="font-mono font-semibold text-gray-900 dark:text-white">{sym}</span>;
+                        })()}
+                      </td>
                       <td className="py-2 pr-4 text-gray-400 text-xs">
                         {new Date(trade.executedAt).toLocaleString()}
                       </td>

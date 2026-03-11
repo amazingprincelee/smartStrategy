@@ -918,32 +918,38 @@ const CryptoArbitrage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-brandDark-700">
-                {pastOpps.map(opp => {
-                  const coin = opp.symbol?.split('/')[0] || '?';
+                {pastOpps.map((opp, idx) => {
+                  const coin     = opp.symbol?.split('/')[0] || '?';
                   const isActive = opp.status === 'active';
-                  const fmtDate = (d) => d ? new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+                  const isGated  = !isPremium && !!opp._gated;
+                  const fmtDate  = (d) => d ? new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
                   return (
-                    <tr key={opp._id} className={`hover:bg-gray-50 dark:hover:bg-brandDark-800 transition-colors ${isActive ? 'bg-green-50/40 dark:bg-green-900/5' : ''}`}>
+                    <tr
+                      key={opp._id || idx}
+                      className={`transition-colors ${isGated ? 'opacity-55' : `hover:bg-gray-50 dark:hover:bg-brandDark-800 ${isActive ? 'bg-green-50/40 dark:bg-green-900/5' : ''}`}`}
+                    >
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center text-xs font-bold text-white rounded-full w-7 h-7 bg-gradient-to-br from-primary-500 to-secondary-500">
-                            {coin.charAt(0)}
+                          <div className={`flex items-center justify-center text-xs font-bold text-white rounded-full w-7 h-7 bg-gradient-to-br ${isGated ? 'from-gray-500 to-gray-600' : 'from-primary-500 to-secondary-500'}`}>
+                            {isGated ? <Lock className="w-3 h-3" /> : coin.charAt(0)}
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">{coin}</div>
-                            <div className="text-xs text-gray-400">{opp.symbol}</div>
+                            <div className={`font-semibold ${isGated ? 'blur-[4px] select-none text-gray-400' : 'text-gray-900 dark:text-white'}`}>{coin}</div>
+                            <div className={`text-xs text-gray-400 ${isGated ? 'blur-[4px] select-none' : ''}`}>{opp.symbol}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                          {opp.buyExchange}
-                        </span>
+                        {isGated
+                          ? <span className="blur-[5px] select-none px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">exchange</span>
+                          : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">{opp.buyExchange}</span>
+                        }
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-                          {opp.sellExchange}
-                        </span>
+                        {isGated
+                          ? <span className="blur-[5px] select-none px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">exchange</span>
+                          : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">{opp.sellExchange}</span>
+                        }
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <span className="font-bold text-green-600 dark:text-green-400">
@@ -951,12 +957,15 @@ const CryptoArbitrage = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">
-                          {opp.peakProfitPercent?.toFixed(2)}%
+                        <span className={`font-medium ${isGated ? 'blur-[5px] select-none text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
+                          {isGated ? '0.00%' : `${opp.peakProfitPercent?.toFixed(2)}%`}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-medium text-right text-green-600 whitespace-nowrap dark:text-green-400">
-                        ${(opp.expectedProfitUSD || 0).toFixed(2)}
+                      <td className="px-4 py-3 font-medium text-right whitespace-nowrap">
+                        {isGated
+                          ? <span className="blur-[5px] select-none text-gray-500">$0.00</span>
+                          : <span className="text-green-600 dark:text-green-400">${(opp.expectedProfitUSD || 0).toFixed(2)}</span>
+                        }
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRiskBadgeColor(opp.riskLevel)}`}>
@@ -964,28 +973,49 @@ const CryptoArbitrage = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        {isActive ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                            Cleared
-                          </span>
-                        )}
+                        {isGated
+                          ? <Lock className="w-3.5 h-3.5 text-amber-500/60 mx-auto" />
+                          : isActive ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                              Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                              Cleared
+                            </span>
+                          )
+                        }
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                        {fmtDate(opp.firstDetectedAt)}
+                        {isGated ? <span className="blur-[4px] select-none">Jan 1, 12:00</span> : fmtDate(opp.firstDetectedAt)}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                        {isActive ? fmtDate(opp.lastSeenAt) : fmtDate(opp.clearedAt)}
+                        {isGated ? <span className="blur-[4px] select-none">Jan 1, 12:00</span> : isActive ? fmtDate(opp.lastSeenAt) : fmtDate(opp.clearedAt)}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Free-tier upgrade nudge */}
+        {!isPremium && pastOpps.some(o => o._gated) && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3 mt-3 rounded-xl border border-amber-500/25 bg-amber-500/5">
+            <div className="flex items-center gap-2 text-sm text-amber-400">
+              <Lock className="w-4 h-4 flex-shrink-0" />
+              <span>
+                <span className="font-semibold">3 opportunities visible</span> — upgrade to see all {pastPagination.total} with full exchange & profit details.
+              </span>
+            </div>
+            <Link
+              to="/pricing"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold whitespace-nowrap transition-colors"
+            >
+              <Crown className="w-3.5 h-3.5" /> Go Premium
+            </Link>
           </div>
         )}
 
