@@ -27,20 +27,65 @@ export const fetchAlphaStats = createAsyncThunk(
   }
 );
 
+export const fetchAlphaFavorites = createAsyncThunk(
+  'alpha/fetchFavorites',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/alpha/favorites');
+      return res.data; // { data: signals[], favorites: ids[] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch favorites');
+    }
+  }
+);
+
+export const toggleAlphaFavorite = createAsyncThunk(
+  'alpha/toggleFavorite',
+  async (signalId, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.post(`/alpha/favorite/${signalId}`);
+      return res.data; // { favorited, favorites: ids[] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to update favorite');
+    }
+  }
+);
+
+export const analyzeAlphaSignal = createAsyncThunk(
+  'alpha/analyze',
+  async (signalId, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get(`/alpha/analyze/${signalId}`);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Analysis failed');
+    }
+  }
+);
+
 const alphaSlice = createSlice({
   name: 'alpha',
   initialState: {
-    signals:  [],
+    signals:         [],
+    favoriteSignals: [],   // full signal docs for favorites tab
+    favoriteIds:     [],   // just IDs for quick lookup
     meta:     { total: 0, page: 1, limit: 20, gated: false },
     stats:    null,
     loading:  false,
+    favLoading: false,
     error:    null,
+    analysis:        null,
+    analysisLoading: false,
+    analysisError:   null,
   },
   reducers: {
     addLiveAlphaSignal(state, action) {
-      // Prepend real-time signal from WebSocket without duplicates
       const exists = state.signals.some(s => s._id === action.payload._id);
       if (!exists) state.signals.unshift(action.payload);
+    },
+    clearAlphaAnalysis(state) {
+      state.analysis = null;
+      state.analysisError = null;
     },
   },
   extraReducers: (builder) => {
@@ -57,9 +102,38 @@ const alphaSlice = createSlice({
       })
       .addCase(fetchAlphaStats.fulfilled, (state, { payload }) => {
         state.stats = payload;
+      })
+      .addCase(fetchAlphaFavorites.pending,   (state) => { state.favLoading = true; })
+      .addCase(fetchAlphaFavorites.fulfilled, (state, { payload }) => {
+        state.favLoading     = false;
+        state.favoriteSignals = payload.data;
+        state.favoriteIds    = payload.favorites;
+      })
+      .addCase(fetchAlphaFavorites.rejected, (state) => { state.favLoading = false; })
+      .addCase(toggleAlphaFavorite.fulfilled, (state, { payload }) => {
+        state.favoriteIds = payload.favorites;
+        // If unfavorited, remove from favoriteSignals list
+        if (!payload.favorited) {
+          state.favoriteSignals = state.favoriteSignals.filter(
+            s => payload.favorites.includes(s._id.toString())
+          );
+        }
+      })
+      .addCase(analyzeAlphaSignal.pending, (state) => {
+        state.analysisLoading = true;
+        state.analysisError   = null;
+        state.analysis        = null;
+      })
+      .addCase(analyzeAlphaSignal.fulfilled, (state, { payload }) => {
+        state.analysisLoading = false;
+        state.analysis        = payload;
+      })
+      .addCase(analyzeAlphaSignal.rejected, (state, { payload }) => {
+        state.analysisLoading = false;
+        state.analysisError   = payload;
       });
   },
 });
 
-export const { addLiveAlphaSignal } = alphaSlice.actions;
+export const { addLiveAlphaSignal, clearAlphaAnalysis } = alphaSlice.actions;
 export default alphaSlice.reducer;

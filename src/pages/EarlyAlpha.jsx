@@ -13,8 +13,14 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Heart,
 } from 'lucide-react';
-import { fetchAlphaSignals, fetchAlphaStats } from '../redux/slices/alphaSlice';
+import {
+  fetchAlphaSignals,
+  fetchAlphaStats,
+  fetchAlphaFavorites,
+  toggleAlphaFavorite,
+} from '../redux/slices/alphaSlice';
 
 /* ── helpers ──────────────────────────────────────────────────────── */
 const CATEGORY_META = {
@@ -56,7 +62,7 @@ const timeAgo = (iso) => {
   return `${Math.floor(diff / 3600)}h ago`;
 };
 
-const FILTERS = ['all', 'new_listing', 'volume_spike', 'trending', 'whale_accumulation'];
+const FILTERS = ['all', 'new_listing', 'volume_spike', 'trending', 'whale_accumulation', 'favorites'];
 
 /* ── Premium gate banner ──────────────────────────────────────────── */
 function PremiumGate() {
@@ -82,7 +88,7 @@ function PremiumGate() {
 }
 
 /* ── Signal card ──────────────────────────────────────────────────── */
-function AlphaCard({ signal, gated }) {
+function AlphaCard({ signal, gated, isFavorited, onToggleFavorite }) {
   const meta = CATEGORY_META[signal.category] || CATEGORY_META.trending;
   const CatIcon = meta.icon;
 
@@ -128,12 +134,26 @@ function AlphaCard({ signal, gated }) {
             <p className="text-xs text-gray-500 dark:text-gray-400">{signal.name}</p>
           </div>
         </div>
-        {signal.score != null && (
-          <div className={`flex flex-col items-center rounded-xl border px-3 py-1.5 ${scoreColor(signal.score)}`}>
-            <span className="text-[10px] font-bold leading-none">{scoreLabel(signal.score)}</span>
-            <span className="text-base font-extrabold leading-tight">{signal.score}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Favorite button */}
+          <button
+            onClick={() => onToggleFavorite(signal._id)}
+            title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+            className={`rounded-lg p-1.5 transition-all ${
+              isFavorited
+                ? 'text-red-400 bg-red-500/15 hover:bg-red-500/25'
+                : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
+            }`}
+          >
+            <Heart className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
+          </button>
+          {signal.score != null && (
+            <div className={`flex flex-col items-center rounded-xl border px-3 py-1.5 ${scoreColor(signal.score)}`}>
+              <span className="text-[10px] font-bold leading-none">{scoreLabel(signal.score)}</span>
+              <span className="text-base font-extrabold leading-tight">{signal.score}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Category badge */}
@@ -210,25 +230,33 @@ function AlphaCard({ signal, gated }) {
 ═══════════════════════════════════════════════════════════════════ */
 export default function EarlyAlpha() {
   const dispatch = useDispatch();
-  const { signals, meta, stats, loading, error } = useSelector(s => s.alpha);
+  const { signals, favoriteSignals, favoriteIds, meta, stats, loading, favLoading, error } = useSelector(s => s.alpha);
   const userRole     = useSelector(s => s.auth?.user?.role ?? 'user');
-  const subscription = useSelector(s => s.auth?.user?.subscription);
   const [activeFilter, setActiveFilter] = useState('all');
 
   const isPremium = userRole === 'admin' || userRole === 'premium';
 
   const load = (cat) => {
-    dispatch(fetchAlphaSignals({ page: 1, limit: 20, category: cat === 'all' ? undefined : cat }));
+    if (cat === 'favorites') {
+      dispatch(fetchAlphaFavorites());
+    } else {
+      dispatch(fetchAlphaSignals({ page: 1, limit: 20, category: cat === 'all' ? undefined : cat }));
+    }
   };
 
   useEffect(() => {
     dispatch(fetchAlphaStats());
+    dispatch(fetchAlphaFavorites()); // load favorite IDs on mount for heart icons
     load(activeFilter);
   }, []);
 
   const handleFilter = (cat) => {
     setActiveFilter(cat);
     load(cat);
+  };
+
+  const handleToggleFavorite = (signalId) => {
+    dispatch(toggleAlphaFavorite(signalId));
   };
 
   const statChips = stats ? [
@@ -299,19 +327,26 @@ export default function EarlyAlpha() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map(f => {
           const meta = CATEGORY_META[f];
-          const label = f === 'all' ? 'All' : (meta?.label || f);
+          const isFavTab = f === 'favorites';
+          const label = isFavTab ? 'Favorites' : (f === 'all' ? 'All' : (meta?.label || f));
           const active = activeFilter === f;
           return (
             <button
               key={f}
               onClick={() => handleFilter(f)}
-              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+              className={`flex-shrink-0 flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
                 active
-                  ? 'bg-orange-500 text-white'
+                  ? isFavTab ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'
                   : 'bg-gray-100 dark:bg-brandDark-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-brandDark-700'
               }`}
             >
+              {isFavTab && <Heart className={`h-3 w-3 ${active ? 'fill-current' : ''}`} />}
               {label}
+              {isFavTab && favoriteIds.length > 0 && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-red-400/40' : 'bg-red-500/20 text-red-400'}`}>
+                  {favoriteIds.length}
+                </span>
+              )}
             </button>
           );
         })}
@@ -328,38 +363,69 @@ export default function EarlyAlpha() {
       )}
 
       {/* ── Signals grid ───────────────────────────────────────────── */}
-      {loading && signals.length === 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl bg-gray-200 dark:bg-brandDark-800" />
-          ))}
-        </div>
-      ) : signals.length === 0 && !loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-brandDark-700 py-16 text-center">
-          <Eye className="h-10 w-10 text-gray-400" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No alpha signals detected yet — the scanner runs every 5 minutes.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {signals.map(sig => (
-              <AlphaCard key={sig._id} signal={sig} gated={sig.gated} />
-            ))}
-          </div>
+      {(() => {
+        const isFavTab   = activeFilter === 'favorites';
+        const isLoading  = isFavTab ? favLoading : loading;
+        const displaySigs = isFavTab ? favoriteSignals : signals;
 
-          {/* Gated hint row */}
-          {meta.gated && (
-            <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-              Showing {meta.visibleCount} of {meta.total} signals —{' '}
-              <Link to="/pricing" className="text-orange-400 hover:underline font-medium">
-                upgrade for full access
-              </Link>
-            </p>
-          )}
-        </>
-      )}
+        if (isLoading && displaySigs.length === 0) {
+          return (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-44 animate-pulse rounded-2xl bg-gray-200 dark:bg-brandDark-800" />
+              ))}
+            </div>
+          );
+        }
+
+        if (displaySigs.length === 0 && !isLoading) {
+          return (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-brandDark-700 py-16 text-center">
+              {isFavTab ? (
+                <>
+                  <Heart className="h-10 w-10 text-gray-400" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No favorites yet — tap the <Heart className="inline h-3.5 w-3.5 mx-0.5" /> on any signal to save it here.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Eye className="h-10 w-10 text-gray-400" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No alpha signals detected yet — the scanner runs every 5 minutes.
+                  </p>
+                </>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {displaySigs.map(sig => (
+                <AlphaCard
+                  key={sig._id}
+                  signal={sig}
+                  gated={sig.gated}
+                  isFavorited={favoriteIds.includes(sig._id?.toString())}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+              ))}
+            </div>
+
+            {/* Gated hint row */}
+            {!isFavTab && meta.gated && (
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                Showing {meta.visibleCount} of {meta.total} signals —{' '}
+                <Link to="/pricing" className="text-orange-400 hover:underline font-medium">
+                  upgrade for full access
+                </Link>
+              </p>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
