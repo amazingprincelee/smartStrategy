@@ -618,16 +618,21 @@ const CryptoArbitrage = () => {
                               <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {opp.symbol}
                               </div>
-                              {/* Show confidence score if available */}
-                              {opp.confidenceScore && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <div className={`w-2 h-2 rounded-full ${
-                                    opp.confidenceScore >= 70 ? 'bg-green-500' :
-                                    opp.confidenceScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`} />
-                                  <span className="text-xs text-gray-400">{opp.confidenceScore}% conf</span>
-                                </div>
-                              )}
+                              {/* Confidence score bar */}
+                              {(() => {
+                                const conf = opp.confidenceScore || opp.liquidity?.avgScore;
+                                if (!conf) return null;
+                                const barColor = conf >= 70 ? 'bg-green-500' : conf >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                                const txtColor = conf >= 70 ? 'text-green-400' : conf >= 50 ? 'text-yellow-400' : 'text-red-400';
+                                return (
+                                  <div className="flex items-center gap-1.5 mt-1.5">
+                                    <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden w-14">
+                                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(conf, 100)}%` }} />
+                                    </div>
+                                    <span className={`text-[10px] font-semibold ${txtColor}`}>{Math.round(conf)}%</span>
+                                  </div>
+                                );
+                              })()}
                               {/* Profit tier badge — visible to all tiers */}
                               <span className={`inline-flex mt-1 px-1.5 py-0.5 text-[10px] font-semibold rounded ${profitTier.cls}`}>
                                 {profitTier.label} profit
@@ -665,7 +670,7 @@ const CryptoArbitrage = () => {
                                 </span>
                               </div>
                               {opp.buyOrderBook?.[0] && (
-                                <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+                                <div className="flex items-center justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
                                   <span>Available:</span>
                                   <span className="font-mono">{opp.buyOrderBook[0][1]?.toFixed(4)} {opp.coin}</span>
                                 </div>
@@ -680,7 +685,7 @@ const CryptoArbitrage = () => {
                                 </span>
                               </div>
                               {opp.sellOrderBook?.[0] && (
-                                <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+                                <div className="flex items-center justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
                                   <span>Available:</span>
                                   <span className="font-mono">{opp.sellOrderBook[0][1]?.toFixed(4)} {opp.coin}</span>
                                 </div>
@@ -769,8 +774,8 @@ const CryptoArbitrage = () => {
                           {opp.liquidity?.avgScore && (
                             <div className="mt-1">
                               <span className={`text-xs ${
-                                opp.liquidity.avgScore >= 60 ? 'text-green-600' :
-                                opp.liquidity.avgScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                                opp.liquidity.avgScore >= 60 ? 'text-green-500 dark:text-green-400' :
+                                opp.liquidity.avgScore >= 40 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-500 dark:text-red-400'
                               }`}>
                                 Liq: {Math.round(opp.liquidity.avgScore)}%
                               </span>
