@@ -30,6 +30,7 @@ import Pricing from './pages/Pricing';
 import AdminDashboard from './pages/AdminDashboard';
 import AuthCallback from './pages/AuthCallback';
 import Support from './pages/Support';
+import EarlyAlpha from './pages/EarlyAlpha';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -88,6 +89,7 @@ function AppInner() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/support" element={<Support />} />
               <Route path="/support/tickets/:id" element={<Support />} />
+              <Route path="/alpha" element={<EarlyAlpha />} />
             </Route>
           </Route>
 

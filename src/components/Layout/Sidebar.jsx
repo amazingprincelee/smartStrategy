@@ -9,6 +9,7 @@ import {
   BookOpen,
   Activity,
   TrendingUp,
+  Flame,
   User,
   Settings,
   HelpCircle,
@@ -66,6 +67,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/arbitrage',
       icon: TrendingUp,
       badge: 'Live'
+    },
+    {
+      name: 'Early Alpha',
+      href: '/alpha',
+      icon: Flame,
+      badge: 'New',
     },
     {
       name: 'Profile',
@@ -176,7 +183,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   <span>{item.name}</span>
                 </div>
                 {item.badge && (
-                  <span className="px-2 py-0.5 text-xs font-semibold text-white bg-green-600 rounded-full">
+                  <span className={`px-2 py-0.5 text-xs font-semibold text-white rounded-full ${item.badge === 'New' ? 'bg-orange-500' : 'bg-green-600'}`}>
                     {item.badge}
                   </span>
                 )}
