@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   Heart,
+  ScanSearch,
 } from 'lucide-react';
 import {
   fetchAlphaSignals,
@@ -21,6 +22,7 @@ import {
   fetchAlphaFavorites,
   toggleAlphaFavorite,
 } from '../redux/slices/alphaSlice';
+import AlphaInspector from '../components/Alpha/AlphaInspector';
 
 /* ── helpers ──────────────────────────────────────────────────────── */
 const CATEGORY_META = {
@@ -88,7 +90,7 @@ function PremiumGate() {
 }
 
 /* ── Signal card ──────────────────────────────────────────────────── */
-function AlphaCard({ signal, gated, isFavorited, onToggleFavorite }) {
+function AlphaCard({ signal, gated, isFavorited, onToggleFavorite, onAnalyze, isPremium }) {
   const meta = CATEGORY_META[signal.category] || CATEGORY_META.trending;
   const CatIcon = meta.icon;
 
@@ -220,7 +222,18 @@ function AlphaCard({ signal, gated, isFavorited, onToggleFavorite }) {
         </div>
       )}
 
-      <p className="text-[10px] text-gray-600 dark:text-gray-500">{timeAgo(signal.discoveredAt)}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-gray-600 dark:text-gray-500">{timeAgo(signal.discoveredAt)}</p>
+        {isPremium && (
+          <button
+            onClick={() => onAnalyze(signal)}
+            className="flex items-center gap-1.5 rounded-lg bg-orange-500/15 px-2.5 py-1 text-[11px] font-semibold text-orange-400 hover:bg-orange-500/25 transition-colors"
+          >
+            <ScanSearch className="h-3 w-3" />
+            Analyze
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -232,7 +245,8 @@ export default function EarlyAlpha() {
   const dispatch = useDispatch();
   const { signals, favoriteSignals, favoriteIds, meta, stats, loading, favLoading, error } = useSelector(s => s.alpha);
   const userRole     = useSelector(s => s.auth?.user?.role ?? 'user');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter]     = useState('all');
+  const [inspectorSignal, setInspectorSignal] = useState(null);
 
   const isPremium = userRole === 'admin' || userRole === 'premium';
 
@@ -410,6 +424,8 @@ export default function EarlyAlpha() {
                   gated={sig.gated}
                   isFavorited={favoriteIds.includes(sig._id?.toString())}
                   onToggleFavorite={handleToggleFavorite}
+                  onAnalyze={setInspectorSignal}
+                  isPremium={isPremium}
                 />
               ))}
             </div>
@@ -426,6 +442,14 @@ export default function EarlyAlpha() {
           </>
         );
       })()}
+
+      {/* ── Alpha Inspector drawer ─────────────────────────────────── */}
+      {inspectorSignal && (
+        <AlphaInspector
+          signal={inspectorSignal}
+          onClose={() => setInspectorSignal(null)}
+        />
+      )}
     </div>
   );
 }
