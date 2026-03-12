@@ -203,10 +203,10 @@ function BacktestTradeRow({ t, i }) {
 /* ─────────────────────────────────────── Page ── */
 
 const TABS = [
-  { key: 'history',  label: 'History',  icon: History      },
+  { key: 'analyze',  label: 'Analyze',  icon: Search       },
   { key: 'spot',     label: 'Spot',     icon: TrendingUp   },
   { key: 'futures',  label: 'Futures',  icon: Zap          },
-  { key: 'analyze',  label: 'Analyze',  icon: Search       },
+  { key: 'history',  label: 'History',  icon: History      },
   { key: 'backtest', label: 'Backtest', icon: FlaskConical },
 ];
 
@@ -242,7 +242,7 @@ const Signals = () => {
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
   const isPremium = isPremiumUser(role);
 
-  const [activeTab, setActiveTab] = useState('history');
+  const [activeTab, setActiveTab] = useState('analyze');
   const [showAll, setShowAll]     = useState(false);
 
   // History tab filters

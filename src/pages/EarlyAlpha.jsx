@@ -14,7 +14,7 @@ import {
   Eye,
   EyeOff,
   Heart,
-  ScanSearch,
+  Search,
 } from 'lucide-react';
 import {
   fetchAlphaSignals,
@@ -228,7 +228,7 @@ function AlphaCard({ signal, gated, isFavorited, onToggleFavorite, onAnalyze }) 
           onClick={() => onAnalyze(signal)}
           className="flex items-center gap-1.5 rounded-lg bg-orange-500/15 px-2.5 py-1 text-[11px] font-semibold text-orange-400 hover:bg-orange-500/25 transition-colors"
         >
-          <ScanSearch className="h-3 w-3" />
+          <Search className="h-3 w-3" />
           Analyze
         </button>
       </div>

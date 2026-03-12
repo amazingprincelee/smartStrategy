@@ -15,7 +15,6 @@ import {
   X,
   TrendingUp,
   TrendingDown,
-  Minus,
   Zap,
   BarChart2,
   Clock,
@@ -23,7 +22,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Loader2,
+  RefreshCw,
   DollarSign,
   Activity,
   Flame,
@@ -149,7 +148,7 @@ export default function AlphaInspector({ signal, onClose }) {
           {/* Loading */}
           {analysisLoading && (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-orange-400" />
+              <RefreshCw className="h-8 w-8 animate-spin text-orange-400" />
               <p className="text-sm text-gray-500 dark:text-gray-400">Analyzing {signal.symbol}…</p>
             </div>
           )}
