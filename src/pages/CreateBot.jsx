@@ -12,16 +12,17 @@ import { fetchAccounts } from '../redux/slices/exchangeAccountSlice';
 // Steps
 const STEPS = ['Mode & Exchange', 'Configure', 'Review & Launch'];
 
-// Demo exchange list (non-geo-blocked)
 const EXCHANGE_LIST = [
-  { id: 'okx',    name: 'OKX'         },
-  { id: 'kucoin', name: 'KuCoin'      },
-  { id: 'bitget', name: 'Bitget'      },
-  { id: 'phemex', name: 'Phemex'      },
-  { id: 'gate',   name: 'Gate.io'     },
-  { id: 'mexc',   name: 'MEXC'        },
-  { id: 'huobi',  name: 'HTX (Huobi)' },
-  { id: 'kraken', name: 'Kraken'      },
+  { id: 'binance', name: 'Binance',     badge: 'Popular' },
+  { id: 'bybit',   name: 'Bybit',       badge: 'Popular' },
+  { id: 'okx',     name: 'OKX'         },
+  { id: 'kucoin',  name: 'KuCoin'      },
+  { id: 'bitget',  name: 'Bitget'      },
+  { id: 'gate',    name: 'Gate.io'     },
+  { id: 'mexc',    name: 'MEXC'        },
+  { id: 'phemex',  name: 'Phemex'      },
+  { id: 'huobi',   name: 'HTX (Huobi)' },
+  { id: 'kraken',  name: 'Kraken'      },
 ];
 
 /* ── Inline tooltip hint ── */
@@ -221,7 +222,9 @@ const CreateBot = () => {
           >
             <option value="" disabled>Select Exchange</option>
             {EXCHANGE_LIST.map(ex => (
-              <option key={ex.id} value={ex.id}>{ex.name}</option>
+              <option key={ex.id} value={ex.id}>
+                {ex.badge ? `★ ${ex.name}` : ex.name}
+              </option>
             ))}
           </select>
         </div>

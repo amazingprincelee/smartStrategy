@@ -185,6 +185,21 @@ function AlphaCard({ signal, gated }) {
         </ul>
       )}
 
+      {/* Exchanges */}
+      {signal.exchanges?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <span className="text-[10px] text-gray-500 dark:text-gray-500 self-center">Trade on:</span>
+          {signal.exchanges.map(ex => (
+            <span
+              key={ex}
+              className="rounded-md bg-gray-100 dark:bg-brandDark-700 px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:text-gray-300"
+            >
+              {ex}
+            </span>
+          ))}
+        </div>
+      )}
+
       <p className="text-[10px] text-gray-600 dark:text-gray-500">{timeAgo(signal.discoveredAt)}</p>
     </div>
   );

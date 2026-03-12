@@ -131,7 +131,7 @@ const Settings = () => {
 
   // ── Exchange API handlers ─────────────────────────────────────────────────
   const popularExchanges = (supportedExchanges?.popular || []).filter(e =>
-    ['okx', 'kucoin', 'bitget', 'phemex', 'gate', 'mexc', 'huobi', 'kraken'].includes(e.id)
+    ['binance', 'bybit', 'okx', 'kucoin', 'bitget', 'phemex', 'gate', 'mexc', 'huobi', 'kraken'].includes(e.id)
   );
 
   const handleAddAccount = async () => {
@@ -358,9 +358,15 @@ const Settings = () => {
                       className="w-full input"
                     >
                       {popularExchanges.length > 0 ? (
-                        popularExchanges.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)
+                        popularExchanges.map(ex => (
+                          <option key={ex.id} value={ex.id}>
+                            {['binance','bybit'].includes(ex.id) ? `★ ${ex.name}` : ex.name}
+                          </option>
+                        ))
                       ) : (
                         <>
+                          <option value="binance">★ Binance</option>
+                          <option value="bybit">★ Bybit</option>
                           <option value="okx">OKX</option>
                           <option value="kucoin">KuCoin</option>
                           <option value="bitget">Bitget</option>
@@ -411,10 +417,10 @@ const Settings = () => {
                     />
                   </div>
 
-                  {newAccount.exchange === 'kucoin' && (
+                  {['kucoin', 'okx', 'bitget'].includes(newAccount.exchange) && (
                     <div className="sm:col-span-2">
                       <label className="block mb-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Passphrase <span className="text-gray-400">(KuCoin only)</span>
+                        Passphrase <span className="text-gray-400">(required for {newAccount.exchange === 'okx' ? 'OKX' : newAccount.exchange === 'bitget' ? 'Bitget' : 'KuCoin'})</span>
                       </label>
                       <input
                         type="password"
