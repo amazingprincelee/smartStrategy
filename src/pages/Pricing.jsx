@@ -25,7 +25,8 @@ const PREMIUM_FEATURES = [
 export default function Pricing() {
   const dispatch   = useDispatch();
   const navigate   = useNavigate();
-  const { isAuthenticated } = useSelector(s => s.auth);
+  const { token } = useSelector(s => s.auth);
+  const isAuthenticated = !!token;
   const { isPremium, subscription, checkoutUrl, checkoutLoading, checkoutError } =
     useSelector(s => s.subscription);
 
