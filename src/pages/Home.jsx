@@ -582,6 +582,18 @@ const Home = () => {
         </div>
       </section>
 
+      {/* ── FOOTER ───────────────────────────────────────────────────── */}
+      <footer className="py-8 bg-gray-950 border-t border-white/5">
+        <div className="container px-4 mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+          <p>© {new Date().getFullYear()} SmartStrategy. Not financial advice — trade at your own risk.</p>
+          <div className="flex gap-5">
+            <Link to="/privacy" className="hover:text-gray-300 transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+            <a href="mailto:princeleepraise@gmail.com" className="hover:text-gray-300 transition-colors">Contact</a>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 };

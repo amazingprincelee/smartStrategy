@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const LAST_UPDATED = 'March 17, 2026';
 const COMPANY = 'SmartStrategy';
-const CONTACT_EMAIL = 'support@smartstrategy.app';
+const CONTACT_EMAIL = 'princeleepraise@gmail.com';
 
 export default function TermsOfService() {
   return (
@@ -171,10 +171,11 @@ export default function TermsOfService() {
 
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">14. Contact</h2>
-            <p>
-              For questions about these Terms, contact us at:<br />
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:underline">{CONTACT_EMAIL}</a>
-            </p>
+            <p className="mb-3">For questions about these Terms, contact us at:</p>
+            <ul className="space-y-1 text-gray-300">
+              <li>Email: <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:underline">{CONTACT_EMAIL}</a></li>
+              <li>WhatsApp: <a href="https://wa.me/2348035421019" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">+234 803 542 1019</a></li>
+            </ul>
           </section>
 
         </div>
