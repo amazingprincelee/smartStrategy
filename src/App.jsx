@@ -31,6 +31,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import AuthCallback from './pages/AuthCallback';
 import Support from './pages/Support';
 import EarlyAlpha from './pages/EarlyAlpha';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -72,6 +74,8 @@ function AppInner() {
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
 
           {/* Protected Routes */}
           <Route element={<Layout />}>

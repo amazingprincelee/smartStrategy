@@ -77,16 +77,16 @@ export default function Pricing() {
             <div className="mb-6">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Free</p>
               <div className="flex items-end gap-1">
-                <span className="text-5xl font-bold">$0</span>
-                <span className="text-muted-foreground mb-1">/month</span>
+                <span className="text-5xl font-bold text-white">$0</span>
+                <span className="text-gray-400 mb-1">/month</span>
               </div>
-              <p className="text-muted-foreground text-sm mt-2">No credit card required</p>
+              <p className="text-gray-400 text-sm mt-2">No credit card required</p>
             </div>
             <ul className="space-y-3 flex-1 mb-8">
               {FREE_FEATURES.map(f => (
                 <li key={f} className="flex items-start gap-2 text-sm">
-                  <span className="text-muted-foreground mt-0.5">•</span>
-                  <span>{f}</span>
+                  <span className="text-gray-500 mt-0.5">•</span>
+                  <span className="text-gray-300">{f}</span>
                 </li>
               ))}
             </ul>
@@ -105,16 +105,16 @@ export default function Pricing() {
                 <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Most Popular</span>
               </div>
               <div className="flex items-end gap-1 mb-2">
-                <span className="text-5xl font-bold">$20</span>
-                <span className="text-muted-foreground mb-1">/month</span>
+                <span className="text-5xl font-bold text-white">$20</span>
+                <span className="text-gray-400 mb-1">/month</span>
               </div>
-              <p className="text-muted-foreground text-sm">Paid in crypto — works globally</p>
+              <p className="text-gray-400 text-sm">Paid in crypto — works globally</p>
             </div>
             <ul className="space-y-3 flex-1 my-8 relative">
               {PREMIUM_FEATURES.map(f => (
                 <li key={f} className="flex items-start gap-2 text-sm">
                   <span className="text-blue-400 mt-0.5">✓</span>
-                  <span>{f}</span>
+                  <span className="text-gray-200">{f}</span>
                 </li>
               ))}
             </ul>
@@ -157,8 +157,8 @@ export default function Pricing() {
             ['What happens if I don\'t renew?', 'Your account automatically reverts to the free tier at expiry. Your data, bots, and settings are all preserved.'],
           ].map(([q, a]) => (
             <div key={q} className="border border-white/10 rounded-xl p-6">
-              <p className="font-semibold mb-2">{q}</p>
-              <p className="text-muted-foreground text-sm">{a}</p>
+              <p className="font-semibold mb-2 text-white">{q}</p>
+              <p className="text-gray-400 text-sm">{a}</p>
             </div>
           ))}
         </div>
