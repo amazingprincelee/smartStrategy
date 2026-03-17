@@ -176,7 +176,7 @@ const Login = () => {
 
           {/* Google Sign-In */}
           <a
-            href={`${import.meta.env.VITE_LOCAL_API_URL || import.meta.env.VITE_API_URL}/api/auth/google`}
+            href={`${import.meta.env.VITE_LOCAL_API_URL || import.meta.env.VITE_API_URL}/auth/google`}
             className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-50 dark:hover:bg-brandDark-700 transition-colors"
           >
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
