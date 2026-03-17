@@ -65,6 +65,7 @@ const CryptoArbitrage = () => {
   const [pastOpps, setPastOpps] = useState([]);
   const [pastLoading, setPastLoading] = useState(false);
   const [pastFilter, setPastFilter] = useState('all'); // all | active | cleared
+  const [pastTransferFilter, setPastTransferFilter] = useState('all'); // all | Verified | Blocked | Unknown
   const [pastMeta, setPastMeta] = useState({ activeCount: 0, clearedCount: 0, total: 0 });
   const [pastPage, setPastPage] = useState(1);
   const [pastPagination, setPastPagination] = useState({ page: 1, pages: 1, total: 0, hasNext: false, hasPrev: false });
@@ -83,12 +84,12 @@ const CryptoArbitrage = () => {
     }
   }, []);
 
-  const fetchPastOpportunities = useCallback(async (statusFilter = 'all', page = 1) => {
+  const fetchPastOpportunities = useCallback(async (statusFilter = 'all', page = 1, transferFilter = 'all') => {
     setPastLoading(true);
     try {
-      const res = await authAPI.get(
-        `/arbitrage/past-opportunities?status=${statusFilter}&limit=${PAST_LIMIT}&page=${page}`
-      );
+      const params = new URLSearchParams({ status: statusFilter, limit: PAST_LIMIT, page });
+      if (transferFilter !== 'all') params.append('transferStatus', transferFilter);
+      const res = await authAPI.get(`/arbitrage/past-opportunities?${params}`);
       if (res.data.success) {
         setPastOpps(res.data.data || []);
         setPastMeta(res.data.meta || {});
@@ -103,10 +104,10 @@ const CryptoArbitrage = () => {
 
   // Load past opportunities on mount and auto-refresh every 60 seconds
   useEffect(() => {
-    fetchPastOpportunities(pastFilter, pastPage);
-    const id = setInterval(() => fetchPastOpportunities(pastFilter, pastPage), 60_000);
+    fetchPastOpportunities(pastFilter, pastPage, pastTransferFilter);
+    const id = setInterval(() => fetchPastOpportunities(pastFilter, pastPage, pastTransferFilter), 60_000);
     return () => clearInterval(id);
-  }, [fetchPastOpportunities, pastFilter, pastPage]);
+  }, [fetchPastOpportunities, pastFilter, pastPage, pastTransferFilter]);
 
   // Load summary stats on mount and refresh every 60 seconds
   useEffect(() => {
@@ -222,7 +223,7 @@ const CryptoArbitrage = () => {
             )}
           </div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Real-time price gaps across 8 exchanges — continues scanning for opportunities
+            Arbitrage is a game of timing. Watch for a spread, move fast before it clears — most opportunities last only minutes.
           </p>
           {metadata.lastUpdate && (
             <div className="flex items-center gap-4 mt-2">
@@ -835,7 +836,7 @@ const CryptoArbitrage = () => {
               {pastMeta.clearedCount} Cleared
             </span>
             <button
-              onClick={() => fetchPastOpportunities(pastFilter, pastPage)}
+              onClick={() => fetchPastOpportunities(pastFilter, pastPage, pastTransferFilter)}
               disabled={pastLoading}
               className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
@@ -844,25 +845,54 @@ const CryptoArbitrage = () => {
           </div>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1 p-1 mb-4 bg-gray-100 rounded-lg dark:bg-brandDark-800 w-fit">
-          {[
-            { key: 'all',     label: 'All' },
-            { key: 'active',  label: 'Active' },
-            { key: 'cleared', label: 'Cleared' },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => { setPastFilter(tab.key); setPastPage(1); }}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                pastFilter === tab.key
-                  ? 'bg-white dark:bg-brandDark-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Filter row */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          {/* Status tabs */}
+          <div className="flex gap-1 p-1 bg-gray-100 rounded-lg dark:bg-brandDark-800">
+            {[
+              { key: 'all',     label: 'All' },
+              { key: 'active',  label: 'Active' },
+              { key: 'cleared', label: 'Cleared' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => { setPastFilter(tab.key); setPastPage(1); }}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  pastFilter === tab.key
+                    ? 'bg-white dark:bg-brandDark-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Transfer status filter */}
+          <div className="flex gap-1 p-1 bg-gray-100 rounded-lg dark:bg-brandDark-800">
+            {[
+              { key: 'all',        label: 'Any Transfer' },
+              { key: 'Verified',   label: '✓ Verified' },
+              { key: 'Blocked',    label: '✗ Blocked' },
+              { key: 'Unknown',    label: '? Unknown' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => { setPastTransferFilter(tab.key); setPastPage(1); }}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                  pastTransferFilter === tab.key
+                    ? tab.key === 'Verified'
+                      ? 'bg-green-500 text-white shadow-sm'
+                      : tab.key === 'Blocked'
+                        ? 'bg-red-500 text-white shadow-sm'
+                        : 'bg-white dark:bg-brandDark-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Email alert banner — premium gets active alerts, free gets upgrade nudge */}
