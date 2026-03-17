@@ -346,7 +346,7 @@ export default function EarlyAlpha() {
 
       {/* ── Category filter tabs ────────────────────────────────────── */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {FILTERS.map(f => {
+        {FILTERS.filter(f => isPremium || f !== 'favorites').map(f => {
           const meta = CATEGORY_META[f];
           const isFavTab = f === 'favorites';
           const label = isFavTab ? 'Favorites' : (f === 'all' ? 'All' : (meta?.label || f));
@@ -373,8 +373,22 @@ export default function EarlyAlpha() {
         })}
       </div>
 
-      {/* ── Premium gate (non-premium only) ────────────────────────── */}
-      {!isPremium && <PremiumGate />}
+      {/* ── Free-tier nudge (shows 3 preview cards above, this drives upgrade) */}
+      {!isPremium && (
+        <div className="flex items-center gap-3 rounded-xl border border-orange-500/30 bg-orange-500/8 px-4 py-3">
+          <Lock className="h-4 w-4 flex-shrink-0 text-orange-400" />
+          <p className="flex-1 text-xs text-orange-300/90">
+            <span className="font-semibold text-orange-300">Free preview — 3 signals shown.</span>{' '}
+            Score, analysis, and full signal feed are Premium-only.
+          </p>
+          <Link
+            to="/pricing"
+            className="flex-shrink-0 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-400 transition-colors whitespace-nowrap"
+          >
+            Upgrade →
+          </Link>
+        </div>
+      )}
 
       {/* ── Error ──────────────────────────────────────────────────── */}
       {error && (
