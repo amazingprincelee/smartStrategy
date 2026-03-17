@@ -189,9 +189,10 @@ const CryptoArbitrage = () => {
   };
 
   const getTransferBadge = (status) => {
-    if (status === 'Verified') return { color: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300', icon: CheckCircle };
-    if (status === 'Blocked') return { color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: XCircle };
-    return { color: 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300', icon: Info };
+    if (status === 'Verified')   return { color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',   icon: CheckCircle, label: 'Verified'  };
+    if (status === 'Blocked')    return { color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',           icon: XCircle,     label: 'Blocked'   };
+    if (status === 'Unverified') return { color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300', icon: Info,       label: 'Check'     };
+    return { color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', icon: Info, label: 'Unknown' };
   };
 
   return (
@@ -784,17 +785,10 @@ const CryptoArbitrage = () => {
                         </td>
 
                         <td className="px-4 py-4 text-center whitespace-nowrap">
-                          {opp.transferStatus ? (
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${transferBadge.color}`}>
-                              <TransferIcon className="w-3 h-3" />
-                              {opp.transferStatus}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full dark:bg-gray-800 dark:text-gray-400">
-                              <Info className="w-3 h-3" />
-                              N/A
-                            </span>
-                          )}
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${transferBadge.color}`}>
+                            <TransferIcon className="w-3 h-3" />
+                            {transferBadge.label}
+                          </span>
                         </td>
 
                         <td className="px-4 py-4 text-center whitespace-nowrap">
@@ -917,6 +911,7 @@ const CryptoArbitrage = () => {
                   <th className="px-4 py-3 text-xs font-semibold tracking-wider text-right text-gray-500 uppercase">Peak Profit</th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-wider text-right text-gray-500 uppercase">Expected $</th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-500 uppercase">Risk</th>
+                  <th className="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-500 uppercase">Transfer</th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">First Detected</th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Last Seen / Cleared</th>
@@ -976,6 +971,27 @@ const CryptoArbitrage = () => {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRiskBadgeColor(opp.riskLevel)}`}>
                           {opp.riskLevel || 'Medium'}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        {isGated ? (
+                          <Lock className="w-3.5 h-3.5 text-amber-500/60 mx-auto" />
+                        ) : opp.transferStatus === 'Verified' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                            ✓ Verified
+                          </span>
+                        ) : opp.transferStatus === 'Blocked' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+                            ✗ Blocked
+                          </span>
+                        ) : opp.transferStatus === 'Unverified' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400">
+                            ! Check
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                            ? Unknown
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         {isGated

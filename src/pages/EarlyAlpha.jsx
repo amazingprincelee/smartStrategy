@@ -262,6 +262,15 @@ export default function EarlyAlpha() {
     load(activeFilter);
   }, []);
 
+  // Auto-refresh every 5 minutes — keeps signal data and stats current
+  useEffect(() => {
+    const interval = setInterval(() => {
+      dispatch(fetchAlphaStats());
+      load(activeFilter);
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [activeFilter]);
+
   const handleFilter = (cat) => {
     setActiveFilter(cat);
     load(cat);
