@@ -90,7 +90,7 @@ function PremiumGate() {
 }
 
 /* ── Signal card ──────────────────────────────────────────────────── */
-function AlphaCard({ signal, gated, isFavorited, onToggleFavorite, onAnalyze }) {
+function AlphaCard({ signal, gated, livePrice, isFavorited, onToggleFavorite, onAnalyze }) {
   const meta = CATEGORY_META[signal.category] || CATEGORY_META.trending;
   const CatIcon = meta.icon;
 
@@ -113,6 +113,12 @@ function AlphaCard({ signal, gated, isFavorited, onToggleFavorite, onAnalyze }) 
           <EyeOff className="h-4 w-4 text-gray-500 flex-shrink-0" />
           <span className="text-xs text-gray-500">Score & details hidden — upgrade to see</span>
         </div>
+        {livePrice != null && (
+          <p className="text-xs font-mono text-gray-300">
+            Now: <span className="text-white font-semibold">${fmt(livePrice, livePrice < 0.01 ? 6 : livePrice < 1 ? 4 : 2)}</span>
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse ml-1 align-middle" />
+          </p>
+        )}
         {signal.priceChange != null && (
           <p className={`text-xs font-medium ${signal.priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             24h: {fmtPct(signal.priceChange)}
@@ -162,6 +168,41 @@ function AlphaCard({ signal, gated, isFavorited, onToggleFavorite, onAnalyze }) 
       <span className={`self-start rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.bg} ${meta.color}`}>
         {meta.label}
       </span>
+
+      {/* Price row — detected vs live */}
+      {(signal.price != null || livePrice != null) && (() => {
+        const detected = signal.price;
+        const priceMovePercent = (detected && livePrice)
+          ? ((livePrice - detected) / detected) * 100
+          : null;
+        return (
+          <div className="rounded-lg bg-white/4 border border-white/8 px-3 py-2 flex items-center justify-between gap-2 text-xs">
+            <div>
+              <p className="text-gray-500 mb-0.5">Detected @</p>
+              <p className="font-mono font-semibold text-gray-300">
+                {detected != null ? `$${fmt(detected, detected < 0.01 ? 6 : detected < 1 ? 4 : 2)}` : '—'}
+              </p>
+            </div>
+            <div className="text-gray-700">→</div>
+            <div className="text-right">
+              <p className="text-gray-500 mb-0.5 flex items-center justify-end gap-1">
+                Now
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              </p>
+              <p className={`font-mono font-semibold ${livePrice != null ? 'text-white' : 'text-gray-600'}`}>
+                {livePrice != null ? `$${fmt(livePrice, livePrice < 0.01 ? 6 : livePrice < 1 ? 4 : 2)}` : '—'}
+              </p>
+            </div>
+            {priceMovePercent != null && (
+              <span className={`ml-auto font-bold text-xs px-2 py-0.5 rounded-full ${
+                priceMovePercent >= 0 ? 'text-green-400 bg-green-500/15' : 'text-red-400 bg-red-500/15'
+              }`}>
+                {priceMovePercent >= 0 ? '+' : ''}{priceMovePercent.toFixed(2)}%
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Market data */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -248,6 +289,9 @@ export default function EarlyAlpha() {
 
   const isPremium = userRole === 'admin' || userRole === 'premium';
 
+  // Live prices come via Socket.IO → Redux (server broadcasts every 30s)
+  const livePrices = useSelector(s => s.alpha.livePrices);
+
   const load = (cat) => {
     if (cat === 'favorites') {
       dispatch(fetchAlphaFavorites());
@@ -258,11 +302,11 @@ export default function EarlyAlpha() {
 
   useEffect(() => {
     dispatch(fetchAlphaStats());
-    dispatch(fetchAlphaFavorites()); // load favorite IDs on mount for heart icons
+    dispatch(fetchAlphaFavorites());
     load(activeFilter);
   }, []);
 
-  // Auto-refresh every 5 minutes — keeps signal data and stats current
+  // Auto-refresh signal data every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       dispatch(fetchAlphaStats());
@@ -443,6 +487,7 @@ export default function EarlyAlpha() {
                   key={sig._id}
                   signal={sig}
                   gated={sig.gated}
+                  livePrice={livePrices[sig.symbol] ?? null}
                   isFavorited={favoriteIds.includes(sig._id?.toString())}
                   onToggleFavorite={handleToggleFavorite}
                   onAnalyze={setInspectorSignal}

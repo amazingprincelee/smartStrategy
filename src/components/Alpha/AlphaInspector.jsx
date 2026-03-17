@@ -295,15 +295,18 @@ export default function AlphaInspector({ signal, onClose }) {
               </SectionCard>
 
               {/* ── 4. Pattern Score ─────────────────────────────────── */}
-              <SectionCard title="Pattern Entry Score" icon={Activity}>
+              <SectionCard title="Historical Signal Quality" icon={Activity}>
+                <p className="text-[10px] text-gray-500 dark:text-gray-500 mb-2">
+                  How this signal compares to past signals in the same category (last 30 days). Not a current timing indicator.
+                </p>
                 <div className="mb-3">
                   <div className="flex items-end justify-between mb-1.5">
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">Entry Confidence</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">Category Strength</p>
                     <span className={`text-[10px] font-bold ${
                       analysis.patternScore >= 70 ? 'text-green-400' :
                       analysis.patternScore >= 50 ? 'text-yellow-400' : 'text-red-400'
                     }`}>
-                      {analysis.patternScore >= 70 ? 'HIGH' : analysis.patternScore >= 50 ? 'MEDIUM' : 'LOW'}
+                      {analysis.patternScore >= 70 ? 'STRONG' : analysis.patternScore >= 50 ? 'AVERAGE' : 'WEAK'}
                     </span>
                   </div>
                   <ScoreBar value={analysis.patternScore} colorClass={patternBarColor} />

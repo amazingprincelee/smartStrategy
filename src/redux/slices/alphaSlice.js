@@ -74,6 +74,7 @@ const alphaSlice = createSlice({
     loading:  false,
     favLoading: false,
     error:    null,
+    livePrices:      {},   // { OGNUSDT: 0.0123, ... } — pushed via Socket.IO
     analysis:        null,
     analysisLoading: false,
     analysisError:   null,
@@ -82,6 +83,10 @@ const alphaSlice = createSlice({
     addLiveAlphaSignal(state, action) {
       const exists = state.signals.some(s => s._id === action.payload._id);
       if (!exists) state.signals.unshift(action.payload);
+    },
+    updateAlphaLivePrices(state, action) {
+      // Merge incoming prices — only update keys present in payload
+      state.livePrices = { ...state.livePrices, ...action.payload };
     },
     clearAlphaAnalysis(state) {
       state.analysis = null;
@@ -135,5 +140,5 @@ const alphaSlice = createSlice({
   },
 });
 
-export const { addLiveAlphaSignal, clearAlphaAnalysis } = alphaSlice.actions;
+export const { addLiveAlphaSignal, updateAlphaLivePrices, clearAlphaAnalysis } = alphaSlice.actions;
 export default alphaSlice.reducer;
