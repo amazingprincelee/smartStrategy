@@ -68,6 +68,30 @@ export const updateAdminSettings = createAsyncThunk(
   }
 );
 
+export const fetchPaymentKeyStatus = createAsyncThunk(
+  'admin/paymentKeys/status',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/admin/payment-keys/status');
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const savePaymentKeys = createAsyncThunk(
+  'admin/paymentKeys/save',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.put('/admin/payment-keys', payload);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 export const adminActivateUser = createAsyncThunk(
   'admin/activateUser',
   async ({ userId, days }, { rejectWithValue }) => {

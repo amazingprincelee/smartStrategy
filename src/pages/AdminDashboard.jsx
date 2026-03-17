@@ -4,7 +4,7 @@ import {
   Users, DollarSign, Activity, Settings, LifeBuoy,
   BarChart2, Shield, Mail, CheckCircle, XCircle,
   AlertTriangle, Trash2, Gift, TrendingUp, Send,
-  Megaphone, Eye, Loader, ArrowDownCircle, Clock,
+  Megaphone, Eye, EyeOff, Loader, ArrowDownCircle, Clock, Key,
 } from 'lucide-react';
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminSubscriptions,
@@ -12,7 +12,7 @@ import {
   adminGrantTrial, adminUpdateUser, adminDeleteUser,
   fetchRevenueAnalytics, fetchUserAnalytics, fetchPlatformAnalytics,
   fetchAuditLogs, sendTargetedEmail, updateAnnouncement,
-  clearAdminAction,
+  clearAdminAction, fetchPaymentKeyStatus, savePaymentKeys,
 } from '../redux/slices/adminSlice';
 import { adminFetchAllTickets, adminFetchTicket, adminReplyTicket } from '../redux/slices/supportSlice';
 import { adminFetchWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal, adminMarkPaid } from '../redux/slices/withdrawalSlice';
@@ -696,6 +696,174 @@ function AuditTab({ auditLogs, auditTotal, loading, dispatch }) {
   );
 }
 
+// ── Payment Keys Tab ──────────────────────────────────────────────────────────
+function PaymentKeysTab({ dispatch }) {
+  const [status, setStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved]   = useState('');
+  const [error, setError]   = useState('');
+  const [show, setShow]     = useState({});
+  const [keys, setKeys]     = useState({
+    nowpaymentsApiKey: '', nowpaymentsIpnSecret: '',
+    coinbaseApiKey: '', coinbaseWebhookSecret: '',
+    cryptopayApiKey: '', cryptopayApiSecret: '', cryptopayCallbackSecret: '',
+  });
+
+  useEffect(() => {
+    dispatch(fetchPaymentKeyStatus()).then(r => { if (r.payload) setStatus(r.payload); });
+  }, [dispatch]);
+
+  const toggle = f => setShow(s => ({ ...s, [f]: !s[f] }));
+
+  const handleSave = async (provider, fields) => {
+    setSaving(true); setSaved(''); setError('');
+    const payload = {};
+    fields.forEach(f => { if (keys[f]) payload[f] = keys[f]; });
+    const r = await dispatch(savePaymentKeys(payload));
+    setSaving(false);
+    if (r.payload?.success) {
+      setSaved(`${provider} keys saved`);
+      const r2 = await dispatch(fetchPaymentKeyStatus());
+      if (r2.payload) setStatus(r2.payload);
+      // clear inputs
+      const cleared = {};
+      fields.forEach(f => { cleared[f] = ''; });
+      setKeys(k => ({ ...k, ...cleared }));
+    } else {
+      setError(r.payload || 'Save failed');
+    }
+  };
+
+  const StatusDot = ({ ok }) => (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${ok ? 'bg-green-500/15 text-green-400' : 'bg-gray-500/15 text-gray-400'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-green-400' : 'bg-gray-500'}`} />
+      {ok ? 'Configured' : 'Not set'}
+    </span>
+  );
+
+  const KeyField = ({ label, field, placeholder }) => (
+    <div>
+      <label className="text-xs text-gray-400 mb-1.5 block">{label}</label>
+      <div className="relative">
+        <input
+          type={show[field] ? 'text' : 'password'}
+          value={keys[field]}
+          onChange={e => setKeys(k => ({ ...k, [field]: e.target.value }))}
+          placeholder={placeholder || 'Paste key here…'}
+          className="w-full bg-[#0f172a] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-gray-200 pr-10 focus:outline-none focus:border-blue-500 placeholder-gray-600"
+        />
+        <button type="button" onClick={() => toggle(field)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+          {show[field] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+    </div>
+  );
+
+  const providers = [
+    {
+      id: 'nowpayments',
+      name: 'NOWPayments',
+      color: 'from-blue-600/20 to-blue-700/10',
+      border: 'border-blue-500/20',
+      badge: 'bg-blue-500/10 text-blue-300',
+      guide: 'account.nowpayments.io → Settings → API Keys → Generate Key',
+      guideLink: 'https://account.nowpayments.io/api-keys',
+      fields: [
+        { label: 'API Key', field: 'nowpaymentsApiKey', placeholder: 'Your NOWPayments API key' },
+        { label: 'IPN Secret', field: 'nowpaymentsIpnSecret', placeholder: 'Your IPN secret for webhooks' },
+      ],
+      status: status?.nowpayments,
+      statusFields: [{ label: 'API Key', ok: status?.nowpayments?.apiKey }, { label: 'IPN Secret', ok: status?.nowpayments?.ipnSecret }],
+      saveFields: ['nowpaymentsApiKey', 'nowpaymentsIpnSecret'],
+    },
+    {
+      id: 'coinbase',
+      name: 'Coinbase Commerce',
+      color: 'from-blue-500/20 to-indigo-700/10',
+      border: 'border-indigo-500/20',
+      badge: 'bg-indigo-500/10 text-indigo-300',
+      guide: 'commerce.coinbase.com → Settings → API Keys → Create API key',
+      guideLink: 'https://commerce.coinbase.com/dashboard/settings',
+      fields: [
+        { label: 'API Key', field: 'coinbaseApiKey', placeholder: 'Your Coinbase Commerce API key' },
+        { label: 'Webhook Secret', field: 'coinbaseWebhookSecret', placeholder: 'Webhook shared secret' },
+      ],
+      status: status?.coinbase,
+      statusFields: [{ label: 'API Key', ok: status?.coinbase?.apiKey }, { label: 'Webhook Secret', ok: status?.coinbase?.webhookSecret }],
+      saveFields: ['coinbaseApiKey', 'coinbaseWebhookSecret'],
+    },
+    {
+      id: 'cryptopay',
+      name: 'CryptoPay',
+      color: 'from-purple-600/20 to-purple-700/10',
+      border: 'border-purple-500/20',
+      badge: 'bg-purple-500/10 text-purple-300',
+      guide: 'business.cryptopay.me → Settings → API → Create credentials',
+      guideLink: 'https://business.cryptopay.me/settings/api',
+      fields: [
+        { label: 'API Key', field: 'cryptopayApiKey', placeholder: 'Your CryptoPay API key' },
+        { label: 'API Secret', field: 'cryptopayApiSecret', placeholder: 'Your CryptoPay API secret' },
+        { label: 'Callback Secret', field: 'cryptopayCallbackSecret', placeholder: 'Webhook callback secret' },
+      ],
+      status: status?.cryptopay,
+      statusFields: [
+        { label: 'API Key', ok: status?.cryptopay?.apiKey },
+        { label: 'API Secret', ok: status?.cryptopay?.apiSecret },
+        { label: 'Callback Secret', ok: status?.cryptopay?.callbackSecret },
+      ],
+      saveFields: ['cryptopayApiKey', 'cryptopayApiSecret', 'cryptopayCallbackSecret'],
+    },
+  ];
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <p className="text-base font-semibold text-white">Payment Gateway Keys</p>
+        <p className="text-xs text-gray-500 mt-1">Keys are stored encrypted in the database. Leave a field blank to keep the existing value. Fields are masked for security.</p>
+      </div>
+
+      {saved && <p className="text-sm text-green-400 flex items-center gap-2"><CheckCircle className="w-4 h-4" />{saved}</p>}
+      {error && <p className="text-sm text-red-400 flex items-center gap-2"><XCircle className="w-4 h-4" />{error}</p>}
+
+      {providers.map(p => (
+        <div key={p.id} className={`rounded-2xl border ${p.border} bg-gradient-to-br ${p.color} p-5 space-y-4`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${p.badge}`}>{p.name}</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {p.statusFields?.map(sf => (
+                <div key={sf.label} className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">{sf.label}:</span>
+                  <StatusDot ok={sf.ok} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-black/20 rounded-lg px-3 py-2 flex items-center justify-between">
+            <p className="text-xs text-gray-400">{p.guide}</p>
+            <a href={p.guideLink} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300 underline ml-3 whitespace-nowrap">Open →</a>
+          </div>
+
+          <div className="space-y-3">
+            {p.fields.map(f => <KeyField key={f.field} {...f} />)}
+          </div>
+
+          <button
+            onClick={() => handleSave(p.name, p.saveFields)}
+            disabled={saving || p.saveFields.every(f => !keys[f])}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 transition-colors"
+          >
+            {saving ? <Loader className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+            Save {p.name} Keys
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Settings Tab ──────────────────────────────────────────────────────────────
 function SettingsTab({ settings, loading, dispatch, actionSuccess, error }) {
   const [form, setForm] = useState({});
@@ -827,6 +995,7 @@ const TABS = [
   { key:'broadcast',     label:'Broadcast',     icon: Mail },
   { key:'analytics',     label:'Analytics',     icon: Activity },
   { key:'audit',         label:'Audit Log',     icon: Shield },
+  { key:'payment-keys',  label:'Payment Keys',  icon: Key },
   { key:'settings',      label:'Settings',      icon: Settings },
 ];
 
@@ -898,6 +1067,7 @@ export default function AdminDashboard() {
           {tab==='broadcast'     && <BroadcastTab dispatch={dispatch} loading={loading} actionSuccess={actionSuccess} error={error} />}
           {tab==='analytics'     && <AnalyticsTab rev={rev} ua={ua} pa={pa} loading={loading} dispatch={dispatch} />}
           {tab==='audit'         && <AuditTab auditLogs={auditLogs} auditTotal={auditTotal} loading={loading} dispatch={dispatch} />}
+          {tab==='payment-keys'  && <PaymentKeysTab dispatch={dispatch} />}
           {tab==='settings'      && <SettingsTab settings={settings} loading={loading} dispatch={dispatch} actionSuccess={actionSuccess} error={error} />}
         </div>
 

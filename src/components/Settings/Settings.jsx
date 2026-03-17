@@ -34,6 +34,7 @@ import {
   removeAccount,
   fetchAccountBalance,
 } from '../../redux/slices/exchangeAccountSlice';
+import ExchangeApiGuide from './ExchangeApiGuide';
 
 // ─── component ────────────────────────────────────────────────────────────────
 const Settings = () => {
@@ -50,6 +51,7 @@ const Settings = () => {
   } = useSelector((state) => state.exchangeAccounts);
 
   const [activeTab, setActiveTab] = useState('appearance');
+  const [showApiGuide, setShowApiGuide] = useState(false);
 
   // Theme local state (mirrors DB value, applied immediately)
   const [localTheme, setLocalTheme] = useState(
@@ -306,17 +308,26 @@ const Settings = () => {
       ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'exchange_api' && (
         <div className="space-y-5">
-          {/* Security notice */}
+          {/* Security notice + guide button */}
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
             <Shield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
+            <div className="flex-1">
               <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Security reminder</p>
               <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
                 Only grant <strong>Read + Trade</strong> permissions — <strong>never</strong> withdrawal.
                 Use IP whitelisting on your exchange for extra protection. Keys are encrypted at rest.
               </p>
             </div>
+            <button
+              onClick={() => setShowApiGuide(true)}
+              className="flex-shrink-0 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <Info className="w-3.5 h-3.5" />
+              How to get API keys
+            </button>
           </div>
+
+          {showApiGuide && <ExchangeApiGuide onClose={() => setShowApiGuide(false)} />}
 
           {/* Connected accounts card */}
           <div className="card">

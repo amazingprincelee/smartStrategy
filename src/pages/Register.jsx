@@ -49,10 +49,13 @@ const Register = () => {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
   });
+
+  const termsAccepted = watch('acceptTerms');
 
   const onSubmit = async (data) => {
     try {
@@ -203,32 +206,41 @@ const Register = () => {
           </div>
 
           {/* Terms Acceptance */}
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
-              <input
-                {...register('acceptTerms')}
-                type="checkbox"
-                className="w-4 h-4 bg-white border-gray-300 rounded text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-brandDark-800"
-              />
-            </div>
-            <div className="ml-3 text-sm">
-              <label className="text-gray-700 dark:text-gray-300">
-                I agree to the{' '}
-                <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
+          <div className={`rounded-xl border p-4 transition-colors ${errors.acceptTerms ? 'border-red-500/50 bg-red-500/5' : 'border-white/10 bg-white/5'}`}>
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <div className="relative mt-0.5 flex-shrink-0">
+                <input
+                  {...register('acceptTerms')}
+                  type="checkbox"
+                  className="sr-only"
+                />
+                <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${termsAccepted ? 'bg-blue-600 border-blue-600' : 'bg-transparent border-gray-600 group-hover:border-blue-400'}`}>
+                  {termsAccepted && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <span className="text-sm text-gray-300 leading-relaxed">
+                I have read and agree to the{' '}
+                <Link to="/terms" target="_blank" className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors">
                   Terms of Service
-                </a>{' '}
+                </Link>{' '}
                 and{' '}
-                <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
+                <Link to="/privacy" target="_blank" className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors">
                   Privacy Policy
-                </a>
-              </label>
-            </div>
+                </Link>
+                . I understand that SmartStrategy provides informational signals only and is not financial advice.
+              </span>
+            </label>
+            {errors.acceptTerms && (
+              <p className="mt-2 text-xs text-red-400 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                {errors.acceptTerms.message}
+              </p>
+            )}
           </div>
-          {errors.acceptTerms && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.acceptTerms.message}
-            </p>
-          )}
 
           {/* Error Display */}
           {error && (
