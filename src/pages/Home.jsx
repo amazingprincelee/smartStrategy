@@ -310,10 +310,10 @@ const Home = () => {
       <section className="py-12 bg-white border-b border-gray-100 dark:bg-brandDark-900 dark:border-brandDark-700">
         <div className="container px-4 mx-auto sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-            <StatCard value={stats ? `${stats.totalBots?.toLocaleString() ?? 0}+` : '500+'} label="Bots Created"        color="text-cyan-500"   loading={statsLoading && !stats} />
-            <StatCard value={stats ? `${stats.activeSignals ?? 18}`                : '18'}   label="Active Signals Now" color="text-green-500"  loading={statsLoading && !stats} />
-            <StatCard value="6"                                                               label="Trading Strategies" color="text-purple-500" loading={false} />
-            <StatCard value={stats ? `${stats.supportedExchanges}+`               : '10+'}  label="Supported Exchanges" color="text-blue-500"  loading={statsLoading && !stats} />
+            <StatCard value={stats ? `${stats.totalBots?.toLocaleString() ?? 0}+`  : '–'}    label="Bots Created"         color="text-cyan-500"   loading={statsLoading && !stats} />
+            <StatCard value={stats ? `${stats.activeSignals ?? 0}`                 : '–'}    label="Signals Today"        color="text-green-500"  loading={statsLoading && !stats} />
+            <StatCard value={stats ? `${stats.alphaSignals ?? 0}`                  : '–'}    label="Alpha Alerts Today"   color="text-purple-500" loading={statsLoading && !stats} />
+            <StatCard value={stats ? `${stats.supportedExchanges}+`                : '10+'}  label="Supported Exchanges"  color="text-blue-500"   loading={statsLoading && !stats} />
           </div>
         </div>
       </section>
@@ -554,26 +554,26 @@ const Home = () => {
       </section>
 
       {/* ── FINAL CTA ────────────────────────────────────────────────── */}
-      <section className="relative py-20 overflow-hidden bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700">
-        <div className="absolute inset-0 bg-black/10" />
-        <div className="absolute top-0 right-0 rounded-full w-72 h-72 bg-white/5 blur-3xl" />
+      <section className="relative py-20 overflow-hidden bg-gray-950 dark:bg-brandDark-900 border-t border-white/5">
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/20 via-blue-900/20 to-indigo-900/20" />
+        <div className="absolute top-0 right-0 rounded-full w-72 h-72 bg-cyan-500/5 blur-3xl" />
         <div className="container relative px-4 mx-auto text-center">
           <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
             Start Automating Your Trades Today
           </h2>
-          <p className="max-w-2xl mx-auto mb-8 text-lg text-white/80">
+          <p className="max-w-2xl mx-auto mb-8 text-lg text-gray-400">
             Join traders who run bots 24/7, catch every signal, and never miss a market move.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
               onClick={handleGetStarted}
-              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-white text-blue-700 font-semibold text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-base shadow-lg hover:shadow-cyan-500/30 hover:scale-105 transition-all duration-200"
             >
               Create Free Account <ArrowRight className="w-5 h-5" />
             </button>
             <Link
               to="/strategies"
-              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border-2 border-white/40 text-white font-semibold text-base hover:bg-white/10 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border border-white/20 text-gray-300 font-semibold text-base hover:bg-white/5 transition-colors"
             >
               <BarChart2 className="w-5 h-5" />
               Browse Strategies
