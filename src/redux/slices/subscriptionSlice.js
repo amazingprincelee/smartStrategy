@@ -7,7 +7,7 @@ export const createCheckout = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await authAPI.post('/payments/checkout');
-      return res.data.data; // { chargeId, paymentUrl, provider, amountUSD }
+      return res.data.data; // { paymentUrl, provider } OR { activated: true, creditsApplied, expiresAt }
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -59,9 +59,10 @@ const subscriptionSlice = createSlice({
     statusError:     null,
 
     // Public plan settings
-    premiumPriceUSD:     20,
+    premiumPriceUSD:     29,
     premiumDurationDays: 30,
-    referralRewardUSD:   5,
+    referralRewardPercent: 25,
+    referralRewardUSD:     5,
   },
   reducers: {
     clearCheckout: (state) => {
@@ -75,7 +76,8 @@ const subscriptionSlice = createSlice({
       .addCase(fetchPublicSettings.fulfilled, (state, action) => {
         state.premiumPriceUSD     = action.payload.premiumPriceUSD     ?? 20;
         state.premiumDurationDays = action.payload.premiumDurationDays ?? 30;
-        state.referralRewardUSD   = action.payload.referralRewardUSD   ?? 5;
+        state.referralRewardPercent = action.payload.referralRewardPercent ?? 25;
+        state.referralRewardUSD     = action.payload.referralRewardUSD     ?? 5;
       });
 
     builder
@@ -86,8 +88,14 @@ const subscriptionSlice = createSlice({
       })
       .addCase(createCheckout.fulfilled, (state, action) => {
         state.checkoutLoading  = false;
-        state.checkoutUrl      = action.payload.paymentUrl;
-        state.checkoutProvider = action.payload.provider;
+        if (action.payload.activated) {
+          // Credits covered the full price — already activated
+          state.isPremium    = true;
+          state.checkoutUrl  = null;
+        } else {
+          state.checkoutUrl      = action.payload.paymentUrl;
+          state.checkoutProvider = action.payload.provider;
+        }
       })
       .addCase(createCheckout.rejected, (state, action) => {
         state.checkoutLoading = false;

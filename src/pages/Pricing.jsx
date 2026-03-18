@@ -53,7 +53,7 @@ export default function Pricing() {
   const { token } = useSelector(s => s.auth);
   const isAuthenticated = !!token;
   const { isPremium, subscription, checkoutUrl, checkoutLoading, checkoutError,
-          premiumPriceUSD, premiumDurationDays, referralRewardUSD } =
+          premiumPriceUSD, premiumDurationDays, referralRewardUSD, referralRewardPercent } =
     useSelector(s => s.subscription);
 
   useEffect(() => {
@@ -65,6 +65,14 @@ export default function Pricing() {
   useEffect(() => {
     if (checkoutUrl) window.location.href = checkoutUrl;
   }, [checkoutUrl]);
+
+  // Credits covered full cost — premium activated without payment
+  useEffect(() => {
+    if (!checkoutLoading && !checkoutUrl && isPremium && !checkoutError) {
+      // If we just activated via credits, refresh subscription status
+      dispatch(fetchSubscriptionStatus());
+    }
+  }, [isPremium]);
 
   const handleSubscribe = () => {
     if (!isAuthenticated) { navigate('/login'); return; }
@@ -179,7 +187,7 @@ export default function Pricing() {
                 <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Gift className="w-3 h-3 text-orange-400" />
                 </div>
-                <span className="text-orange-300 font-medium">${referralRewardUSD} credit for every friend who subscribes</span>
+                <span className="text-orange-300 font-medium">{referralRewardPercent}% credit (${referralRewardUSD}) for every friend who subscribes</span>
               </li>
             </ul>
 
@@ -209,8 +217,8 @@ export default function Pricing() {
             <Gift className="w-6 h-6 text-orange-400" />
           </div>
           <div className="flex-1 text-center sm:text-left">
-            <p className="font-bold text-white text-base mb-0.5">Earn ${referralRewardUSD} for every friend you refer</p>
-            <p className="text-gray-400 text-sm">Share your unique referral link. When your friend subscribes to Premium, you get a ${referralRewardUSD} credit applied to your next renewal — automatically.</p>
+            <p className="font-bold text-white text-base mb-0.5">Earn {referralRewardPercent}% off your next renewal</p>
+            <p className="text-gray-400 text-sm">Share your referral link. When your friend subscribes, you get a {referralRewardPercent}% credit (${referralRewardUSD} on the current plan) — automatically deducted from your next payment. One bonus per referred user.</p>
           </div>
           {isAuthenticated
             ? <Link to="/profile" className="flex-shrink-0 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-300 font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap">

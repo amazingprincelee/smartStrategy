@@ -84,7 +84,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">6. Subscriptions & Payments</h2>
             <ul className="list-disc list-inside space-y-2 text-gray-300">
-              <li>Premium subscriptions are priced at $20/month, paid in cryptocurrency</li>
+              <li>Premium subscriptions are priced at $29/month, paid in cryptocurrency</li>
               <li>Each payment grants 30 days of premium access from the payment date</li>
               <li>Subscriptions are <span className="text-white font-medium">not auto-renewed</span> — you choose to renew manually</li>
               <li>All payments are <span className="text-white font-medium">non-refundable</span> once premium access has been granted, given the digital nature of the service</li>

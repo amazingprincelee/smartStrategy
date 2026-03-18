@@ -873,9 +873,9 @@ function SettingsTab({ settings, loading, dispatch, actionSuccess, error }) {
     if (!settings) return;
     setForm({
       activePaymentProvider:   settings.activePaymentProvider   ?? 'coinbase_commerce',
-      premiumPriceUSD:         settings.premiumPriceUSD         ?? 20,
+      premiumPriceUSD:         settings.premiumPriceUSD         ?? 29,
       premiumDurationDays:     settings.premiumDurationDays     ?? 30,
-      referralRewardUSD:       settings.referralRewardUSD       ?? 5,
+      referralRewardPercent:   settings.referralRewardPercent   ?? 25,
       freeSignalsPerDay:       settings.freeSignalsPerDay       ?? 2,
       freeSignalMaxConfidence: settings.freeSignalMaxConfidence ?? 0.60,
       freeArbitrageLimit:      settings.freeArbitrageLimit      ?? 5,
@@ -922,7 +922,7 @@ function SettingsTab({ settings, loading, dispatch, actionSuccess, error }) {
 
         {numField('premiumPriceUSD',        'Premium Price (USD)',       1)}
         {numField('premiumDurationDays',    'Premium Duration (days)',   1)}
-        {numField('referralRewardUSD',      'Referral Reward (USD)',     0)}
+        {numField('referralRewardPercent',   'Referral Reward (%)',       0)}
         {numField('freeTrialDays',          'Free Trial Default (days)', 1)}
         {numField('minWithdrawalAmount',    'Min Withdrawal (USD)',      1)}
         {numField('freeSignalsPerDay',      'Free Signals / Day',        0)}
