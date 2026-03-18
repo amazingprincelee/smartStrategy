@@ -28,7 +28,7 @@ import {
   clearUserMessages,
 } from '../redux/slices/userSlice';
 import { logout } from '../redux/slices/authSlice';
-import { fetchSubscriptionStatus } from '../redux/slices/subscriptionSlice';
+import { fetchSubscriptionStatus, fetchPublicSettings } from '../redux/slices/subscriptionSlice';
 import {
   requestWithdrawal, fetchUserWithdrawals, clearWithdrawalState,
 } from '../redux/slices/withdrawalSlice';
@@ -56,7 +56,8 @@ const Profile = () => {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const { profile, loading, error, successMessage } = useSelector(state => state.user);
-  const { isPremium, subscription, referral, credits, paymentHistory, statusLoading } =
+  const { isPremium, subscription, referral, credits, paymentHistory, statusLoading,
+          premiumPriceUSD } =
     useSelector(state => state.subscription);
   const { myWithdrawals, loading: wLoading, error: wError, success: wSuccess } =
     useSelector(state => state.withdrawals);
@@ -87,6 +88,7 @@ const Profile = () => {
   useEffect(() => {
     dispatch(fetchUserProfile());
     dispatch(fetchSubscriptionStatus());
+    dispatch(fetchPublicSettings());
     dispatch(fetchUserWithdrawals());
   }, [dispatch]);
 
@@ -539,7 +541,7 @@ const Profile = () => {
                   <div className="text-sm space-y-3">
                     <p className="text-gray-500 dark:text-gray-400">You are on the <strong>Free</strong> plan.</p>
                     <Link to="/pricing" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition">
-                      <Crown className="w-4 h-4" /> Upgrade to Premium — $20/mo
+                      <Crown className="w-4 h-4" /> Upgrade to Premium — ${premiumPriceUSD}/mo
                     </Link>
                   </div>
                 )}

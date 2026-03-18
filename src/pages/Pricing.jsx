@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
-import { createCheckout, fetchSubscriptionStatus, clearCheckout } from '../redux/slices/subscriptionSlice';
+import { createCheckout, fetchSubscriptionStatus, clearCheckout, fetchPublicSettings } from '../redux/slices/subscriptionSlice';
 import { Check, X, Gift, Zap, Shield, Clock } from 'lucide-react';
 
 const FREE_FEATURES = [
@@ -52,10 +52,12 @@ export default function Pricing() {
   const navigate = useNavigate();
   const { token } = useSelector(s => s.auth);
   const isAuthenticated = !!token;
-  const { isPremium, subscription, checkoutUrl, checkoutLoading, checkoutError } =
+  const { isPremium, subscription, checkoutUrl, checkoutLoading, checkoutError,
+          premiumPriceUSD, premiumDurationDays, referralRewardUSD } =
     useSelector(s => s.subscription);
 
   useEffect(() => {
+    dispatch(fetchPublicSettings());
     if (isAuthenticated) dispatch(fetchSubscriptionStatus());
     return () => { dispatch(clearCheckout()); };
   }, [isAuthenticated, dispatch]);
@@ -157,7 +159,7 @@ export default function Pricing() {
                 </span>
               </div>
               <div className="flex items-end gap-1.5 mb-1">
-                <span className="text-5xl font-bold text-white">$20</span>
+                <span className="text-5xl font-bold text-white">${premiumPriceUSD}</span>
                 <span className="text-gray-400 mb-2 text-sm">/month</span>
               </div>
               <p className="text-gray-400 text-sm">Paid in crypto — works globally, no bank needed.</p>
@@ -177,7 +179,7 @@ export default function Pricing() {
                 <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Gift className="w-3 h-3 text-orange-400" />
                 </div>
-                <span className="text-orange-300 font-medium">$5 credit for every friend who subscribes</span>
+                <span className="text-orange-300 font-medium">${referralRewardUSD} credit for every friend who subscribes</span>
               </li>
             </ul>
 
@@ -188,7 +190,7 @@ export default function Pricing() {
                   disabled={checkoutLoading}
                   className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-base shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all disabled:opacity-50"
                 >
-                  {checkoutLoading ? 'Preparing checkout…' : 'Get Premium — $20/mo'}
+                  {checkoutLoading ? 'Preparing checkout…' : `Get Premium — $${premiumPriceUSD}/mo`}
                 </button>
               )}
               {checkoutError && (
@@ -207,8 +209,8 @@ export default function Pricing() {
             <Gift className="w-6 h-6 text-orange-400" />
           </div>
           <div className="flex-1 text-center sm:text-left">
-            <p className="font-bold text-white text-base mb-0.5">Earn $5 for every friend you refer</p>
-            <p className="text-gray-400 text-sm">Share your unique referral link. When your friend subscribes to Premium, you get a $5 credit applied to your next renewal — automatically.</p>
+            <p className="font-bold text-white text-base mb-0.5">Earn ${referralRewardUSD} for every friend you refer</p>
+            <p className="text-gray-400 text-sm">Share your unique referral link. When your friend subscribes to Premium, you get a ${referralRewardUSD} credit applied to your next renewal — automatically.</p>
           </div>
           {isAuthenticated
             ? <Link to="/profile" className="flex-shrink-0 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-300 font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap">

@@ -14,6 +14,19 @@ export const createCheckout = createAsyncThunk(
   }
 );
 
+// Fetch public plan pricing (no auth required)
+export const fetchPublicSettings = createAsyncThunk(
+  'subscription/publicSettings',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/admin/public-settings');
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 // Fetch subscription status + referral info + payment history
 export const fetchSubscriptionStatus = createAsyncThunk(
   'subscription/status',
@@ -44,6 +57,11 @@ const subscriptionSlice = createSlice({
     paymentHistory:  [],
     statusLoading:   false,
     statusError:     null,
+
+    // Public plan settings
+    premiumPriceUSD:     20,
+    premiumDurationDays: 30,
+    referralRewardUSD:   5,
   },
   reducers: {
     clearCheckout: (state) => {
@@ -53,6 +71,13 @@ const subscriptionSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    builder
+      .addCase(fetchPublicSettings.fulfilled, (state, action) => {
+        state.premiumPriceUSD     = action.payload.premiumPriceUSD     ?? 20;
+        state.premiumDurationDays = action.payload.premiumDurationDays ?? 30;
+        state.referralRewardUSD   = action.payload.referralRewardUSD   ?? 5;
+      });
+
     builder
       .addCase(createCheckout.pending, (state) => {
         state.checkoutLoading = true;
