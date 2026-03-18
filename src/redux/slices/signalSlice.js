@@ -29,11 +29,12 @@ export const fetchPlatformStats = createAsyncThunk(
 
 export const fetchSignalHistory = createAsyncThunk(
   'signals/fetchHistory',
-  async ({ marketType, type, minConfidence, sort = 'newest', limit = 50, skip = 0 } = {}, { rejectWithValue }) => {
+  async ({ marketType, type, pair, minConfidence, sort = 'newest', limit = 50, skip = 0 } = {}, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams();
       if (marketType)    params.append('marketType', marketType);
       if (type)          params.append('type', type);
+      if (pair)          params.append('pair', pair);
       if (minConfidence) params.append('minConfidence', minConfidence);
       params.append('sort', sort);
       params.append('limit', limit);

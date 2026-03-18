@@ -245,10 +245,11 @@ const Signals = () => {
   const [showAll, setShowAll]     = useState(false);
 
   // History tab filters
-  const [histMkt,  setHistMkt]  = useState('');         // '' = all, 'spot', 'futures'
-  const [histType, setHistType] = useState('');         // '' = all, 'LONG', 'SHORT'
-  const [histSort, setHistSort] = useState('newest');   // 'newest' | 'confidence'
-  const [histPage, setHistPage] = useState(1);
+  const [histMkt,    setHistMkt]    = useState('');         // '' = all, 'spot', 'futures'
+  const [histType,   setHistType]   = useState('');         // '' = all, 'LONG', 'SHORT'
+  const [histSort,   setHistSort]   = useState('newest');   // 'newest' | 'confidence'
+  const [histSearch, setHistSearch] = useState('');         // pair search
+  const [histPage,   setHistPage]   = useState(1);
   const HIST_PAGE_SIZE = 20;
 
   // Backtest form
@@ -271,16 +272,21 @@ const Signals = () => {
   }, [activeTab, dispatch]);
 
   // Fetch signal history whenever history tab is active or filters/page change
+  // Debounce the pair search by 400ms to avoid firing on every keystroke
   useEffect(() => {
     if (activeTab !== 'history') return;
-    dispatch(fetchSignalHistory({
-      marketType:    histMkt  || undefined,
-      type:          histType || undefined,
-      sort:          histSort,
-      limit:         HIST_PAGE_SIZE,
-      skip:          (histPage - 1) * HIST_PAGE_SIZE,
-    }));
-  }, [activeTab, histMkt, histType, histSort, histPage, dispatch]);
+    const timer = setTimeout(() => {
+      dispatch(fetchSignalHistory({
+        marketType: histMkt   || undefined,
+        type:       histType  || undefined,
+        pair:       histSearch.trim() || undefined,
+        sort:       histSort,
+        limit:      HIST_PAGE_SIZE,
+        skip:       (histPage - 1) * HIST_PAGE_SIZE,
+      }));
+    }, histSearch ? 400 : 0);
+    return () => clearTimeout(timer);
+  }, [activeTab, histMkt, histType, histSort, histSearch, histPage, dispatch]);
 
   // Fetch pair list from exchange on mount; refetch when market type changes
   useEffect(() => {
@@ -1032,6 +1038,24 @@ const Signals = () => {
 
             {/* ── Filter bar ── */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Search input */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+                <input
+                  type="text"
+                  value={histSearch}
+                  onChange={e => { setHistSearch(e.target.value.toUpperCase()); setHistPage(1); }}
+                  placeholder="Search coin…"
+                  className="pl-8 pr-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 w-36"
+                />
+                {histSearch && (
+                  <button
+                    onClick={() => { setHistSearch(''); setHistPage(1); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  >×</button>
+                )}
+              </div>
+              <span className="w-px h-4 bg-white/10" />
               <span className="text-xs text-gray-500">Filter:</span>
               {['', 'spot', 'futures'].map(v => (
                 <button
