@@ -7,7 +7,7 @@ import {
   Clock, ChevronRight,
 } from 'lucide-react';
 import { fetchAccounts, fetchAccountBalance } from '../redux/slices/exchangeAccountSlice';
-import { resetDemo } from '../redux/slices/demoSlice';
+import { resetDemoAccount } from '../redux/slices/demoSlice';
 import { toast } from 'react-toastify';
 
 const fmt = (n, dec = 2) =>
@@ -48,7 +48,7 @@ export default function Account() {
   const handleResetDemo = async () => {
     setResetting(true);
     try {
-      await dispatch(resetDemo()).unwrap();
+      await dispatch(resetDemoAccount()).unwrap();
       toast.success('Demo account reset to $10,000');
     } catch {
       toast.error('Failed to reset demo account');

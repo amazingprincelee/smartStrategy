@@ -30,6 +30,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AuthCallback from './pages/AuthCallback';
 import Support from './pages/Support';
 import Account from './pages/Account';
+import Guide from './pages/Guide';
 import EarlyAlpha from './pages/EarlyAlpha';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
@@ -95,6 +96,7 @@ function AppInner() {
               <Route path="/support/tickets/:id" element={<Support />} />
               <Route path="/alpha" element={<EarlyAlpha />} />
               <Route path="/account" element={<Account />} />
+              <Route path="/guide" element={<Guide />} />
             </Route>
           </Route>
 

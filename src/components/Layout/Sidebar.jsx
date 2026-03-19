@@ -6,6 +6,7 @@ import {
   Bot,
   PlusCircle,
   Activity,
+  BookOpen,
   TrendingUp,
   Flame,
   User,
@@ -82,6 +83,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/admin',
       icon: ShieldCheck,
     }] : []),
+    {
+      name: 'How It Works',
+      href: '/guide',
+      icon: BookOpen,
+      badge: 'Guide',
+    },
     {
       name: 'Support',
       href: '/support',
@@ -170,7 +177,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   <span>{item.name}</span>
                 </div>
                 {item.badge && (
-                  <span className={`px-2 py-0.5 text-xs font-semibold text-white rounded-full ${item.badge === 'New' ? 'bg-orange-500' : 'bg-green-600'}`}>
+                  <span className={`px-2 py-0.5 text-xs font-semibold text-white rounded-full ${item.badge === 'New' ? 'bg-orange-500' : item.badge === 'Guide' ? 'bg-blue-600' : 'bg-green-600'}`}>
                     {item.badge}
                   </span>
                 )}

@@ -22,10 +22,28 @@ import {
   MinusCircle,
   Info,
   Lock,
+  X,
+  BookOpen,
 } from 'lucide-react';
 import { fetchPlatformStats, fetchSignals, fetchSignalHistory, analyzeSignal, fetchAvailablePairs } from '../redux/slices/signalSlice';
 import { fetchArbitrageOpportunities } from '../redux/slices/arbitrageslice';
 import { fetchBots } from '../redux/slices/botSlice';
+
+/* ─── free-tier daily signal counter (resets at midnight) ───── */
+const AZ_KEY = 'az_count'; // { date: 'YYYY-MM-DD', count: n }
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const getFreeCount = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(AZ_KEY) || '{}');
+    return raw.date === todayStr() ? (raw.count || 0) : 0;
+  } catch { return 0; }
+};
+const incFreeCount = () => {
+  const count = getFreeCount() + 1;
+  localStorage.setItem(AZ_KEY, JSON.stringify({ date: todayStr(), count }));
+  return count;
+};
+const FREE_AZ_LIMIT = 3;
 
 /* ─── helpers ────────────────────────────────────────────────── */
 const now = new Date();
@@ -132,6 +150,51 @@ const SERVICES = [
   },
 ];
 
+/* ─── Quick Start card ───────────────────────────────────────── */
+function QuickStart({ onDismiss }) {
+  const steps = [
+    { icon: Activity, color: 'text-violet-400 bg-violet-500/15', title: 'Read the Signal', body: 'AI scans 30+ pairs every 30 min. LONG = buy, SHORT = sell/short. Aim for signals with 70%+ confidence.' },
+    { icon: BarChart3, color: 'text-blue-400 bg-blue-500/15', title: 'Confirm Indicators', body: 'Check RSI, EMA, MACD alignment in Quick Pair Analysis. 4+ green indicators = high-confidence entry.' },
+    { icon: Target, color: 'text-cyan-400 bg-cyan-500/15', title: 'Use Entry / SL / TP', body: 'Enter near the signal price. Always honor the Stop Loss — never move it wider. Take Profit = 2× your risk.' },
+    { icon: Shield, color: 'text-red-400 bg-red-500/15', title: 'Manage Your Risk', body: 'Never risk more than 2% of your account per trade. Use Demo mode first before going live with real funds.' },
+  ];
+  return (
+    <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-br from-cyan-500/8 to-blue-600/8 p-5">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/15 flex items-center justify-center">
+            <BookOpen className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">Quick Start Guide</p>
+            <p className="text-[10px] text-gray-500">4 steps to trade profitably with SmartStrategy</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link to="/guide" className="text-[10px] text-cyan-400 hover:underline font-medium whitespace-nowrap">Full guide →</Link>
+          <button onClick={onDismiss} className="p-1 rounded-lg hover:bg-white/8 text-gray-500 hover:text-gray-300 transition-colors" title="Dismiss">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {steps.map(({ icon: Icon, color, title, body }, i) => (
+          <div key={title} className="flex flex-col gap-2 p-3 rounded-xl bg-white/4 border border-white/6">
+            <div className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
+                <Icon className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-[10px] text-gray-500 font-bold">STEP {i + 1}</span>
+            </div>
+            <p className="text-xs font-bold text-white">{title}</p>
+            <p className="text-[10px] text-gray-500 leading-relaxed">{body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ════════════════════════════════════════════════════════════════
    COMPONENT
 ════════════════════════════════════════════════════════════════ */
@@ -147,6 +210,8 @@ const Dashboard = () => {
   const { opportunities } = useSelector((s) => s.arbitrage || { opportunities: [] });
   const { analysis, analysisLoading, analysisError, availablePairs } = useSelector((s) => s.signals);
   const isPremium = user?.role === 'premium' || user?.role === 'admin';
+  const [showQuickStart, setShowQuickStart] = useState(!localStorage.getItem('qs_dismissed'));
+  const [freeCount, setFreeCount] = useState(getFreeCount);
 
   useEffect(() => {
     dispatch(fetchBots());
@@ -187,10 +252,14 @@ const Dashboard = () => {
     setAzQuery('');
   };
 
-  const handleAnalyze = (e) => {
+  const handleAnalyze = async (e) => {
     e.preventDefault();
     if (!azForm.symbol) return;
-    dispatch(analyzeSignal({ symbol: azForm.symbol, timeframe: azForm.timeframe, marketType: azForm.marketType }));
+    const result = await dispatch(analyzeSignal({ symbol: azForm.symbol, timeframe: azForm.timeframe, marketType: azForm.marketType }));
+    // Count only when a real signal (with entry/SL/TP) comes back, and user is free
+    if (!isPremium && result?.payload?.entry != null) {
+      setFreeCount(incFreeCount());
+    }
   };
 
   /* quick-stat chips */
@@ -252,6 +321,9 @@ const Dashboard = () => {
           All systems operational
         </div>
       </div>
+
+      {/* ── Quick Start card (dismissible) ──────────────────────── */}
+      {showQuickStart && <QuickStart onDismiss={() => { localStorage.setItem('qs_dismissed', '1'); setShowQuickStart(false); }} />}
 
       {/* ── Quick-stat chips ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -366,7 +438,9 @@ const Dashboard = () => {
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20 mt-auto">
               {analysisLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analyzing…</> : <><Search className="w-4 h-4" /> Analyze</>}
             </button>
-            {analysisError && <p className="text-xs text-red-400 text-center">{analysisError}</p>}
+            {analysisError && !analysisError.toLowerCase().includes('premium') && (
+              <p className="text-xs text-red-400 text-center">{analysisError}</p>
+            )}
           </form>
 
           {/* ── Results ── */}
@@ -471,29 +545,48 @@ const Dashboard = () => {
                       ); })()}
                     </div>
                   )}
-                  {hasSignal && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-cyan-300', bg: 'border-cyan-500/20 bg-cyan-500/8' },
-                        { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
-                        { label: 'Take Profit', short: 'TP', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
-                      ].map(({ label, short, icon: Icon, val, color, bg }) => (
-                        <div key={label} className={`flex flex-col gap-1 p-3 rounded-xl border ${bg}`}>
-                          <div className="flex items-center gap-1.5">
-                            <Icon className={`w-3 h-3 ${color}`} />
-                            <span className="text-[10px] text-gray-500 font-medium">{short}:</span>
-                          </div>
-                          {isPremium ? <span className={`text-sm font-bold font-mono ${color}`}>${fmtV(val, 4)}</span> : <span className="text-sm font-bold text-gray-600 blur-sm select-none">${fmtV(val, 4)}</span>}
+                  {hasSignal && (() => {
+                    const canSee = isPremium || freeCount <= FREE_AZ_LIMIT;
+                    const remaining = FREE_AZ_LIMIT - freeCount;
+                    return (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-cyan-300', bg: 'border-cyan-500/20 bg-cyan-500/8' },
+                            { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
+                            { label: 'Take Profit', short: 'TP', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
+                          ].map(({ label, short, icon: Icon, val, color, bg }) => (
+                            <div key={label} className={`flex flex-col gap-1 p-3 rounded-xl border ${bg}`}>
+                              <div className="flex items-center gap-1.5">
+                                <Icon className={`w-3 h-3 ${color}`} />
+                                <span className="text-[10px] text-gray-500 font-medium">{short}:</span>
+                              </div>
+                              {canSee
+                                ? <span className={`text-sm font-bold font-mono ${color}`}>${fmtV(val, 4)}</span>
+                                : <span className="text-sm font-bold text-gray-600 blur-sm select-none">${fmtV(val, 4)}</span>}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {!isPremium && hasSignal && (
-                    <p className="text-[11px] text-gray-600 flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-amber-500" />
-                      <Link to="/pricing" className="text-amber-500 hover:underline">Upgrade to Premium</Link> to see exact entry, SL & TP
-                    </p>
-                  )}
+                        {!isPremium && canSee && remaining > 0 && (
+                          <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3 text-green-500" />
+                            {remaining} free signal{remaining !== 1 ? 's' : ''} remaining today
+                          </p>
+                        )}
+                        {!isPremium && !canSee && (
+                          <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20 flex flex-col gap-1.5">
+                            <p className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                              <Lock className="w-3.5 h-3.5" /> Daily limit reached
+                            </p>
+                            <p className="text-[10px] text-gray-500">You've used your 3 free signals today. Resets at midnight.</p>
+                            <Link to="/pricing" className="mt-0.5 text-[10px] font-bold text-amber-400 hover:underline">
+                              Upgrade for unlimited access →
+                            </Link>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               );
             })()}
