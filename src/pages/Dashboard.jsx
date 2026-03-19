@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -13,8 +13,17 @@ import {
   BarChart3,
   ArrowUpRight,
   Clock,
+  Search,
+  Target,
+  Shield,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  MinusCircle,
+  Info,
+  Lock,
 } from 'lucide-react';
-import { fetchPlatformStats, fetchSignals, fetchSignalHistory } from '../redux/slices/signalSlice';
+import { fetchPlatformStats, fetchSignals, fetchSignalHistory, analyzeSignal, fetchAvailablePairs } from '../redux/slices/signalSlice';
 import { fetchArbitrageOpportunities } from '../redux/slices/arbitrageslice';
 import { fetchBots } from '../redux/slices/botSlice';
 
@@ -110,6 +119,8 @@ const Dashboard = () => {
   const spotSignals  = useSelector((s) => s.signals?.spot || []);
   const history      = useSelector((s) => s.signals?.history || []);
   const { opportunities } = useSelector((s) => s.arbitrage || { opportunities: [] });
+  const { analysis, analysisLoading, analysisError, availablePairs } = useSelector((s) => s.signals);
+  const isPremium = user?.role === 'premium' || user?.role === 'admin';
 
   useEffect(() => {
     dispatch(fetchBots());
@@ -119,6 +130,7 @@ const Dashboard = () => {
     // Always pre-load history so the signal card has something to show
     // even if the live in-memory cache is cold (e.g. right after server restart)
     dispatch(fetchSignalHistory({ marketType: 'spot', limit: 10 }));
+    dispatch(fetchAvailablePairs('spot'));
   }, [dispatch]);
 
   /* derived */
@@ -134,6 +146,26 @@ const Dashboard = () => {
     || history.find(s => s.type === 'LONG')
     || null;
   const topArb       = opportunities?.[0] || null;
+
+  /* analyze form */
+  const POPULAR_CHIPS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT'];
+  const [azForm, setAzForm]   = useState({ symbol: '', timeframe: '1h', marketType: 'spot' });
+  const [azQuery, setAzQuery] = useState('');
+
+  const filteredPairs = azQuery.length >= 2
+    ? (availablePairs || []).filter(p => p.replace('USDT','').startsWith(azQuery.toUpperCase()) || p.startsWith(azQuery.toUpperCase())).slice(0, 8)
+    : [];
+
+  const selectPair = (pair) => {
+    setAzForm(f => ({ ...f, symbol: pair }));
+    setAzQuery('');
+  };
+
+  const handleAnalyze = (e) => {
+    e.preventDefault();
+    if (!azForm.symbol) return;
+    dispatch(analyzeSignal({ symbol: azForm.symbol, timeframe: azForm.timeframe, marketType: azForm.marketType }));
+  };
 
   /* quick-stat chips */
   const chips = [
@@ -212,6 +244,197 @@ const Dashboard = () => {
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* ── Quick Analyze ────────────────────────────────────────── */}
+      <div className="card overflow-hidden p-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+              <Search className="w-4 h-4 text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Quick Pair Analysis</h3>
+              <p className="text-[10px] text-gray-500">RSI · EMA · MACD · Bollinger · ATR · Volume</p>
+            </div>
+          </div>
+          <Link to="/signals?tab=analyze" className="flex items-center gap-1 text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors">
+            Full analysis <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        <div className="grid lg:grid-cols-5">
+
+          {/* ── Form ── */}
+          <form onSubmit={handleAnalyze} className="lg:col-span-2 p-5 border-b lg:border-b-0 lg:border-r border-white/6 flex flex-col gap-3">
+            {/* Pair input */}
+            <div>
+              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Pair</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={azQuery || azForm.symbol}
+                  onChange={e => {
+                    const val = e.target.value.toUpperCase().replace('/', '').trim();
+                    setAzQuery(val);
+                    setAzForm(f => ({ ...f, symbol: val }));
+                  }}
+                  onFocus={() => azForm.symbol && setAzQuery(azForm.symbol)}
+                  placeholder="Search pair, e.g. BTC or SOL…"
+                  className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50 transition-colors"
+                  style={{ colorScheme: 'dark' }}
+                />
+                {filteredPairs.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 rounded-lg bg-brandDark-700 border border-white/15 shadow-xl z-50 overflow-hidden">
+                    {filteredPairs.map(p => (
+                      <button key={p} type="button" onClick={() => selectPair(p)}
+                        className="w-full px-3 py-2 text-left text-xs font-mono text-gray-300 hover:bg-white/8 hover:text-white transition-colors">
+                        {p.replace('USDT', '')}<span className="text-gray-600">/USDT</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {!azForm.symbol && (
+                <div className="mt-2">
+                  <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1.5">Popular</p>
+                  <div className="flex flex-wrap gap-1">
+                    {POPULAR_CHIPS.map(p => (
+                      <button key={p} type="button" onClick={() => selectPair(p)}
+                        className="px-2 py-0.5 text-[10px] rounded font-mono border border-white/10 bg-white/4 text-gray-400 hover:text-white hover:border-cyan-500/50 hover:bg-cyan-500/10 transition-colors">
+                        {p.replace('USDT', '')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {azForm.symbol && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="text-[10px] text-cyan-400 font-mono font-semibold">{azForm.symbol.replace('USDT', '/USDT')}</span>
+                  <button type="button" onClick={() => { setAzForm(f => ({ ...f, symbol: '' })); setAzQuery(''); }} className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors">✕ clear</button>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Timeframe</label>
+                <select value={azForm.timeframe} onChange={e => setAzForm(f => ({ ...f, timeframe: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors" style={{ colorScheme: 'dark' }}>
+                  <option value="15m">15 min</option>
+                  <option value="1h">1 hour</option>
+                  <option value="4h">4 hours</option>
+                  <option value="1d">1 day</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Market</label>
+                <select value={azForm.marketType} onChange={e => setAzForm(f => ({ ...f, marketType: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors" style={{ colorScheme: 'dark' }}>
+                  <option value="spot">Spot</option>
+                  <option value="futures">Futures</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" disabled={analysisLoading || !azForm.symbol}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20 mt-auto">
+              {analysisLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analyzing…</> : <><Search className="w-4 h-4" /> Analyze</>}
+            </button>
+            {analysisError && <p className="text-xs text-red-400 text-center">{analysisError}</p>}
+          </form>
+
+          {/* ── Results ── */}
+          <div className="lg:col-span-3 p-5">
+            {!analysis && !analysisLoading && (
+              <div className="flex flex-col items-center justify-center h-full py-8 gap-3 text-center">
+                <div className="w-12 h-12 rounded-xl bg-white/4 border border-white/8 flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-gray-600" />
+                </div>
+                <p className="text-sm text-gray-500">Enter a pair and click Analyze</p>
+                <p className="text-xs text-gray-600">Try BTCUSDT, ETHUSDT, SOLUSDT…</p>
+              </div>
+            )}
+            {analysisLoading && (
+              <div className="space-y-3 animate-pulse">
+                <div className="h-14 bg-white/4 rounded-xl" />
+                <div className="grid grid-cols-3 gap-2">{[0,1,2,3,4,5].map(i => <div key={i} className="h-12 bg-white/4 rounded-lg" />)}</div>
+                <div className="grid grid-cols-3 gap-2">{[0,1,2].map(i => <div key={i} className="h-14 bg-white/4 rounded-xl" />)}</div>
+              </div>
+            )}
+            {analysis && !analysisLoading && (() => {
+              const az = analysis;
+              const hasSignal = !!az.signal;
+              const isLong = az.signal === 'LONG';
+              const fmtV = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d });
+              return (
+                <div className="space-y-4">
+                  <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${hasSignal ? isLong ? 'border-green-500/30 bg-green-500/8' : 'border-red-500/30 bg-red-500/8' : 'border-white/8 bg-white/3'}`}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {hasSignal ? isLong ? <CheckCircle className="w-4 h-4 text-green-400" /> : <XCircle className="w-4 h-4 text-red-400" /> : <MinusCircle className="w-4 h-4 text-gray-500" />}
+                        <span className="font-bold text-white">{az.pair?.replace('USDT', '/USDT')}</span>
+                        <span className="text-[10px] text-gray-500 uppercase">{az.timeframe} · {az.marketType}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 ml-6 mt-0.5">
+                        <span className="font-mono text-gray-300">${fmtV(az.currentPrice, 4)}</span>
+                        <span className="mx-2 text-gray-700">·</span>
+                        {az.longScore ?? 0} bullish · {az.shortScore ?? 0} bearish
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 ${hasSignal ? isLong ? 'bg-green-500/20 text-green-300 border border-green-500/35' : 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-gray-500/15 text-gray-400 border border-gray-500/20'}`}>
+                      {hasSignal ? (isLong ? '▲ LONG' : '▼ SHORT') : 'NEUTRAL'}
+                    </span>
+                  </div>
+                  {!hasSignal && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-white/3 border border-white/8">
+                      <div className="relative group/neutral flex-shrink-0 mt-0.5">
+                        <Info className="w-3.5 h-3.5 text-gray-500 cursor-help group-hover/neutral:text-cyan-400 transition-colors" />
+                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover/neutral:block z-50 w-64 p-3 rounded-xl bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                          <p className="font-semibold text-white mb-1.5">How signals are decided</p>
+                          <p className="mb-1.5">The engine scores <span className="text-white font-semibold">6 indicators</span> — RSI, EMA 20/50, EMA 200, MACD, Bollinger Bands, and Volume. Each one votes either <span className="text-green-400">Bullish</span> or <span className="text-red-400">Bearish</span>.</p>
+                          <p className="mb-1.5">A <span className="text-green-400 font-semibold">LONG signal</span> fires when ≥3 vote bullish and none cancel it out. A <span className="text-red-400 font-semibold">SHORT signal</span> fires when ≥3 vote bearish.</p>
+                          <p className="text-gray-500">When votes are tied or mixed, the market is <span className="text-gray-300">NEUTRAL</span> — no trade is suggested because the evidence isn't strong enough yet.</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400"><span className="text-gray-300 font-semibold">No signal yet. </span>{az.message || `Need ≥3 indicators to agree — currently split ${az.longScore ?? 0} vs ${az.shortScore ?? 0}.`}</p>
+                    </div>
+                  )}
+                  {az.indicators && (
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      {az.indicators.rsi != null && (() => { const b = az.indicators.rsi < 35, bear = az.indicators.rsi > 65; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}><p className="text-[9px] text-gray-600 mb-0.5">RSI</p><p className={`text-xs font-bold ${b ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{az.indicators.rsi}</p><p className="text-[9px] text-gray-600">{b ? 'Oversold' : bear ? 'Overbought' : 'Neutral'}</p></div>); })()}
+                      {az.indicators.ema20 != null && az.indicators.ema50 != null && (() => { const b = az.indicators.ema20 > az.indicators.ema50; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}><p className="text-[9px] text-gray-600 mb-0.5">EMA20/50</p><p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Bull' : 'Bear'}</p><p className="text-[9px] text-gray-600">{b ? '20>50' : '20<50'}</p></div>); })()}
+                      {az.indicators.ema200 != null && az.currentPrice != null && (() => { const b = az.currentPrice > az.indicators.ema200; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}><p className="text-[9px] text-gray-600 mb-0.5">EMA200</p><p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Above' : 'Below'}</p><p className="text-[9px] text-gray-600">${fmtV(az.indicators.ema200, 0)}</p></div>); })()}
+                      {az.indicators.macd != null && (() => { const b = az.indicators.macd.histogram > 0; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}><p className="text-[9px] text-gray-600 mb-0.5">MACD</p><p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Pos' : 'Neg'}</p><p className="text-[9px] text-gray-600 font-mono">{b ? '+' : ''}{Number(az.indicators.macd.histogram).toFixed(2)}</p></div>); })()}
+                      {az.indicators.bb != null && az.currentPrice != null && (() => { const range = az.indicators.bb.upper - az.indicators.bb.lower; const pos = range > 0 ? (az.currentPrice - az.indicators.bb.lower) / range : 0.5; const b = pos < 0.25, bear = pos > 0.75; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}><p className="text-[9px] text-gray-600 mb-0.5">BB</p><p className={`text-xs font-bold ${b ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{b ? 'Low' : bear ? 'High' : 'Mid'}</p><p className="text-[9px] text-gray-600">{(pos * 100).toFixed(0)}%</p></div>); })()}
+                      {az.indicators.volRatio != null && (() => { const hot = az.indicators.volRatio > 1.5; return (<div className={`p-2 rounded-lg border text-center ${hot ? 'border-cyan-500/20 bg-cyan-500/8' : 'border-white/6 bg-white/3'}`}><p className="text-[9px] text-gray-600 mb-0.5">Vol</p><p className={`text-xs font-bold ${hot ? 'text-cyan-400' : 'text-gray-300'}`}>{az.indicators.volRatio}×</p><p className="text-[9px] text-gray-600">vs avg</p></div>); })()}
+                    </div>
+                  )}
+                  {hasSignal && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Entry', icon: Target, val: az.entry, color: 'text-cyan-300', bg: 'border-cyan-500/20 bg-cyan-500/8' },
+                        { label: 'Stop Loss', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
+                        { label: 'Take Profit', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
+                      ].map(({ label, icon: Icon, val, color, bg }) => (
+                        <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-xl border ${bg}`}>
+                          <Icon className={`w-3.5 h-3.5 ${color}`} />
+                          <span className="text-[9px] text-gray-500 uppercase tracking-wider">{label}</span>
+                          {isPremium ? <span className={`text-sm font-bold font-mono ${color}`}>${fmtV(val, 4)}</span> : <span className="text-sm font-bold text-gray-600 blur-sm select-none">${fmtV(val, 4)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!isPremium && hasSignal && (
+                    <p className="text-[11px] text-gray-600 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-amber-500" />
+                      <Link to="/pricing" className="text-amber-500 hover:underline">Upgrade to Premium</Link> to see exact entry, SL & TP
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       </div>
 
       {/* ── Service cards ────────────────────────────────────────── */}

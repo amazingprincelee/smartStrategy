@@ -415,6 +415,8 @@ const Signals = () => {
                   >
                     <option value="15m">15 minutes</option>
                     <option value="1h">1 hour</option>
+                    <option value="4h">4 hours</option>
+                    <option value="1d">1 day</option>
                   </select>
                 </label>
 
@@ -544,7 +546,15 @@ const Signals = () => {
 
                     {!hasSignal && (
                       <div className="mt-3 p-3 rounded-lg bg-white/4 border border-white/8 flex items-start gap-2">
-                        <Info className="w-3.5 h-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
+                        <div className="relative group/neutral flex-shrink-0 mt-0.5">
+                          <Info className="w-3.5 h-3.5 text-gray-500 cursor-help group-hover/neutral:text-cyan-400 transition-colors" />
+                          <div className="absolute bottom-full left-0 mb-2 hidden group-hover/neutral:block z-50 w-64 p-3 rounded-xl bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                            <p className="font-semibold text-white mb-1.5">How signals are decided</p>
+                            <p className="mb-1.5">The engine scores <span className="text-white font-semibold">6 indicators</span> — RSI, EMA 20/50, EMA 200, MACD, Bollinger Bands, and Volume. Each one votes either <span className="text-green-400">Bullish</span> or <span className="text-red-400">Bearish</span>.</p>
+                            <p className="mb-1.5">A <span className="text-green-400 font-semibold">LONG signal</span> fires when ≥3 vote bullish. A <span className="text-red-400 font-semibold">SHORT signal</span> fires when ≥3 vote bearish.</p>
+                            <p className="text-gray-500">When votes are tied or mixed, the market is <span className="text-gray-300">NEUTRAL</span> — no trade is suggested because the evidence isn't strong enough yet.</p>
+                          </div>
+                        </div>
                         <p className="text-xs text-gray-400 leading-relaxed">
                           <span className="text-gray-300 font-semibold">No trade signal yet.</span>{' '}
                           {az.message || `Indicators are split — ${az.longScore ?? 0} bullish vs ${az.shortScore ?? 0} bearish. The engine needs ≥3 to agree in one direction before suggesting an entry, stop-loss, and take-profit.`}
@@ -1490,6 +1500,8 @@ const Signals = () => {
                   >
                     <option value="15m">15 minutes</option>
                     <option value="1h">1 hour</option>
+                    <option value="4h">4 hours</option>
+                    <option value="1d">1 day</option>
                   </select>
                 </label>
 
@@ -1619,7 +1631,15 @@ const Signals = () => {
 
                     {!hasSignal && (
                       <div className="mt-3 p-3 rounded-lg bg-white/4 border border-white/8 flex items-start gap-2">
-                        <Info className="w-3.5 h-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
+                        <div className="relative group/neutral flex-shrink-0 mt-0.5">
+                          <Info className="w-3.5 h-3.5 text-gray-500 cursor-help group-hover/neutral:text-cyan-400 transition-colors" />
+                          <div className="absolute bottom-full left-0 mb-2 hidden group-hover/neutral:block z-50 w-64 p-3 rounded-xl bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                            <p className="font-semibold text-white mb-1.5">How signals are decided</p>
+                            <p className="mb-1.5">The engine scores <span className="text-white font-semibold">6 indicators</span> — RSI, EMA 20/50, EMA 200, MACD, Bollinger Bands, and Volume. Each one votes either <span className="text-green-400">Bullish</span> or <span className="text-red-400">Bearish</span>.</p>
+                            <p className="mb-1.5">A <span className="text-green-400 font-semibold">LONG signal</span> fires when ≥3 vote bullish. A <span className="text-red-400 font-semibold">SHORT signal</span> fires when ≥3 vote bearish.</p>
+                            <p className="text-gray-500">When votes are tied or mixed, the market is <span className="text-gray-300">NEUTRAL</span> — no trade is suggested because the evidence isn't strong enough yet.</p>
+                          </div>
+                        </div>
                         <p className="text-xs text-gray-400 leading-relaxed">
                           <span className="text-gray-300 font-semibold">No trade signal yet.</span>{' '}
                           {az.message || `Indicators are split — ${az.longScore ?? 0} bullish vs ${az.shortScore ?? 0} bearish. The engine needs ≥3 to agree in one direction before suggesting an entry, stop-loss, and take-profit.`}

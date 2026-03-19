@@ -17,8 +17,14 @@ import {
   Minus,
   Lock,
   Crown,
+  Search,
+  Target,
+  Zap,
+  MinusCircle,
+  XCircle,
+  Info,
 } from 'lucide-react';
-import { fetchSignals, fetchPlatformStats } from '../redux/slices/signalSlice';
+import { fetchSignals, fetchPlatformStats, analyzeSignal, clearAnalysis, fetchAvailablePairs } from '../redux/slices/signalSlice';
 import SmartStrategyIcon from '../components/Logo/SmartStrategyIcon';
 
 /* ─── helpers ──────────────────────────────────────────────────────────── */
@@ -162,14 +168,28 @@ const Home = () => {
   const isAuth    = !!token;
   const isPremium = isAuth && (user?.role === 'premium' || user?.role === 'admin');
 
-  const { spot, futures, stats, loading, statsLoading } = useSelector(s => s.signals);
+  const { spot, futures, stats, loading, statsLoading, analysis, analysisLoading, analysisError, availablePairs } = useSelector(s => s.signals);
   const [activeTab, setActiveTab] = useState('spot');
   const [lastRefresh, setLastRefresh] = useState(null);
+
+  const POPULAR_CHIPS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT'];
+  const [azForm, setAzForm]   = useState({ symbol: '', timeframe: '1h', marketType: 'spot' });
+  const [azQuery, setAzQuery] = useState('');
+
+  const filteredPairs = azQuery.length >= 2
+    ? (availablePairs || []).filter(p => p.replace('USDT','').startsWith(azQuery.toUpperCase()) || p.startsWith(azQuery.toUpperCase())).slice(0, 8)
+    : [];
+
+  const selectPairHome = (pair) => {
+    setAzForm(f => ({ ...f, symbol: pair }));
+    setAzQuery('');
+  };
 
   useEffect(() => {
     dispatch(fetchSignals('spot'));
     dispatch(fetchSignals('futures'));
     dispatch(fetchPlatformStats());
+    dispatch(fetchAvailablePairs('spot'));
     setLastRefresh(new Date());
 
     // Poll every 5 min as REST fallback (WebSocket sweep is the primary real-time source)
@@ -195,6 +215,12 @@ const Home = () => {
   const hasMore         = displaySignals.length > 4;
 
   const handleViewMore  = () => navigate(isAuth ? '/signals' : '/login');
+
+  const handleAnalyze = (e) => {
+    e.preventDefault();
+    if (!isAuth) { navigate('/login'); return; }
+    dispatch(analyzeSignal({ symbol: azForm.symbol, timeframe: azForm.timeframe, marketType: azForm.marketType }));
+  };
 
   const features = [
     { icon: Bot,          color: 'from-cyan-500 to-blue-600',    title: 'Automated Bots',    desc: '24/7 trading bots that execute your strategy automatically — no screen time needed.' },
@@ -394,6 +420,318 @@ const Home = () => {
               {hasMore ? `View All ${displaySignals.length} Signals` : 'View All Signals'}
               <ArrowRight className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── QUICK ANALYZE ────────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-brandDark-900">
+        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-10 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 text-xs font-semibold text-cyan-300 bg-cyan-900/30 rounded-full border border-cyan-500/20">
+              <Search className="w-3.5 h-3.5" /> Live Technical Analysis
+            </div>
+            <h2 className="text-3xl font-bold text-white sm:text-4xl">Analyze Any Pair Instantly</h2>
+            <p className="max-w-xl mx-auto mt-3 text-gray-400">
+              Enter any USDT pair and get a full technical breakdown — RSI, EMA, MACD, Bollinger Bands, ATR and volume — in seconds.
+            </p>
+          </div>
+
+          {/* Widget card */}
+          <div className="max-w-5xl mx-auto rounded-2xl border border-white/10 bg-brandDark-800 overflow-hidden shadow-2xl">
+            <div className="grid lg:grid-cols-5">
+
+              {/* ── Form (left) ── */}
+              <form onSubmit={handleAnalyze} className="lg:col-span-2 p-6 border-b lg:border-b-0 lg:border-r border-white/8 flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5">Pair</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={azQuery || azForm.symbol}
+                      onChange={e => {
+                        const val = e.target.value.toUpperCase().replace('/', '').trim();
+                        setAzQuery(val);
+                        setAzForm(f => ({ ...f, symbol: val }));
+                      }}
+                      onFocus={() => azForm.symbol && setAzQuery(azForm.symbol)}
+                      placeholder="Search pair, e.g. BTC or SOL…"
+                      className="w-full px-3 py-2.5 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50 transition-colors"
+                      style={{ colorScheme: 'dark' }}
+                    />
+                    {filteredPairs.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 rounded-lg bg-brandDark-700 border border-white/15 shadow-xl z-50 overflow-hidden">
+                        {filteredPairs.map(p => (
+                          <button key={p} type="button" onClick={() => selectPairHome(p)}
+                            className="w-full px-3 py-2 text-left text-xs font-mono text-gray-300 hover:bg-white/8 hover:text-white transition-colors">
+                            {p.replace('USDT', '')}<span className="text-gray-600">/USDT</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {!azForm.symbol && (
+                    <div className="mt-2">
+                      <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1.5">Popular</p>
+                      <div className="flex flex-wrap gap-1">
+                        {POPULAR_CHIPS.map(p => (
+                          <button key={p} type="button" onClick={() => selectPairHome(p)}
+                            className="px-2 py-0.5 text-[10px] rounded font-mono border border-white/10 bg-white/4 text-gray-400 hover:text-white hover:border-cyan-500/50 hover:bg-cyan-500/10 transition-colors">
+                            {p.replace('USDT', '')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {azForm.symbol && (
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <span className="text-[10px] text-cyan-400 font-mono font-semibold">{azForm.symbol.replace('USDT', '/USDT')}</span>
+                      <button type="button" onClick={() => { setAzForm(f => ({ ...f, symbol: '' })); setAzQuery(''); }} className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors">✕ clear</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1.5">Timeframe</label>
+                    <select
+                      value={azForm.timeframe}
+                      onChange={e => setAzForm(f => ({ ...f, timeframe: e.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
+                      style={{ colorScheme: 'dark' }}
+                    >
+                      <option value="15m">15 minutes</option>
+                      <option value="1h">1 hour</option>
+                      <option value="4h">4 hours</option>
+                      <option value="1d">1 day</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1.5">Market</label>
+                    <select
+                      value={azForm.marketType}
+                      onChange={e => setAzForm(f => ({ ...f, marketType: e.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
+                      style={{ colorScheme: 'dark' }}
+                    >
+                      <option value="spot">Spot</option>
+                      <option value="futures">Futures</option>
+                    </select>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={analysisLoading || !azForm.symbol}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20"
+                >
+                  {analysisLoading
+                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analyzing…</>
+                    : <><Search className="w-4 h-4" /> Analyze</>
+                  }
+                </button>
+                {analysisError && <p className="text-xs text-red-400 text-center">{analysisError}</p>}
+                <p className="text-[11px] text-gray-600 leading-relaxed mt-auto">
+                  The engine reads live candles and scores 6 indicators. A signal fires when ≥3 agree in one direction.
+                </p>
+              </form>
+
+              {/* ── Results (right) ── */}
+              <div className="lg:col-span-3 p-6 flex flex-col gap-5">
+
+                {/* Empty state */}
+                {!analysis && !analysisLoading && (
+                  <div className="flex flex-col items-center justify-center h-full py-12 text-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
+                      <BarChart2 className="w-7 h-7 text-gray-600" />
+                    </div>
+                    <p className="text-gray-400 font-medium">Enter a pair and click Analyze</p>
+                    <p className="text-gray-600 text-xs max-w-xs">
+                      Try BTCUSDT, ETHUSDT, SOLUSDT — any USDT pair across spot or futures.
+                    </p>
+                    {!isAuth && (
+                      <Link to="/login" className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/15 transition-colors">
+                        Sign in to analyze <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {/* Loading skeleton */}
+                {analysisLoading && (
+                  <div className="space-y-4 animate-pulse">
+                    <div className="h-16 bg-white/4 rounded-xl" />
+                    <div className="grid grid-cols-3 gap-2">
+                      {[0,1,2,3,4,5].map(i => <div key={i} className="h-14 bg-white/4 rounded-lg" />)}
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[0,1,2].map(i => <div key={i} className="h-16 bg-white/4 rounded-xl" />)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Results */}
+                {analysis && !analysisLoading && (() => {
+                  const az = analysis;
+                  const hasSignal = !!az.signal;
+                  const isLong = az.signal === 'LONG';
+                  const fmtV = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d });
+
+                  return (
+                    <>
+                      {/* Verdict row */}
+                      <div className={`flex items-center justify-between p-4 rounded-xl border ${
+                        hasSignal
+                          ? isLong ? 'border-green-500/30 bg-green-500/8' : 'border-red-500/30 bg-red-500/8'
+                          : 'border-white/8 bg-white/3'
+                      }`}>
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            {hasSignal
+                              ? isLong ? <CheckCircle className="w-4 h-4 text-green-400" /> : <XCircle className="w-4 h-4 text-red-400" />
+                              : <MinusCircle className="w-4 h-4 text-gray-500" />
+                            }
+                            <span className="text-base font-bold text-white">{az.pair?.replace('USDT', '/USDT')}</span>
+                            <span className="text-[10px] text-gray-500 uppercase">{az.timeframe} · {az.marketType}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 ml-6">
+                            Price: <span className="text-gray-300 font-mono">${fmtV(az.currentPrice, 4)}</span>
+                            <span className="mx-2 text-gray-700">·</span>
+                            <span className="text-gray-500">{az.longScore ?? 0} bullish · {az.shortScore ?? 0} bearish</span>
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1.5 rounded-full text-sm font-bold flex-shrink-0 ${
+                          hasSignal
+                            ? isLong ? 'bg-green-500/20 text-green-300 border border-green-500/35' : 'bg-red-500/20 text-red-300 border border-red-500/35'
+                            : 'bg-gray-500/15 text-gray-400 border border-gray-500/20'
+                        }`}>
+                          {hasSignal ? (isLong ? '▲ LONG' : '▼ SHORT') : 'NEUTRAL'}
+                        </span>
+                      </div>
+
+                      {/* No-signal message */}
+                      {!hasSignal && (
+                        <div className="flex items-start gap-2 p-3 rounded-lg bg-white/3 border border-white/8">
+                          <Info className="w-3.5 h-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-gray-400">
+                            <span className="text-gray-300 font-semibold">No trade signal yet. </span>
+                            {az.message || `Indicators are split — ≥3 need to agree in one direction for a signal.`}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Indicator pills */}
+                      {az.indicators && (
+                        <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
+                          {az.indicators.rsi != null && (() => {
+                            const bull = az.indicators.rsi < 35;
+                            const bear = az.indicators.rsi > 65;
+                            return (
+                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}>
+                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">RSI (14)</p>
+                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{az.indicators.rsi}</p>
+                                <p className="text-[9px] text-gray-600">{bull ? 'Oversold' : bear ? 'Overbought' : 'Neutral'}</p>
+                              </div>
+                            );
+                          })()}
+                          {az.indicators.ema20 != null && az.indicators.ema50 != null && (() => {
+                            const bull = az.indicators.ema20 > az.indicators.ema50;
+                            return (
+                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">EMA 20/50</p>
+                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : 'text-red-400'}`}>{bull ? 'Bullish' : 'Bearish'}</p>
+                                <p className="text-[9px] text-gray-600">{bull ? '20 > 50' : '20 < 50'}</p>
+                              </div>
+                            );
+                          })()}
+                          {az.indicators.ema200 != null && az.currentPrice != null && (() => {
+                            const bull = az.currentPrice > az.indicators.ema200;
+                            return (
+                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">EMA 200</p>
+                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : 'text-red-400'}`}>{bull ? 'Above' : 'Below'}</p>
+                                <p className="text-[9px] text-gray-600">${fmtV(az.indicators.ema200, 0)}</p>
+                              </div>
+                            );
+                          })()}
+                          {az.indicators.macd != null && (() => {
+                            const bull = az.indicators.macd.histogram > 0;
+                            return (
+                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">MACD</p>
+                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : 'text-red-400'}`}>{bull ? 'Positive' : 'Negative'}</p>
+                                <p className="text-[9px] text-gray-600 font-mono">{bull ? '+' : ''}{Number(az.indicators.macd.histogram).toFixed(2)}</p>
+                              </div>
+                            );
+                          })()}
+                          {az.indicators.bb != null && az.currentPrice != null && (() => {
+                            const range = az.indicators.bb.upper - az.indicators.bb.lower;
+                            const pos = range > 0 ? (az.currentPrice - az.indicators.bb.lower) / range : 0.5;
+                            const bull = pos < 0.25; const bear = pos > 0.75;
+                            return (
+                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}>
+                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Bollinger</p>
+                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{bull ? 'Near Low' : bear ? 'Near High' : 'Mid-range'}</p>
+                                <p className="text-[9px] text-gray-600">{(pos * 100).toFixed(0)}% of band</p>
+                              </div>
+                            );
+                          })()}
+                          {az.indicators.volRatio != null && (() => {
+                            const hot = az.indicators.volRatio > 1.5;
+                            return (
+                              <div className={`p-2.5 rounded-lg border text-center ${hot ? 'border-cyan-500/20 bg-cyan-500/8' : 'border-white/6 bg-white/3'}`}>
+                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Vol Ratio</p>
+                                <p className={`text-sm font-bold ${hot ? 'text-cyan-400' : 'text-gray-300'}`}>{az.indicators.volRatio}×</p>
+                                <p className="text-[9px] text-gray-600">vs avg</p>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Entry / SL / TP */}
+                      {hasSignal && (
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-cyan-300',  bg: 'border-cyan-500/20 bg-cyan-500/8'   },
+                            { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400',   bg: 'border-red-500/20 bg-red-500/8'     },
+                            { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
+                          ].map(({ label, icon: Icon, val, color, bg }) => (
+                            <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-xl border ${bg}`}>
+                              <Icon className={`w-3.5 h-3.5 ${color}`} />
+                              <span className="text-[9px] text-gray-500 uppercase tracking-wider">{label}</span>
+                              {isPremium ? (
+                                <span className={`text-sm font-bold font-mono ${color}`}>${fmtV(val, 4)}</span>
+                              ) : (
+                                <span className="text-sm font-bold text-gray-600 blur-sm select-none">${fmtV(val, 4)}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* CTA */}
+                      <div className="flex items-center justify-between pt-2 border-t border-white/6">
+                        {!isPremium && hasSignal && (
+                          <p className="text-[11px] text-gray-600 flex items-center gap-1">
+                            <Lock className="w-3 h-3 text-amber-500" />
+                            <Link to="/pricing" className="text-amber-500 hover:underline">Upgrade</Link> to see exact entry & targets
+                          </p>
+                        )}
+                        <Link
+                          to={isAuth ? '/signals' : '/login'}
+                          className="ml-auto inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 font-semibold transition-colors"
+                        >
+                          Full analysis <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       </section>
