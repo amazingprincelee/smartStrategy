@@ -22,7 +22,6 @@ import BotDashboard from './pages/BotDashboard';
 import CreateBot from './pages/CreateBot';
 import BotDetail from './pages/BotDetail';
 import DemoAccount from './pages/DemoAccount';
-import StrategyLibrary from './pages/StrategyLibrary';
 import Signals from './pages/Signals';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
@@ -30,6 +29,7 @@ import Pricing from './pages/Pricing';
 import AdminDashboard from './pages/AdminDashboard';
 import AuthCallback from './pages/AuthCallback';
 import Support from './pages/Support';
+import Account from './pages/Account';
 import EarlyAlpha from './pages/EarlyAlpha';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
@@ -66,6 +66,7 @@ function AppInner() {
 
   return (
     <Router>
+      <SocketProvider>
       <div className="min-h-screen transition-colors duration-300 bg-gray-50 dark:bg-brandDark-900">
         <Routes>
           {/* Public Routes */}
@@ -85,7 +86,6 @@ function AppInner() {
               <Route path="/bots/create" element={<CreateBot />} />
               <Route path="/bots/:id" element={<BotDetail />} />
               <Route path="/demo" element={<DemoAccount />} />
-              <Route path="/strategies" element={<StrategyLibrary />} />
               <Route path="/signals" element={<Signals />} />
               <Route path="/arbitrage" element={<CryptoArbitrage />} />
               <Route path="/profile" element={<Profile />} />
@@ -94,6 +94,7 @@ function AppInner() {
               <Route path="/support" element={<Support />} />
               <Route path="/support/tickets/:id" element={<Support />} />
               <Route path="/alpha" element={<EarlyAlpha />} />
+              <Route path="/account" element={<Account />} />
             </Route>
           </Route>
 
@@ -115,6 +116,7 @@ function AppInner() {
           className="mt-16"
         />
       </div>
+      </SocketProvider>
     </Router>
   );
 }
@@ -122,9 +124,7 @@ function AppInner() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SocketProvider>
-        <AppInner />
-      </SocketProvider>
+      <AppInner />
     </QueryClientProvider>
   );
 }

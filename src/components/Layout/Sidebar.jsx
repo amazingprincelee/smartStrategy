@@ -5,8 +5,6 @@ import {
   LayoutDashboard,
   Bot,
   PlusCircle,
-  FlaskConical,
-  BookOpen,
   Activity,
   TrendingUp,
   Flame,
@@ -45,16 +43,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Create Bot',
       href: '/bots/create',
       icon: PlusCircle,
-    },
-    {
-      name: 'Demo Account',
-      href: '/demo',
-      icon: FlaskConical,
-    },
-    {
-      name: 'Strategies',
-      href: '/strategies',
-      icon: BookOpen,
     },
     {
       name: 'Signals',

@@ -20,6 +20,7 @@ import {
   Search,
   Target,
   Zap,
+  Flame,
   MinusCircle,
   XCircle,
   Info,
@@ -52,6 +53,7 @@ const SIGNAL_STYLES = {
 
 /* ─── SignalCard ──────────────────────────────────────────────────────── */
 const SignalCard = ({ s, isPremium = false }) => {
+  const navigate = useNavigate();
   // Support both new (type=LONG/SHORT) and legacy (signal=BUY/SELL) formats
   const signalKey = s.type || s.signal || 'NEUTRAL';
   const st = SIGNAL_STYLES[signalKey] || SIGNAL_STYLES.NEUTRAL;
@@ -123,15 +125,42 @@ const SignalCard = ({ s, isPremium = false }) => {
         <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-2">{reasonText}</p>
       )}
 
-      {/* Premium upgrade nudge */}
-      {!isPremium && (
-        <div className="flex items-center gap-1.5 pt-1 border-t border-current/10">
-          <Crown className="flex-shrink-0 w-3 h-3 text-amber-500" />
-          <span className="text-xs text-amber-600 dark:text-amber-400">
-            Upgrade for exact entry &amp; SL/TP
-          </span>
-        </div>
-      )}
+      {/* Bottom row */}
+      <div className="flex items-center justify-between pt-1 border-t border-current/10">
+        {!isPremium ? (
+          <div className="flex items-center gap-1.5">
+            <Crown className="flex-shrink-0 w-3 h-3 text-amber-500" />
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              Upgrade for exact entry &amp; SL/TP
+            </span>
+          </div>
+        ) : (signalKey === 'LONG' || signalKey === 'SHORT') ? (
+          <button
+            onClick={() => navigate('/bots/create', {
+              state: {
+                prefill: {
+                  pair: s.pair ?? s.symbol,
+                  signal: signalKey,
+                  entry: s.entry,
+                  stopLoss: s.stopLoss,
+                  takeProfit: s.takeProfit,
+                  marketType: s.marketType ?? 'spot',
+                }
+              }
+            })}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:scale-105 ${
+              signalKey === 'LONG'
+                ? 'bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30'
+                : 'bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30'
+            }`}
+          >
+            <Zap className="w-3 h-3" />
+            Trade This
+          </button>
+        ) : (
+          <span className="text-xs text-gray-500">Neutral — no trade</span>
+        )}
+      </div>
     </div>
   );
 };
@@ -223,18 +252,18 @@ const Home = () => {
   };
 
   const features = [
-    { icon: Bot,          color: 'from-cyan-500 to-blue-600',    title: 'Automated Bots',    desc: '24/7 trading bots that execute your strategy automatically — no screen time needed.' },
-    { icon: Activity,     color: 'from-green-500 to-emerald-600', title: 'Smart Signals',     desc: 'Real-time BUY/SELL signals powered by RSI, EMA, and volume analysis across 10+ exchanges.' },
-    { icon: FlaskConical, color: 'from-purple-500 to-violet-600', title: 'Free Demo Account', desc: 'Test every strategy with $10,000 virtual balance and live market prices. Zero risk.' },
-    { icon: BookOpen,     color: 'from-amber-500 to-orange-600',  title: 'Strategy Library',  desc: '6 built-in strategies: Adaptive Grid, DCA, RSI Reversal, EMA, Scalper, and Breakout.' },
-    { icon: TrendingUp,   color: 'from-blue-500 to-indigo-600',  title: 'Arbitrage Scanner', desc: 'Scan price differences across multiple exchanges in real-time for risk-free opportunities.' },
-    { icon: Shield,       color: 'from-red-500 to-rose-600',     title: 'Risk Engine',       desc: 'Global drawdown limits, daily loss caps, trailing stops, and per-position controls built in.' },
+    { icon: Activity,     color: 'from-green-500 to-emerald-600', title: 'AI Trading Signals',      desc: 'Real-time LONG/SHORT signals across 30+ pairs — powered by RSI, EMA, MACD, Bollinger Bands, ATR and volume. Exact entry, stop-loss, and take-profit every time.' },
+    { icon: Zap,          color: 'from-cyan-500 to-blue-600',    title: 'One-Click Execution',     desc: 'See a signal you like? Hit Trade This and the order is placed instantly on your connected exchange — entry, SL, and TP pre-filled from the signal.' },
+    { icon: TrendingUp,   color: 'from-blue-500 to-indigo-600',  title: 'Arbitrage Scanner',       desc: 'Scans price gaps across 8 exchanges in real-time. Transfer status shows whether you can actually move the coin before you commit capital.' },
+    { icon: Flame,        color: 'from-orange-500 to-red-600',   title: 'Early Alpha Signals',     desc: 'Catch moves before they happen — momentum spikes, volume surges, and whale accumulation detected before the crowd notices.' },
+    { icon: Bot,          color: 'from-purple-500 to-violet-600', title: 'Automated Bots',         desc: '24/7 trading bots that execute your strategy automatically across 6 proven strategies — DCA, Grid, RSI Reversal, EMA, Scalper, and AI Signal.' },
+    { icon: Shield,       color: 'from-red-500 to-rose-600',     title: 'Built-in Risk Engine',    desc: 'ATR-based stop-loss, global drawdown limits, daily loss caps, and liquidation checks built into every signal and bot trade.' },
   ];
 
   const steps = [
-    { num: '01', title: 'Connect or Demo',   desc: 'Add your exchange API keys for live trading, or start instantly with a free $10k demo account. No funds required.' },
-    { num: '02', title: 'Choose a Strategy', desc: 'Pick from 6 proven strategies. Customize RSI thresholds, capital per bot, take-profit mode, and risk limits to fit your style.' },
-    { num: '03', title: 'Bot Trades 24/7',   desc: 'Your bot scans the market every tick, executes entries and exits, and sends real-time P&L updates to your dashboard.' },
+    { num: '01', title: 'AI Scans the Market',  desc: 'Every 30 minutes, our engine analyzes 30+ pairs across 6 indicators — RSI, EMA, MACD, Bollinger Bands, ATR, and volume. When ≥3 agree, a signal fires.' },
+    { num: '02', title: 'Review the Signal',    desc: 'See the exact entry, stop-loss, and take-profit. Full indicator breakdown shows you why the signal fired — not just what to do, but why.' },
+    { num: '03', title: 'Execute in One Click', desc: 'Like the setup? Hit Trade This — your connected exchange receives the order instantly, with SL and TP pre-filled. Or let a bot monitor and execute 24/7.' },
   ];
 
   const testimonials = [
@@ -293,22 +322,22 @@ const Home = () => {
             </div>
 
             <h1 className="mb-6 text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
-              Trade Smarter with{' '}
+              AI finds the trade.{' '}
               <span className="text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">
-                AI-Powered Bots
+                You pull the trigger.
               </span>
             </h1>
 
             <p className="max-w-3xl px-4 mx-auto mb-10 text-lg leading-relaxed text-gray-300 sm:text-xl lg:text-2xl sm:px-0">
-              Automate your crypto trading with intelligent bots, real-time signals, and 6 proven strategies — on Binance, Bybit, KuCoin and more.
+              Real-time signals across 30+ pairs — with exact entry, stop-loss, and take-profit. Like a signal? Execute it instantly on your exchange with one click.
             </p>
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <button
-                onClick={handleLogin}
+                onClick={() => navigate(isAuth ? '/signals' : '/login')}
                 className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-base shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-200"
               >
-                Start Trading Free
+                View Live Signals
                 <ArrowRight className="w-5 h-5" />
               </button>
               <Link
@@ -322,7 +351,7 @@ const Home = () => {
 
             {/* Trust row */}
             <div className="flex flex-wrap justify-center mt-8 text-sm text-gray-400 gap-x-6 gap-y-2">
-              {['No credit card', '$10k demo account', '10+ exchanges'].map((t, i) => (
+              {['No credit card', '30+ pairs analyzed', 'One-click execution'].map((t, i) => (
                 <span key={i} className="flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4 text-green-500" />{t}
                 </span>
@@ -424,317 +453,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ── QUICK ANALYZE ────────────────────────────────────────────── */}
-      <section className="py-16 sm:py-20 bg-brandDark-900">
-        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-10 text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 text-xs font-semibold text-cyan-300 bg-cyan-900/30 rounded-full border border-cyan-500/20">
-              <Search className="w-3.5 h-3.5" /> Live Technical Analysis
-            </div>
-            <h2 className="text-3xl font-bold text-white sm:text-4xl">Analyze Any Pair Instantly</h2>
-            <p className="max-w-xl mx-auto mt-3 text-gray-400">
-              Enter any USDT pair and get a full technical breakdown — RSI, EMA, MACD, Bollinger Bands, ATR and volume — in seconds.
-            </p>
-          </div>
-
-          {/* Widget card */}
-          <div className="max-w-5xl mx-auto rounded-2xl border border-white/10 bg-brandDark-800 overflow-hidden shadow-2xl">
-            <div className="grid lg:grid-cols-5">
-
-              {/* ── Form (left) ── */}
-              <form onSubmit={handleAnalyze} className="lg:col-span-2 p-6 border-b lg:border-b-0 lg:border-r border-white/8 flex flex-col gap-4">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">Pair</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={azQuery || azForm.symbol}
-                      onChange={e => {
-                        const val = e.target.value.toUpperCase().replace('/', '').trim();
-                        setAzQuery(val);
-                        setAzForm(f => ({ ...f, symbol: val }));
-                      }}
-                      onFocus={() => azForm.symbol && setAzQuery(azForm.symbol)}
-                      placeholder="Search pair, e.g. BTC or SOL…"
-                      className="w-full px-3 py-2.5 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50 transition-colors"
-                      style={{ colorScheme: 'dark' }}
-                    />
-                    {filteredPairs.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 rounded-lg bg-brandDark-700 border border-white/15 shadow-xl z-50 overflow-hidden">
-                        {filteredPairs.map(p => (
-                          <button key={p} type="button" onClick={() => selectPairHome(p)}
-                            className="w-full px-3 py-2 text-left text-xs font-mono text-gray-300 hover:bg-white/8 hover:text-white transition-colors">
-                            {p.replace('USDT', '')}<span className="text-gray-600">/USDT</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {!azForm.symbol && (
-                    <div className="mt-2">
-                      <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1.5">Popular</p>
-                      <div className="flex flex-wrap gap-1">
-                        {POPULAR_CHIPS.map(p => (
-                          <button key={p} type="button" onClick={() => selectPairHome(p)}
-                            className="px-2 py-0.5 text-[10px] rounded font-mono border border-white/10 bg-white/4 text-gray-400 hover:text-white hover:border-cyan-500/50 hover:bg-cyan-500/10 transition-colors">
-                            {p.replace('USDT', '')}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {azForm.symbol && (
-                    <div className="mt-1.5 flex items-center gap-1.5">
-                      <span className="text-[10px] text-cyan-400 font-mono font-semibold">{azForm.symbol.replace('USDT', '/USDT')}</span>
-                      <button type="button" onClick={() => { setAzForm(f => ({ ...f, symbol: '' })); setAzQuery(''); }} className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors">✕ clear</button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1.5">Timeframe</label>
-                    <select
-                      value={azForm.timeframe}
-                      onChange={e => setAzForm(f => ({ ...f, timeframe: e.target.value }))}
-                      className="w-full px-3 py-2.5 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
-                      style={{ colorScheme: 'dark' }}
-                    >
-                      <option value="15m">15 minutes</option>
-                      <option value="1h">1 hour</option>
-                      <option value="4h">4 hours</option>
-                      <option value="1d">1 day</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1.5">Market</label>
-                    <select
-                      value={azForm.marketType}
-                      onChange={e => setAzForm(f => ({ ...f, marketType: e.target.value }))}
-                      className="w-full px-3 py-2.5 rounded-lg bg-brandDark-700 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
-                      style={{ colorScheme: 'dark' }}
-                    >
-                      <option value="spot">Spot</option>
-                      <option value="futures">Futures</option>
-                    </select>
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={analysisLoading || !azForm.symbol}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20"
-                >
-                  {analysisLoading
-                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analyzing…</>
-                    : <><Search className="w-4 h-4" /> Analyze</>
-                  }
-                </button>
-                {analysisError && <p className="text-xs text-red-400 text-center">{analysisError}</p>}
-                <p className="text-[11px] text-gray-600 leading-relaxed mt-auto">
-                  The engine reads live candles and scores 6 indicators. A signal fires when ≥3 agree in one direction.
-                </p>
-              </form>
-
-              {/* ── Results (right) ── */}
-              <div className="lg:col-span-3 p-6 flex flex-col gap-5">
-
-                {/* Empty state */}
-                {!analysis && !analysisLoading && (
-                  <div className="flex flex-col items-center justify-center h-full py-12 text-center gap-3">
-                    <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center">
-                      <BarChart2 className="w-7 h-7 text-gray-600" />
-                    </div>
-                    <p className="text-gray-400 font-medium">Enter a pair and click Analyze</p>
-                    <p className="text-gray-600 text-xs max-w-xs">
-                      Try BTCUSDT, ETHUSDT, SOLUSDT — any USDT pair across spot or futures.
-                    </p>
-                    {!isAuth && (
-                      <Link to="/login" className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/15 transition-colors">
-                        Sign in to analyze <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    )}
-                  </div>
-                )}
-
-                {/* Loading skeleton */}
-                {analysisLoading && (
-                  <div className="space-y-4 animate-pulse">
-                    <div className="h-16 bg-white/4 rounded-xl" />
-                    <div className="grid grid-cols-3 gap-2">
-                      {[0,1,2,3,4,5].map(i => <div key={i} className="h-14 bg-white/4 rounded-lg" />)}
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[0,1,2].map(i => <div key={i} className="h-16 bg-white/4 rounded-xl" />)}
-                    </div>
-                  </div>
-                )}
-
-                {/* Results */}
-                {analysis && !analysisLoading && (() => {
-                  const az = analysis;
-                  const hasSignal = !!az.signal;
-                  const isLong = az.signal === 'LONG';
-                  const fmtV = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d });
-
-                  return (
-                    <>
-                      {/* Verdict row */}
-                      <div className={`flex items-center justify-between p-4 rounded-xl border ${
-                        hasSignal
-                          ? isLong ? 'border-green-500/30 bg-green-500/8' : 'border-red-500/30 bg-red-500/8'
-                          : 'border-white/8 bg-white/3'
-                      }`}>
-                        <div>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            {hasSignal
-                              ? isLong ? <CheckCircle className="w-4 h-4 text-green-400" /> : <XCircle className="w-4 h-4 text-red-400" />
-                              : <MinusCircle className="w-4 h-4 text-gray-500" />
-                            }
-                            <span className="text-base font-bold text-white">{az.pair?.replace('USDT', '/USDT')}</span>
-                            <span className="text-[10px] text-gray-500 uppercase">{az.timeframe} · {az.marketType}</span>
-                          </div>
-                          <p className="text-xs text-gray-500 ml-6">
-                            Price: <span className="text-gray-300 font-mono">${fmtV(az.currentPrice, 4)}</span>
-                            <span className="mx-2 text-gray-700">·</span>
-                            <span className="text-gray-500">{az.longScore ?? 0} bullish · {az.shortScore ?? 0} bearish</span>
-                          </p>
-                        </div>
-                        <span className={`px-3 py-1.5 rounded-full text-sm font-bold flex-shrink-0 ${
-                          hasSignal
-                            ? isLong ? 'bg-green-500/20 text-green-300 border border-green-500/35' : 'bg-red-500/20 text-red-300 border border-red-500/35'
-                            : 'bg-gray-500/15 text-gray-400 border border-gray-500/20'
-                        }`}>
-                          {hasSignal ? (isLong ? '▲ LONG' : '▼ SHORT') : 'NEUTRAL'}
-                        </span>
-                      </div>
-
-                      {/* No-signal message */}
-                      {!hasSignal && (
-                        <div className="flex items-start gap-2 p-3 rounded-lg bg-white/3 border border-white/8">
-                          <Info className="w-3.5 h-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
-                          <p className="text-xs text-gray-400">
-                            <span className="text-gray-300 font-semibold">No trade signal yet. </span>
-                            {az.message || `Indicators are split — ≥3 need to agree in one direction for a signal.`}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Indicator pills */}
-                      {az.indicators && (
-                        <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
-                          {az.indicators.rsi != null && (() => {
-                            const bull = az.indicators.rsi < 35;
-                            const bear = az.indicators.rsi > 65;
-                            return (
-                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}>
-                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">RSI (14)</p>
-                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{az.indicators.rsi}</p>
-                                <p className="text-[9px] text-gray-600">{bull ? 'Oversold' : bear ? 'Overbought' : 'Neutral'}</p>
-                              </div>
-                            );
-                          })()}
-                          {az.indicators.ema20 != null && az.indicators.ema50 != null && (() => {
-                            const bull = az.indicators.ema20 > az.indicators.ema50;
-                            return (
-                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
-                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">EMA 20/50</p>
-                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : 'text-red-400'}`}>{bull ? 'Bullish' : 'Bearish'}</p>
-                                <p className="text-[9px] text-gray-600">{bull ? '20 > 50' : '20 < 50'}</p>
-                              </div>
-                            );
-                          })()}
-                          {az.indicators.ema200 != null && az.currentPrice != null && (() => {
-                            const bull = az.currentPrice > az.indicators.ema200;
-                            return (
-                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
-                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">EMA 200</p>
-                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : 'text-red-400'}`}>{bull ? 'Above' : 'Below'}</p>
-                                <p className="text-[9px] text-gray-600">${fmtV(az.indicators.ema200, 0)}</p>
-                              </div>
-                            );
-                          })()}
-                          {az.indicators.macd != null && (() => {
-                            const bull = az.indicators.macd.histogram > 0;
-                            return (
-                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
-                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">MACD</p>
-                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : 'text-red-400'}`}>{bull ? 'Positive' : 'Negative'}</p>
-                                <p className="text-[9px] text-gray-600 font-mono">{bull ? '+' : ''}{Number(az.indicators.macd.histogram).toFixed(2)}</p>
-                              </div>
-                            );
-                          })()}
-                          {az.indicators.bb != null && az.currentPrice != null && (() => {
-                            const range = az.indicators.bb.upper - az.indicators.bb.lower;
-                            const pos = range > 0 ? (az.currentPrice - az.indicators.bb.lower) / range : 0.5;
-                            const bull = pos < 0.25; const bear = pos > 0.75;
-                            return (
-                              <div className={`p-2.5 rounded-lg border text-center ${bull ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}>
-                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Bollinger</p>
-                                <p className={`text-sm font-bold ${bull ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{bull ? 'Near Low' : bear ? 'Near High' : 'Mid-range'}</p>
-                                <p className="text-[9px] text-gray-600">{(pos * 100).toFixed(0)}% of band</p>
-                              </div>
-                            );
-                          })()}
-                          {az.indicators.volRatio != null && (() => {
-                            const hot = az.indicators.volRatio > 1.5;
-                            return (
-                              <div className={`p-2.5 rounded-lg border text-center ${hot ? 'border-cyan-500/20 bg-cyan-500/8' : 'border-white/6 bg-white/3'}`}>
-                                <p className="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Vol Ratio</p>
-                                <p className={`text-sm font-bold ${hot ? 'text-cyan-400' : 'text-gray-300'}`}>{az.indicators.volRatio}×</p>
-                                <p className="text-[9px] text-gray-600">vs avg</p>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      {/* Entry / SL / TP */}
-                      {hasSignal && (
-                        <div className="grid grid-cols-3 gap-3">
-                          {[
-                            { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-cyan-300',  bg: 'border-cyan-500/20 bg-cyan-500/8'   },
-                            { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400',   bg: 'border-red-500/20 bg-red-500/8'     },
-                            { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
-                          ].map(({ label, icon: Icon, val, color, bg }) => (
-                            <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-xl border ${bg}`}>
-                              <Icon className={`w-3.5 h-3.5 ${color}`} />
-                              <span className="text-[9px] text-gray-500 uppercase tracking-wider">{label}</span>
-                              {isPremium ? (
-                                <span className={`text-sm font-bold font-mono ${color}`}>${fmtV(val, 4)}</span>
-                              ) : (
-                                <span className="text-sm font-bold text-gray-600 blur-sm select-none">${fmtV(val, 4)}</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* CTA */}
-                      <div className="flex items-center justify-between pt-2 border-t border-white/6">
-                        {!isPremium && hasSignal && (
-                          <p className="text-[11px] text-gray-600 flex items-center gap-1">
-                            <Lock className="w-3 h-3 text-amber-500" />
-                            <Link to="/pricing" className="text-amber-500 hover:underline">Upgrade</Link> to see exact entry & targets
-                          </p>
-                        )}
-                        <Link
-                          to={isAuth ? '/signals' : '/login'}
-                          className="ml-auto inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 font-semibold transition-colors"
-                        >
-                          Full analysis <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────── */}
       <section className="py-16 bg-white sm:py-20 dark:bg-brandDark-900">
@@ -892,42 +610,43 @@ const Home = () => {
       </section>
 
       {/* ── FINAL CTA ────────────────────────────────────────────────── */}
-      <section className="relative py-20 overflow-hidden bg-gray-950 dark:bg-brandDark-900 border-t border-white/5">
+      <section className="relative py-20 overflow-hidden border-t bg-gray-950 dark:bg-brandDark-900 border-white/5">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/20 via-blue-900/20 to-indigo-900/20" />
         <div className="absolute top-0 right-0 rounded-full w-72 h-72 bg-cyan-500/5 blur-3xl" />
         <div className="container relative px-4 mx-auto text-center">
           <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-            Start Automating Your Trades Today
+            The signal is ready.{' '}
+            <span className="text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text">Are you?</span>
           </h2>
           <p className="max-w-2xl mx-auto mb-8 text-lg text-gray-400">
-            Join traders who run bots 24/7, catch every signal, and never miss a market move.
+            Join traders who never miss an entry — AI finds the setup, you pull the trigger.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button
-              onClick={handleGetStarted}
+              onClick={() => navigate(isAuth ? '/signals' : '/register')}
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-base shadow-lg hover:shadow-cyan-500/30 hover:scale-105 transition-all duration-200"
             >
-              Create Free Account <ArrowRight className="w-5 h-5" />
+              View Live Signals <ArrowRight className="w-5 h-5" />
             </button>
             <Link
-              to="/strategies"
+              to="/signals"
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border border-white/20 text-gray-300 font-semibold text-base hover:bg-white/5 transition-colors"
             >
               <BarChart2 className="w-5 h-5" />
-              Browse Strategies
+              View All Signals
             </Link>
           </div>
         </div>
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────────────────── */}
-      <footer className="py-8 bg-gray-950 border-t border-white/5">
-        <div className="container px-4 mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+      <footer className="py-8 border-t bg-gray-950 border-white/5">
+        <div className="container flex flex-col items-center justify-between gap-3 px-4 mx-auto text-xs text-gray-500 sm:flex-row">
           <p>© {new Date().getFullYear()} SmartStrategy. Not financial advice — trade at your own risk.</p>
           <div className="flex gap-5">
-            <Link to="/privacy" className="hover:text-gray-300 transition-colors">Privacy Policy</Link>
-            <Link to="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
-            <a href="mailto:princeleepraise@gmail.com" className="hover:text-gray-300 transition-colors">Contact</a>
+            <Link to="/privacy" className="transition-colors hover:text-gray-300">Privacy Policy</Link>
+            <Link to="/terms" className="transition-colors hover:text-gray-300">Terms of Service</Link>
+            <a href="mailto:princeleepraise@gmail.com" className="transition-colors hover:text-gray-300">Contact</a>
           </div>
         </div>
       </footer>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
 import {
@@ -24,7 +25,8 @@ export const useSocket = () => {
 };
 
 export const SocketProvider = ({ children }) => {
-  const dispatch = useDispatch();
+  const dispatch  = useDispatch();
+  const navigate  = useNavigate();
   const { token, user } = useSelector((state) => state.auth);
   const socketRef = useRef(null);
 
@@ -138,10 +140,11 @@ export const SocketProvider = ({ children }) => {
         </div>
       );
 
+      const toastOpts = { autoClose: 7000, toastId: `sig-${signal.pair}`, onClick: () => navigate('/signals'), style: { cursor: 'pointer' } };
       if (isLong) {
-        toast.success(content, { autoClose: 7000, toastId: `sig-${signal.pair}`, icon: '📈' });
+        toast.success(content, { ...toastOpts, icon: '📈' });
       } else {
-        toast.error(content, { autoClose: 7000, toastId: `sig-${signal.pair}`, icon: '📉' });
+        toast.error(content, { ...toastOpts, icon: '📉' });
       }
     });
 
@@ -159,7 +162,7 @@ export const SocketProvider = ({ children }) => {
       signals.forEach(signal => dispatch(addLiveSignal(signal)));
       toast.info(
         `${signals.length} new signal${signals.length > 1 ? 's' : ''} — market sweep`,
-        { autoClose: 4000, toastId: 'sweep-update', icon: '📊' }
+        { autoClose: 4000, toastId: 'sweep-update', icon: '📊', onClick: () => navigate('/signals'), style: { cursor: 'pointer' } }
       );
     });
 
@@ -205,12 +208,12 @@ export const SocketProvider = ({ children }) => {
           const best = highProfit[0];
           toast.success(
             `🚨 ${best.symbol}: ${best.netProfitPercent.toFixed(2)}% profit — ${best.buyExchange} → ${best.sellExchange}`,
-            { autoClose: 8000, toastId: 'arb-high-profit' }
+            { autoClose: 8000, toastId: 'arb-high-profit', onClick: () => navigate('/arbitrage'), style: { cursor: 'pointer' } }
           );
         } else if (opps.length > 0) {
           toast.info(
             `Arbitrage: ${opps.length} opportunit${opps.length === 1 ? 'y' : 'ies'} found`,
-            { autoClose: 4000, toastId: 'arb-update' }
+            { autoClose: 4000, toastId: 'arb-update', onClick: () => navigate('/arbitrage'), style: { cursor: 'pointer' } }
           );
         }
       });
@@ -224,25 +227,29 @@ export const SocketProvider = ({ children }) => {
         const priceStr = data.price != null ? ` @ $${Number(data.price).toFixed(2)}` : '';
         const msg = `${data.botName}: ${(data.side || '').toUpperCase()} ${data.symbol}${priceStr}`;
 
+        const botPath = data.botId ? `/bots/${data.botId}` : '/bots';
+        const botOpts = { onClick: () => navigate(botPath), style: { cursor: 'pointer' } };
         if (data.triggerReason === 'entry') {
-          toast.info(msg, { autoClose: 4000 });
+          toast.info(msg, { autoClose: 4000, ...botOpts });
         } else if (data.pnl != null) {
           if (data.pnl >= 0) {
-            toast.success(`${msg} · PnL: +$${Number(data.pnl).toFixed(2)}`, { autoClose: 5000 });
+            toast.success(`${msg} · PnL: +$${Number(data.pnl).toFixed(2)}`, { autoClose: 5000, ...botOpts });
           } else {
-            toast.error(`${msg} · PnL: -$${Math.abs(data.pnl).toFixed(2)}`, { autoClose: 5000 });
+            toast.error(`${msg} · PnL: -$${Math.abs(data.pnl).toFixed(2)}`, { autoClose: 5000, ...botOpts });
           }
         } else {
-          toast.info(msg, { autoClose: 4000 });
+          toast.info(msg, { autoClose: 4000, ...botOpts });
         }
       });
 
       socket.on('bot:paused', (data) => {
-        toast.warn(`Bot "${data.botName}" paused: ${data.reason}`, { autoClose: 8000 });
+        const pausedPath = data.botId ? `/bots/${data.botId}` : '/bots';
+        toast.warn(`Bot "${data.botName}" paused: ${data.reason}`, { autoClose: 8000, onClick: () => navigate(pausedPath), style: { cursor: 'pointer' } });
       });
 
       socket.on('bot:error', (data) => {
-        toast.error(`Bot "${data.botName}" error: ${data.error}`, { autoClose: 8000 });
+        const errPath = data.botId ? `/bots/${data.botId}` : '/bots';
+        toast.error(`Bot "${data.botName}" error: ${data.error}`, { autoClose: 8000, onClick: () => navigate(errPath), style: { cursor: 'pointer' } });
       });
     }
 

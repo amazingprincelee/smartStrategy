@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   ChevronRight, ChevronLeft, Bot, FlaskConical, Zap, Shield, CheckCircle,
-  Loader, AlertCircle, Plus, Info
+  Loader, AlertCircle, Plus, Info, TrendingUp, TrendingDown, Target
 } from 'lucide-react';
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
 import { fetchAccounts } from '../redux/slices/exchangeAccountSlice';
@@ -74,12 +74,24 @@ const DEFAULTS = {
 const CreateBot = () => {
   const dispatch  = useDispatch();
   const navigate  = useNavigate();
+  const location  = useLocation();
+  const prefill   = location.state?.prefill ?? null;
 
   const { loading: botLoading } = useSelector(state => state.bots);
   const { accounts }            = useSelector(state => state.exchangeAccounts);
 
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState(DEFAULTS);
+  const [step, setStep] = useState(prefill ? 1 : 0);
+  const [form, setForm] = useState(() => {
+    if (!prefill) return DEFAULTS;
+    const base = prefill.pair?.replace('USDT', '') ?? '';
+    return {
+      ...DEFAULTS,
+      symbol:     prefill.pair      ?? DEFAULTS.symbol,
+      marketType: prefill.marketType ?? DEFAULTS.marketType,
+      strategyId: 'ai_signal',
+      name: `${base} ${prefill.signal ?? ''} Trade`.trim(),
+    };
+  });
 
   useEffect(() => {
     dispatch(fetchStrategies());
@@ -489,13 +501,24 @@ const CreateBot = () => {
           />
         </div>
 
+        {prefill && (
+          <div className={`p-3 rounded-lg border mb-2 flex items-center gap-2 text-xs ${
+            prefill.signal === 'LONG'
+              ? 'border-green-500/30 bg-green-500/8 text-green-300'
+              : 'border-red-500/30 bg-red-500/8 text-red-300'
+          }`}>
+            <Target className="w-3.5 h-3.5 flex-shrink-0" />
+            Trading: <span className="font-bold ml-1">{prefill.pair?.replace('USDT', '/USDT')} {prefill.signal}</span>
+            <span className="ml-auto font-mono">Entry {fmtPrice(prefill.entry)} · SL {fmtPrice(prefill.stopLoss)} · TP {fmtPrice(prefill.takeProfit)}</span>
+          </div>
+        )}
         <div className="p-4 space-y-2 text-sm bg-gray-50 dark:bg-brandDark-700 rounded-xl">
           {[
             ['Mode',         form.isDemo ? 'Demo (Paper Trading)' : 'Live Trading'],
             ['Exchange',     accountLabel ? `${form.exchange} — ${accountLabel}` : form.exchange],
             ['Market',       form.marketType],
-            ['Strategy',     'SmartSignal Bot'],
-            ['Pair',         'Automatic (signal-based)'],
+            ['Strategy',     prefill ? 'AI Signal (single pair)' : 'SmartSignal Bot'],
+            ['Pair',         prefill ? prefill.pair?.replace('USDT', '/USDT') : 'Automatic (signal-based)'],
             ['Capital',      `$${form.capitalAllocation.totalCapital} USDT`],
             ['Max Trades',   form.capitalAllocation.maxOpenPositions],
             ['Confidence',   `≥ ${form.strategyParams.minConfidencePercent}%`],
@@ -530,13 +553,61 @@ const CreateBot = () => {
     }
   };
 
+  const fmtPrice = (p) => {
+    if (!p && p !== 0) return '—';
+    if (p >= 1000) return `$${Number(p).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (p >= 1)    return `$${Number(p).toFixed(4)}`;
+    return `$${Number(p).toFixed(6)}`;
+  };
+
   return (
     <div className="max-w-2xl p-4 mx-auto md:p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Bot className="w-6 h-6 text-primary-500" />
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create SmartSignal Bot</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {prefill ? 'Trade This Signal' : 'Create SmartSignal Bot'}
+        </h1>
       </div>
+
+      {/* Signal banner — shown when coming from "Trade This" */}
+      {prefill && (
+        <div className={`mb-6 p-4 rounded-xl border-2 flex flex-wrap gap-4 items-start ${
+          prefill.signal === 'LONG'
+            ? 'border-green-500/40 bg-green-500/8'
+            : 'border-red-500/40 bg-red-500/8'
+        }`}>
+          <div className="flex items-center gap-2">
+            {prefill.signal === 'LONG'
+              ? <TrendingUp className="w-5 h-5 text-green-400 flex-shrink-0" />
+              : <TrendingDown className="w-5 h-5 text-red-400 flex-shrink-0" />
+            }
+            <div>
+              <p className="text-sm font-bold text-white">
+                {prefill.pair?.replace('USDT', '/USDT')} — {prefill.signal}
+              </p>
+              <p className="text-xs text-gray-400 capitalize">{prefill.marketType ?? 'spot'} signal</p>
+            </div>
+          </div>
+          <div className="flex gap-4 text-xs flex-wrap">
+            <div>
+              <p className="text-gray-500 mb-0.5">Entry</p>
+              <p className="font-mono font-bold text-cyan-300">{fmtPrice(prefill.entry)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 mb-0.5">Stop Loss</p>
+              <p className="font-mono font-bold text-red-400">{fmtPrice(prefill.stopLoss)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 mb-0.5">Take Profit</p>
+              <p className="font-mono font-bold text-green-400">{fmtPrice(prefill.takeProfit)}</p>
+            </div>
+          </div>
+          <p className="w-full text-xs text-gray-500">
+            Configure your exchange and capital below, then launch to execute this trade automatically.
+          </p>
+        </div>
+      )}
 
       {/* Progress */}
       <div className="mb-8">

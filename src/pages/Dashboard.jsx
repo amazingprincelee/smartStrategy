@@ -47,6 +47,32 @@ const timeAgo = (iso) => {
   return `${Math.floor(diff / 3600)}h ago`;
 };
 
+/* ─── Indicator hint tooltip ─────────────────────────────────── */
+function Hint({ text }) {
+  const [show, setShow] = React.useState(false);
+  return (
+    <span className="relative inline-flex ml-0.5 align-middle">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-white/10 text-gray-500 hover:text-gray-300 transition-colors"
+        aria-label="What does this mean?"
+      >
+        <Info className="w-2 h-2" />
+      </button>
+      {show && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-52 px-3 py-2 rounded-xl bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+          {text}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-950" />
+        </span>
+      )}
+    </span>
+  );
+}
+
 /* ─── service card config ────────────────────────────────────── */
 const SERVICES = [
   {
@@ -401,12 +427,48 @@ const Dashboard = () => {
                   )}
                   {az.indicators && (
                     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                      {az.indicators.rsi != null && (() => { const b = az.indicators.rsi < 35, bear = az.indicators.rsi > 65; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}><p className="text-[9px] text-gray-600 mb-0.5">RSI</p><p className={`text-xs font-bold ${b ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{az.indicators.rsi}</p><p className="text-[9px] text-gray-600">{b ? 'Oversold' : bear ? 'Overbought' : 'Neutral'}</p></div>); })()}
-                      {az.indicators.ema20 != null && az.indicators.ema50 != null && (() => { const b = az.indicators.ema20 > az.indicators.ema50; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}><p className="text-[9px] text-gray-600 mb-0.5">EMA20/50</p><p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Bull' : 'Bear'}</p><p className="text-[9px] text-gray-600">{b ? '20>50' : '20<50'}</p></div>); })()}
-                      {az.indicators.ema200 != null && az.currentPrice != null && (() => { const b = az.currentPrice > az.indicators.ema200; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}><p className="text-[9px] text-gray-600 mb-0.5">EMA200</p><p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Above' : 'Below'}</p><p className="text-[9px] text-gray-600">${fmtV(az.indicators.ema200, 0)}</p></div>); })()}
-                      {az.indicators.macd != null && (() => { const b = az.indicators.macd.histogram > 0; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}><p className="text-[9px] text-gray-600 mb-0.5">MACD</p><p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Pos' : 'Neg'}</p><p className="text-[9px] text-gray-600 font-mono">{b ? '+' : ''}{Number(az.indicators.macd.histogram).toFixed(2)}</p></div>); })()}
-                      {az.indicators.bb != null && az.currentPrice != null && (() => { const range = az.indicators.bb.upper - az.indicators.bb.lower; const pos = range > 0 ? (az.currentPrice - az.indicators.bb.lower) / range : 0.5; const b = pos < 0.25, bear = pos > 0.75; return (<div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}><p className="text-[9px] text-gray-600 mb-0.5">BB</p><p className={`text-xs font-bold ${b ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{b ? 'Low' : bear ? 'High' : 'Mid'}</p><p className="text-[9px] text-gray-600">{(pos * 100).toFixed(0)}%</p></div>); })()}
-                      {az.indicators.volRatio != null && (() => { const hot = az.indicators.volRatio > 1.5; return (<div className={`p-2 rounded-lg border text-center ${hot ? 'border-cyan-500/20 bg-cyan-500/8' : 'border-white/6 bg-white/3'}`}><p className="text-[9px] text-gray-600 mb-0.5">Vol</p><p className={`text-xs font-bold ${hot ? 'text-cyan-400' : 'text-gray-300'}`}>{az.indicators.volRatio}×</p><p className="text-[9px] text-gray-600">vs avg</p></div>); })()}
+                      {az.indicators.rsi != null && (() => { const b = az.indicators.rsi < 35, bear = az.indicators.rsi > 65; return (
+                        <div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}>
+                          <p className="text-[9px] text-gray-600 mb-0.5 flex items-center justify-center gap-0.5">RSI<Hint text="Relative Strength Index (0–100). Below 35 = oversold, price may bounce up. Above 65 = overbought, price may drop. In between = neutral momentum." /></p>
+                          <p className={`text-xs font-bold ${b ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{az.indicators.rsi}</p>
+                          <p className="text-[9px] text-gray-600">{b ? 'Oversold' : bear ? 'Overbought' : 'Neutral'}</p>
+                        </div>
+                      ); })()}
+                      {az.indicators.ema20 != null && az.indicators.ema50 != null && (() => { const b = az.indicators.ema20 > az.indicators.ema50; return (
+                        <div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+                          <p className="text-[9px] text-gray-600 mb-0.5 flex items-center justify-center gap-0.5">EMA20/50<Hint text="Exponential Moving Average crossover. When EMA20 is above EMA50, short-term momentum is bullish. When below, it's bearish. Think of it as a fast vs slow trend comparison." /></p>
+                          <p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Bull' : 'Bear'}</p>
+                          <p className="text-[9px] text-gray-600">{b ? '20>50' : '20<50'}</p>
+                        </div>
+                      ); })()}
+                      {az.indicators.ema200 != null && az.currentPrice != null && (() => { const b = az.currentPrice > az.indicators.ema200; return (
+                        <div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+                          <p className="text-[9px] text-gray-600 mb-0.5 flex items-center justify-center gap-0.5">EMA200<Hint text="The 200-period EMA is the most important long-term trend line. Price above it = overall uptrend (bullish). Price below it = overall downtrend (bearish). The best trades happen on the right side of EMA200." /></p>
+                          <p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Above' : 'Below'}</p>
+                          <p className="text-[9px] text-gray-600">${fmtV(az.indicators.ema200, 0)}</p>
+                        </div>
+                      ); })()}
+                      {az.indicators.macd != null && (() => { const b = az.indicators.macd.histogram > 0; return (
+                        <div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+                          <p className="text-[9px] text-gray-600 mb-0.5 flex items-center justify-center gap-0.5">MACD<Hint text="Moving Average Convergence Divergence. A positive histogram means bullish momentum is building. Negative means bearish momentum. The number shows how strong the momentum is." /></p>
+                          <p className={`text-xs font-bold ${b ? 'text-green-400' : 'text-red-400'}`}>{b ? 'Pos' : 'Neg'}</p>
+                          <p className="text-[9px] text-gray-600 font-mono">{b ? '+' : ''}{Number(az.indicators.macd.histogram).toFixed(2)}</p>
+                        </div>
+                      ); })()}
+                      {az.indicators.bb != null && az.currentPrice != null && (() => { const range = az.indicators.bb.upper - az.indicators.bb.lower; const pos = range > 0 ? (az.currentPrice - az.indicators.bb.lower) / range : 0.5; const b = pos < 0.25, bear = pos > 0.75; return (
+                        <div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}>
+                          <p className="text-[9px] text-gray-600 mb-0.5 flex items-center justify-center gap-0.5">BB<Hint text="Bollinger Bands are volatility boundaries around the price. Near the lower band = price is cheap relative to recent history (bullish). Near the upper band = price is expensive (bearish). In the middle = no clear signal." /></p>
+                          <p className={`text-xs font-bold ${b ? 'text-green-400' : bear ? 'text-red-400' : 'text-gray-300'}`}>{b ? 'Low' : bear ? 'High' : 'Mid'}</p>
+                          <p className="text-[9px] text-gray-600">{(pos * 100).toFixed(0)}%</p>
+                        </div>
+                      ); })()}
+                      {az.indicators.volRatio != null && (() => { const hot = az.indicators.volRatio > 1.5; return (
+                        <div className={`p-2 rounded-lg border text-center ${hot ? 'border-cyan-500/20 bg-cyan-500/8' : 'border-white/6 bg-white/3'}`}>
+                          <p className="text-[9px] text-gray-600 mb-0.5 flex items-center justify-center gap-0.5">Vol<Hint text="Volume Ratio compares current trading volume to the 20-period average. Above 1.5× means unusually high activity — traders are paying attention. Low volume means weak conviction behind any move." /></p>
+                          <p className={`text-xs font-bold ${hot ? 'text-cyan-400' : 'text-gray-300'}`}>{az.indicators.volRatio}×</p>
+                          <p className="text-[9px] text-gray-600">vs avg</p>
+                        </div>
+                      ); })()}
                     </div>
                   )}
                   {hasSignal && (

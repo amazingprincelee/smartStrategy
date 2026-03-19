@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Moon,
+  Wallet,
 } from 'lucide-react';
 import { logout } from '../../redux/slices/authSlice';
 import { useTheme } from '../../redux/useTheme';
@@ -164,6 +165,14 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
                           </p>
                         </div>
                         <div className="py-1">
+                          <Link
+                            to="/account"
+                            onClick={() => setIsUserDropdownOpen(false)}
+                            className="flex items-center w-full px-4 py-2 text-sm transition-colors text-brandDark-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brandDark-700"
+                          >
+                            <Wallet className="w-4 h-4 mr-3" />
+                            Account
+                          </Link>
                           <button
                             onClick={handleProfileClick}
                             className="flex items-center w-full px-4 py-2 text-sm transition-colors text-brandDark-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brandDark-700"
