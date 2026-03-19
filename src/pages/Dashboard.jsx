@@ -175,7 +175,7 @@ const Dashboard = () => {
 
   /* analyze form */
   const POPULAR_CHIPS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT'];
-  const [azForm, setAzForm]   = useState({ symbol: '', timeframe: '1h', marketType: 'spot' });
+  const [azForm, setAzForm]   = useState({ symbol: '', timeframe: '1h', marketType: 'futures' });
   const [azQuery, setAzQuery] = useState('');
 
   const filteredPairs = azQuery.length >= 2
@@ -474,13 +474,15 @@ const Dashboard = () => {
                   {hasSignal && (
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { label: 'Entry', icon: Target, val: az.entry, color: 'text-cyan-300', bg: 'border-cyan-500/20 bg-cyan-500/8' },
-                        { label: 'Stop Loss', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
-                        { label: 'Take Profit', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
-                      ].map(({ label, icon: Icon, val, color, bg }) => (
-                        <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-xl border ${bg}`}>
-                          <Icon className={`w-3.5 h-3.5 ${color}`} />
-                          <span className="text-[9px] text-gray-500 uppercase tracking-wider">{label}</span>
+                        { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-cyan-300', bg: 'border-cyan-500/20 bg-cyan-500/8' },
+                        { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
+                        { label: 'Take Profit', short: 'TP', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
+                      ].map(({ label, short, icon: Icon, val, color, bg }) => (
+                        <div key={label} className={`flex flex-col gap-1 p-3 rounded-xl border ${bg}`}>
+                          <div className="flex items-center gap-1.5">
+                            <Icon className={`w-3 h-3 ${color}`} />
+                            <span className="text-[10px] text-gray-500 font-medium">{short}:</span>
+                          </div>
                           {isPremium ? <span className={`text-sm font-bold font-mono ${color}`}>${fmtV(val, 4)}</span> : <span className="text-sm font-bold text-gray-600 blur-sm select-none">${fmtV(val, 4)}</span>}
                         </div>
                       ))}

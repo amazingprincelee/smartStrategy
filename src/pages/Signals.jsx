@@ -255,13 +255,13 @@ const Signals = () => {
 
   // Backtest form
   const [btForm, setBtForm] = useState({
-    symbol: 'BTCUSDT', marketType: 'spot', timeframe: '1h',
+    symbol: 'BTCUSDT', marketType: 'futures', timeframe: '1h',
     initialCapital: '10000', riskPerTrade: '0.02',
   });
 
   // Analyze form
   const [azForm, setAzForm] = useState({
-    symbol: 'BTCUSDT', timeframe: '1h', marketType: 'spot',
+    symbol: 'BTCUSDT', timeframe: '1h', marketType: 'futures',
   });
 
   // Fetch live signals when on spot/futures tab; reset show-all on tab switch
