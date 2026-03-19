@@ -29,6 +29,7 @@ import {
   Clock,
   History,
   Newspaper,
+  Info,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────── helpers ── */
@@ -541,8 +542,14 @@ const Signals = () => {
                       </div>
                     </div>
 
-                    {!hasSignal && az.message && (
-                      <p className="text-xs text-gray-500 mt-2">{az.message}</p>
+                    {!hasSignal && (
+                      <div className="mt-3 p-3 rounded-lg bg-white/4 border border-white/8 flex items-start gap-2">
+                        <Info className="w-3.5 h-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                          <span className="text-gray-300 font-semibold">No trade signal yet.</span>{' '}
+                          {az.message || `Indicators are split — ${az.longScore ?? 0} bullish vs ${az.shortScore ?? 0} bearish. The engine needs ≥3 to agree in one direction before suggesting an entry, stop-loss, and take-profit.`}
+                        </p>
+                      </div>
                     )}
                   </div>
 
@@ -599,9 +606,21 @@ const Signals = () => {
                         <BarChart2 className="w-3.5 h-3.5" /> Indicators
                       </h4>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+
+                        {/* RSI */}
                         {az.indicators.rsi != null && (
-                          <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
-                            <span className="text-[9px] text-gray-600 uppercase tracking-wider">RSI (14)</span>
+                          <div className="relative group/hint flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-gray-600 uppercase tracking-wider">RSI (14)</span>
+                              <Info className="w-2.5 h-2.5 text-gray-700 group-hover/hint:text-gray-400 transition-colors cursor-help" />
+                            </div>
+                            <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/hint:block z-50 w-56 p-2.5 rounded-lg bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                              <span className="font-semibold text-white block mb-1">Relative Strength Index</span>
+                              Measures momentum on a 0–100 scale.<br/>
+                              <span className="text-green-400">Below 35</span> = oversold — price may bounce up.<br/>
+                              <span className="text-red-400">Above 65</span> = overbought — price may drop.<br/>
+                              35–65 = neutral zone.
+                            </div>
                             <span className={`text-sm font-bold ${az.indicators.rsi < 35 ? 'text-green-400' : az.indicators.rsi > 65 ? 'text-red-400' : 'text-gray-300'}`}>
                               {az.indicators.rsi}
                             </span>
@@ -610,9 +629,20 @@ const Signals = () => {
                             </span>
                           </div>
                         )}
+
+                        {/* EMA 20/50 */}
                         {az.indicators.ema20 != null && az.indicators.ema50 != null && (
-                          <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
-                            <span className="text-[9px] text-gray-600 uppercase tracking-wider">EMA 20/50</span>
+                          <div className="relative group/hint flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-gray-600 uppercase tracking-wider">EMA 20/50</span>
+                              <Info className="w-2.5 h-2.5 text-gray-700 group-hover/hint:text-gray-400 transition-colors cursor-help" />
+                            </div>
+                            <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/hint:block z-50 w-56 p-2.5 rounded-lg bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                              <span className="font-semibold text-white block mb-1">Short-term Trend</span>
+                              Compares the 20-period and 50-period moving averages.<br/>
+                              <span className="text-green-400">EMA20 &gt; EMA50</span> = short-term uptrend (bullish).<br/>
+                              <span className="text-red-400">EMA20 &lt; EMA50</span> = short-term downtrend (bearish).
+                            </div>
                             <span className={`text-xs font-bold ${az.indicators.ema20 > az.indicators.ema50 ? 'text-green-400' : 'text-red-400'}`}>
                               {az.indicators.ema20 > az.indicators.ema50 ? 'Bullish' : 'Bearish'}
                             </span>
@@ -621,18 +651,42 @@ const Signals = () => {
                             </span>
                           </div>
                         )}
+
+                        {/* EMA 200 */}
                         {az.indicators.ema200 != null && az.currentPrice != null && (
-                          <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
-                            <span className="text-[9px] text-gray-600 uppercase tracking-wider">EMA 200</span>
+                          <div className="relative group/hint flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-gray-600 uppercase tracking-wider">EMA 200</span>
+                              <Info className="w-2.5 h-2.5 text-gray-700 group-hover/hint:text-gray-400 transition-colors cursor-help" />
+                            </div>
+                            <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/hint:block z-50 w-56 p-2.5 rounded-lg bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                              <span className="font-semibold text-white block mb-1">Long-term Trend Filter</span>
+                              The 200-period average is the big-picture trend line.<br/>
+                              <span className="text-green-400">Price above EMA200</span> = bull market.<br/>
+                              <span className="text-red-400">Price below EMA200</span> = bear market.<br/>
+                              Strong signals align with this direction.
+                            </div>
                             <span className={`text-xs font-bold ${az.currentPrice > az.indicators.ema200 ? 'text-green-400' : 'text-red-400'}`}>
                               {az.currentPrice > az.indicators.ema200 ? 'Above' : 'Below'}
                             </span>
                             <span className="text-[9px] text-gray-600">${fmt(az.indicators.ema200, 2)}</span>
                           </div>
                         )}
+
+                        {/* MACD */}
                         {az.indicators.macd != null && (
-                          <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
-                            <span className="text-[9px] text-gray-600 uppercase tracking-wider">MACD</span>
+                          <div className="relative group/hint flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-gray-600 uppercase tracking-wider">MACD</span>
+                              <Info className="w-2.5 h-2.5 text-gray-700 group-hover/hint:text-gray-400 transition-colors cursor-help" />
+                            </div>
+                            <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/hint:block z-50 w-56 p-2.5 rounded-lg bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                              <span className="font-semibold text-white block mb-1">Momentum Shift</span>
+                              Shows the difference between two moving averages.<br/>
+                              <span className="text-green-400">Positive histogram</span> = buying pressure building.<br/>
+                              <span className="text-red-400">Negative histogram</span> = selling pressure increasing.<br/>
+                              The number shows how strong the momentum is.
+                            </div>
                             <span className={`text-xs font-bold ${az.indicators.macd.histogram > 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {az.indicators.macd.histogram > 0 ? 'Positive' : 'Negative'}
                             </span>
@@ -641,13 +695,25 @@ const Signals = () => {
                             </span>
                           </div>
                         )}
+
+                        {/* Bollinger Bands */}
                         {az.indicators.bb != null && az.currentPrice != null && (() => {
                           const bb = az.indicators.bb;
                           const range = bb.upper - bb.lower;
                           const pos = range > 0 ? (az.currentPrice - bb.lower) / range : 0.5;
                           return (
-                            <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
-                              <span className="text-[9px] text-gray-600 uppercase tracking-wider">Bollinger</span>
+                            <div className="relative group/hint flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-gray-600 uppercase tracking-wider">Bollinger</span>
+                                <Info className="w-2.5 h-2.5 text-gray-700 group-hover/hint:text-gray-400 transition-colors cursor-help" />
+                              </div>
+                              <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/hint:block z-50 w-56 p-2.5 rounded-lg bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                                <span className="font-semibold text-white block mb-1">Bollinger Bands</span>
+                                A price channel based on recent volatility.<br/>
+                                <span className="text-green-400">Near Low band</span> = price is cheap vs recent range — potential buy zone.<br/>
+                                <span className="text-red-400">Near High band</span> = price is stretched — potential reversal zone.<br/>
+                                The % shows where price sits in the band.
+                              </div>
                               <span className={`text-xs font-bold ${pos < 0.25 ? 'text-green-400' : pos > 0.75 ? 'text-red-400' : 'text-gray-300'}`}>
                                 {pos < 0.25 ? 'Near Low' : pos > 0.75 ? 'Near High' : 'Mid-range'}
                               </span>
@@ -655,24 +721,47 @@ const Signals = () => {
                             </div>
                           );
                         })()}
+
+                        {/* ATR */}
                         {az.indicators.atr != null && (
-                          <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
-                            <span className="text-[9px] text-gray-600 uppercase tracking-wider">ATR (14)</span>
+                          <div className="relative group/hint flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-gray-600 uppercase tracking-wider">ATR (14)</span>
+                              <Info className="w-2.5 h-2.5 text-gray-700 group-hover/hint:text-gray-400 transition-colors cursor-help" />
+                            </div>
+                            <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/hint:block z-50 w-56 p-2.5 rounded-lg bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                              <span className="font-semibold text-white block mb-1">Average True Range</span>
+                              Measures average price volatility in dollar terms.<br/>
+                              A higher ATR means bigger price swings — riskier but more room for profit.<br/>
+                              The system sets stop-loss at <span className="text-white font-semibold">1.5× ATR</span> and take-profit at <span className="text-white font-semibold">3× ATR</span>.
+                            </div>
                             <span className="text-xs font-bold text-gray-300 font-mono">${fmt(az.indicators.atr, 4)}</span>
                             <span className="text-[9px] text-gray-600">
                               {az.currentPrice > 0 ? ((az.indicators.atr / az.currentPrice) * 100).toFixed(2) + '% of price' : ''}
                             </span>
                           </div>
                         )}
+
+                        {/* Vol Ratio */}
                         {az.indicators.volRatio != null && (
-                          <div className="flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
-                            <span className="text-[9px] text-gray-600 uppercase tracking-wider">Vol Ratio</span>
+                          <div className="relative group/hint flex flex-col gap-0.5 p-2.5 rounded-lg bg-white/4 border border-white/6">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-gray-600 uppercase tracking-wider">Vol Ratio</span>
+                              <Info className="w-2.5 h-2.5 text-gray-700 group-hover/hint:text-gray-400 transition-colors cursor-help" />
+                            </div>
+                            <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/hint:block z-50 w-56 p-2.5 rounded-lg bg-gray-950 border border-white/15 text-[10px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
+                              <span className="font-semibold text-white block mb-1">Volume Ratio</span>
+                              Compares current volume to the 20-period average.<br/>
+                              <span className="text-cyan-400">Above 1.5×</span> = unusually high participation — confirms the move is real.<br/>
+                              Below 1× = low volume — signal is weaker, treat with caution.
+                            </div>
                             <span className={`text-xs font-bold ${az.indicators.volRatio > 1.5 ? 'text-cyan-400' : 'text-gray-300'}`}>
                               {az.indicators.volRatio}×
                             </span>
                             <span className="text-[9px] text-gray-600">vs 20-period avg</span>
                           </div>
                         )}
+
                       </div>
                     </div>
                   )}
@@ -1528,8 +1617,14 @@ const Signals = () => {
                       </div>
                     </div>
 
-                    {!hasSignal && az.message && (
-                      <p className="text-xs text-gray-500 mt-2">{az.message}</p>
+                    {!hasSignal && (
+                      <div className="mt-3 p-3 rounded-lg bg-white/4 border border-white/8 flex items-start gap-2">
+                        <Info className="w-3.5 h-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                          <span className="text-gray-300 font-semibold">No trade signal yet.</span>{' '}
+                          {az.message || `Indicators are split — ${az.longScore ?? 0} bullish vs ${az.shortScore ?? 0} bearish. The engine needs ≥3 to agree in one direction before suggesting an entry, stop-loss, and take-profit.`}
+                        </p>
+                      </div>
                     )}
                   </div>
 
