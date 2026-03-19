@@ -127,16 +127,15 @@ const Sidebar = ({ isOpen, onClose }) => {
           fixed left-0 top-16 h-[calc(100vh-4rem)] w-64
           bg-white dark:bg-brandDark-800
           border-r border-gray-200 dark:border-brandDark-700
-          overflow-y-auto z-50
+          flex flex-col z-50
           transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}
       >
         {/* MOBILE: Logo + Close button */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-brandDark-700 lg:hidden">
+        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-brandDark-700 lg:hidden">
           <div className="flex items-center space-x-2.5">
-            {/* Mini icon mark */}
             <div className="relative flex-shrink-0">
               <SmartStrategyIcon size={32} />
               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
@@ -158,8 +157,8 @@ const Sidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="p-4 space-y-2">
+        {/* Navigation Links — scrollable */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -192,12 +191,13 @@ const Sidebar = ({ isOpen, onClose }) => {
           })}
         </nav>
 
-        {/* Quick Stats */}
-        <div className="p-4 mx-4 mt-4 border-t border-gray-200 dark:border-brandDark-700">
-          <h3 className="mb-3 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-            Quick Stats
-          </h3>
-          <div className="space-y-3">
+        {/* Bottom section — never scrolls away */}
+        <div className="flex-shrink-0 border-t border-gray-200 dark:border-brandDark-700">
+          {/* Quick Stats */}
+          <div className="p-4 space-y-3">
+            <h3 className="text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+              Quick Stats
+            </h3>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-400">Active Bots</span>
               <span className="text-sm font-medium text-gray-900 dark:text-white">{activeBots}</span>
@@ -215,11 +215,9 @@ const Sidebar = ({ isOpen, onClose }) => {
               </span>
             </div>
           </div>
-        </div>
 
-        {/* Version Info */}
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="text-xs text-center text-gray-500 dark:text-gray-400">
+          {/* Version */}
+          <div className="px-4 pb-4 text-xs text-center text-gray-500 dark:text-gray-400">
             v2.1.0 · SmartStrategy
           </div>
         </div>
