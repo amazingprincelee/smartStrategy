@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   runBacktest,
   clearBacktestResult,
@@ -232,6 +232,7 @@ const BACKTEST_TFS     = ['1m','5m','15m','1h','4h'];
 
 const Signals = () => {
   const dispatch  = useDispatch();
+  const navigate  = useNavigate();
   const { backtestResult, analysis,
           backtestLoading, analysisLoading,
           backtestError, analysisError,
@@ -509,19 +510,32 @@ const Signals = () => {
                         </p>
                       </div>
 
-                      {hasSignal ? (
-                        <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${
-                          isLong
-                            ? 'bg-green-500/25 text-green-300 border border-green-500/40'
-                            : 'bg-red-500/25 text-red-300 border border-red-500/40'
-                        }`}>
-                          {isLong ? '▲ LONG' : '▼ SHORT'}
-                        </span>
-                      ) : (
-                        <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-gray-500/15 text-gray-400 border border-gray-500/25">
-                          NEUTRAL
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {hasSignal ? (
+                          <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${
+                            isLong
+                              ? 'bg-green-500/25 text-green-300 border border-green-500/40'
+                              : 'bg-red-500/25 text-red-300 border border-red-500/40'
+                          }`}>
+                            {isLong ? '▲ LONG' : '▼ SHORT'}
+                          </span>
+                        ) : (
+                          <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-gray-500/15 text-gray-400 border border-gray-500/25">
+                            NEUTRAL
+                          </span>
+                        )}
+                        {hasSignal && (
+                          <button
+                            onClick={() => navigate('/bots/create', { state: { prefill: {
+                              pair: az.pair, signal: az.signal, entry: az.entry,
+                              stopLoss: az.stopLoss, takeProfit: az.takeProfit, marketType: az.marketType,
+                            }}})}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
+                          >
+                            <Zap className="w-3 h-3" /> Trade This
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Score bar */}
@@ -1594,19 +1608,32 @@ const Signals = () => {
                         </p>
                       </div>
 
-                      {hasSignal ? (
-                        <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${
-                          isLong
-                            ? 'bg-green-500/25 text-green-300 border border-green-500/40'
-                            : 'bg-red-500/25 text-red-300 border border-red-500/40'
-                        }`}>
-                          {isLong ? '▲ LONG' : '▼ SHORT'}
-                        </span>
-                      ) : (
-                        <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-gray-500/15 text-gray-400 border border-gray-500/25">
-                          NEUTRAL
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {hasSignal ? (
+                          <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${
+                            isLong
+                              ? 'bg-green-500/25 text-green-300 border border-green-500/40'
+                              : 'bg-red-500/25 text-red-300 border border-red-500/40'
+                          }`}>
+                            {isLong ? '▲ LONG' : '▼ SHORT'}
+                          </span>
+                        ) : (
+                          <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-gray-500/15 text-gray-400 border border-gray-500/25">
+                            NEUTRAL
+                          </span>
+                        )}
+                        {hasSignal && (
+                          <button
+                            onClick={() => navigate('/bots/create', { state: { prefill: {
+                              pair: az.pair, signal: az.signal, entry: az.entry,
+                              stopLoss: az.stopLoss, takeProfit: az.takeProfit, marketType: az.marketType,
+                            }}})}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
+                          >
+                            <Zap className="w-3 h-3" /> Trade This
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Score bar */}

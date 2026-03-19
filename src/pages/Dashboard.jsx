@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Bot,
@@ -22,8 +22,6 @@ import {
   MinusCircle,
   Info,
   Lock,
-  X,
-  BookOpen,
 } from 'lucide-react';
 import { fetchPlatformStats, fetchSignals, fetchSignalHistory, analyzeSignal, fetchAvailablePairs } from '../redux/slices/signalSlice';
 import { fetchArbitrageOpportunities } from '../redux/slices/arbitrageslice';
@@ -150,56 +148,12 @@ const SERVICES = [
   },
 ];
 
-/* ─── Quick Start card ───────────────────────────────────────── */
-function QuickStart({ onDismiss }) {
-  const steps = [
-    { icon: Activity, color: 'text-violet-400 bg-violet-500/15', title: 'Read the Signal', body: 'AI scans 30+ pairs every 30 min. LONG = buy, SHORT = sell/short. Aim for signals with 70%+ confidence.' },
-    { icon: BarChart3, color: 'text-blue-400 bg-blue-500/15', title: 'Confirm Indicators', body: 'Check RSI, EMA, MACD alignment in Quick Pair Analysis. 4+ green indicators = high-confidence entry.' },
-    { icon: Target, color: 'text-cyan-400 bg-cyan-500/15', title: 'Use Entry / SL / TP', body: 'Enter near the signal price. Always honor the Stop Loss — never move it wider. Take Profit = 2× your risk.' },
-    { icon: Shield, color: 'text-red-400 bg-red-500/15', title: 'Manage Your Risk', body: 'Never risk more than 2% of your account per trade. Use Demo mode first before going live with real funds.' },
-  ];
-  return (
-    <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-br from-cyan-500/8 to-blue-600/8 p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-cyan-500/15 flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white">Quick Start Guide</p>
-            <p className="text-[10px] text-gray-500">4 steps to trade profitably with SmartStrategy</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link to="/guide" className="text-[10px] text-cyan-400 hover:underline font-medium whitespace-nowrap">Full guide →</Link>
-          <button onClick={onDismiss} className="p-1 rounded-lg hover:bg-white/8 text-gray-500 hover:text-gray-300 transition-colors" title="Dismiss">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {steps.map(({ icon: Icon, color, title, body }, i) => (
-          <div key={title} className="flex flex-col gap-2 p-3 rounded-xl bg-white/4 border border-white/6">
-            <div className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
-                <Icon className="w-3.5 h-3.5" />
-              </div>
-              <span className="text-[10px] text-gray-500 font-bold">STEP {i + 1}</span>
-            </div>
-            <p className="text-xs font-bold text-white">{title}</p>
-            <p className="text-[10px] text-gray-500 leading-relaxed">{body}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* ════════════════════════════════════════════════════════════════
    COMPONENT
 ════════════════════════════════════════════════════════════════ */
 const Dashboard = () => {
-  const dispatch = useDispatch();
+  const dispatch  = useDispatch();
+  const navigate  = useNavigate();
 
   /* redux state */
   const user         = useSelector((s) => s.auth.user);
@@ -210,7 +164,6 @@ const Dashboard = () => {
   const { opportunities } = useSelector((s) => s.arbitrage || { opportunities: [] });
   const { analysis, analysisLoading, analysisError, availablePairs } = useSelector((s) => s.signals);
   const isPremium = user?.role === 'premium' || user?.role === 'admin';
-  const [showQuickStart, setShowQuickStart] = useState(!localStorage.getItem('qs_dismissed'));
   const [freeCount, setFreeCount] = useState(getFreeCount);
 
   useEffect(() => {
@@ -321,9 +274,6 @@ const Dashboard = () => {
           All systems operational
         </div>
       </div>
-
-      {/* ── Quick Start card (dismissible) ──────────────────────── */}
-      {showQuickStart && <QuickStart onDismiss={() => { localStorage.setItem('qs_dismissed', '1'); setShowQuickStart(false); }} />}
 
       {/* ── Quick-stat chips ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -481,9 +431,22 @@ const Dashboard = () => {
                         {az.longScore ?? 0} bullish · {az.shortScore ?? 0} bearish
                       </p>
                     </div>
-                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 ${hasSignal ? isLong ? 'bg-green-500/20 text-green-300 border border-green-500/35' : 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-gray-500/15 text-gray-400 border border-gray-500/20'}`}>
-                      {hasSignal ? (isLong ? '▲ LONG' : '▼ SHORT') : 'NEUTRAL'}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${hasSignal ? isLong ? 'bg-green-500/20 text-green-300 border border-green-500/35' : 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-gray-500/15 text-gray-400 border border-gray-500/20'}`}>
+                        {hasSignal ? (isLong ? '▲ LONG' : '▼ SHORT') : 'NEUTRAL'}
+                      </span>
+                      {hasSignal && (
+                        <button
+                          onClick={() => navigate('/bots/create', { state: { prefill: {
+                            pair: az.pair, signal: az.signal, entry: az.entry,
+                            stopLoss: az.stopLoss, takeProfit: az.takeProfit, marketType: az.marketType,
+                          }}})}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
+                        >
+                          <Zap className="w-3 h-3" /> Trade This
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {!hasSignal && (
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-white/3 border border-white/8">

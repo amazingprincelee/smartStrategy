@@ -80,7 +80,7 @@ const CreateBot = () => {
   const { loading: botLoading } = useSelector(state => state.bots);
   const { accounts }            = useSelector(state => state.exchangeAccounts);
 
-  const [step, setStep] = useState(prefill ? 1 : 0);
+  const [step, setStep] = useState(0);
   const [form, setForm] = useState(() => {
     if (!prefill) return DEFAULTS;
     const base = prefill.pair?.replace('USDT', '') ?? '';

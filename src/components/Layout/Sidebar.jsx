@@ -9,8 +9,7 @@ import {
   BookOpen,
   TrendingUp,
   Flame,
-  User,
-  Settings,
+  Wallet,
   HelpCircle,
   X,
   Crown,
@@ -46,6 +45,11 @@ const Sidebar = ({ isOpen, onClose }) => {
       icon: PlusCircle,
     },
     {
+      name: 'Account',
+      href: '/account',
+      icon: Wallet,
+    },
+    {
       name: 'Signals',
       href: '/signals',
       icon: Activity,
@@ -62,16 +66,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/alpha',
       icon: Flame,
       badge: 'New',
-    },
-    {
-      name: 'Profile',
-      href: '/profile',
-      icon: User,
-    },
-    {
-      name: 'Settings',
-      href: '/settings',
-      icon: Settings,
     },
     {
       name: 'Pricing',
