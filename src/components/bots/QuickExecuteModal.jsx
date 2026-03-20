@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { X, Zap, Bot, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader, RefreshCw, Wallet } from 'lucide-react';
+import { X, Zap, Bot, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader, Wallet } from 'lucide-react';
 import { authAPI } from '../../services/api';
 import { fetchBots } from '../../redux/slices/botSlice';
-import { fetchAccounts, fetchAccountBalance } from '../../redux/slices/exchangeAccountSlice';
+import { fetchDemoAccount } from '../../redux/slices/demoSlice';
 
 const RISK_PRESETS = [
   { key: 'safe',       label: 'Safe',       pct: 1 },
@@ -16,20 +16,17 @@ const RISK_PRESETS = [
 export default function QuickExecuteModal({ signal, onClose }) {
   const navigate  = useNavigate();
   const dispatch  = useDispatch();
-  const bots      = useSelector(s => s.bots?.list || []);
-  const accounts  = useSelector(s => s.exchangeAccounts?.accounts || []);
+  const bots               = useSelector(s => s.bots?.list || []);
+  const demoVirtualBalance = useSelector(s => s.demo?.virtualBalance ?? null);
 
   useEffect(() => {
     dispatch(fetchBots());
-    dispatch(fetchAccounts());
+    dispatch(fetchDemoAccount());
   }, [dispatch]);
 
-  const [mode, setMode]                   = useState('new'); // 'new' is default
+  const [mode, setMode]                   = useState('new');
   const [selectedBotId, setSelectedBotId] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [fetchedBalance, setFetchedBalance]       = useState(null); // { usdt, fetchedAt }
-  const [balanceLoading, setBalanceLoading]       = useState(false);
-  const [balanceError, setBalanceError]           = useState(null);
+  const [selectedExchange, setSelectedExchange]   = useState('');
   const [riskPreset, setRiskPreset]       = useState('moderate');
   const [loading, setLoading]             = useState(false);
   const [conflict, setConflict]           = useState(null);
@@ -37,32 +34,9 @@ export default function QuickExecuteModal({ signal, onClose }) {
 
   const activeBots = (bots || []).filter(b => b.status === 'running' || b.status === 'paused');
 
-  // Auto-fetch balance when exchange account is selected
-  const loadBalance = useCallback(async () => {
-    if (!selectedAccountId) return;
-    setFetchedBalance(null);
-    setBalanceError(null);
-    setBalanceLoading(true);
-    try {
-      const res = await dispatch(fetchAccountBalance(selectedAccountId)).unwrap();
-      const usdtEntry = (res.balances || []).find(b =>
-        b.currency === 'USDT' || b.asset === 'USDT'
-      );
-      const usdt = usdtEntry?.free ?? usdtEntry?.available ?? usdtEntry?.total ?? 0;
-      setFetchedBalance({ usdt, fetchedAt: res.fetchedAt });
-    } catch {
-      setBalanceError('Could not fetch balance. Check your API connection.');
-    } finally {
-      setBalanceLoading(false);
-    }
-  }, [dispatch, selectedAccountId]);
-
-  useEffect(() => {
-    if (selectedAccountId) loadBalance();
-  }, [selectedAccountId]);
 
   const maxLoss = () => {
-    const bal = fetchedBalance?.usdt || 0;
+    const bal = demoVirtualBalance || 0;
     const pct = RISK_PRESETS.find(r => r.key === riskPreset)?.pct || 2;
     return bal > 0 ? `$${(bal * pct / 100).toFixed(2)}` : '—';
   };
@@ -73,8 +47,7 @@ export default function QuickExecuteModal({ signal, onClose }) {
       return;
     }
     if (mode === 'new') {
-      if (!selectedAccountId) { toast.error('Please select an exchange account'); return; }
-      if (!fetchedBalance?.usdt || fetchedBalance.usdt < 10) { toast.error('Account balance must be at least $10'); return; }
+      if (!selectedExchange) { toast.error('Please select an exchange'); return; }
     }
 
     setLoading(true);
@@ -84,7 +57,7 @@ export default function QuickExecuteModal({ signal, onClose }) {
         riskPreset,
         ...(mode === 'existing'
           ? { botId: selectedBotId }
-          : { exchangeAccountId: selectedAccountId, accountBalance: fetchedBalance.usdt }),
+          : { isDemo: true, exchange: selectedExchange, accountBalance: demoVirtualBalance }),
       };
 
       const res = await authAPI.post('/bots/quick-execute', payload);
@@ -162,53 +135,45 @@ export default function QuickExecuteModal({ signal, onClose }) {
 
         <div className="px-5 py-4 space-y-4">
 
-          {/* New bot — exchange account + auto-fetched balance */}
+          {/* New bot — exchange picker + demo balance */}
           {mode === 'new' && (
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Exchange Account</label>
+                <label className="block text-xs text-gray-400 mb-1.5">Exchange</label>
                 <select
-                  value={selectedAccountId}
-                  onChange={e => setSelectedAccountId(e.target.value)}
+                  value={selectedExchange}
+                  onChange={e => setSelectedExchange(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-brandDark-800 border border-brandDark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
                 >
-                  <option value="">Choose exchange...</option>
-                  {accounts.map(a => (
-                    <option key={a._id} value={a._id}>{a.exchange} — {a.label || a.apiKey?.slice(0, 8) + '...'}</option>
+                  <option value="">Select exchange...</option>
+                  {[
+                    { id: 'binance', name: 'Binance' },
+                    { id: 'bybit',   name: 'Bybit' },
+                    { id: 'okx',     name: 'OKX' },
+                    { id: 'kucoin',  name: 'KuCoin' },
+                    { id: 'bitget',  name: 'Bitget' },
+                    { id: 'gate',    name: 'Gate.io' },
+                    { id: 'mexc',    name: 'MEXC' },
+                    { id: 'huobi',   name: 'HTX (Huobi)' },
+                  ].map(ex => (
+                    <option key={ex.id} value={ex.id}>{ex.name}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Auto-fetched balance */}
-              {selectedAccountId && (
-                <div className="p-3 rounded-xl bg-brandDark-800 border border-brandDark-600">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <Wallet className="w-3 h-3" /> Available Balance
-                    </span>
-                    <button
-                      onClick={loadBalance}
-                      disabled={balanceLoading}
-                      className="flex items-center gap-1 text-[10px] text-primary-400 hover:text-primary-300 disabled:opacity-50"
-                    >
-                      <RefreshCw className={`w-2.5 h-2.5 ${balanceLoading ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </button>
-                  </div>
-                  {balanceLoading ? (
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <Loader className="w-3 h-3 animate-spin" /> Fetching balance...
-                    </div>
-                  ) : fetchedBalance ? (
-                    <p className="text-lg font-bold text-white">
-                      ${fetchedBalance.usdt?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <span className="text-xs font-normal text-gray-400 ml-1">USDT</span>
-                    </p>
-                  ) : balanceError ? (
-                    <p className="text-xs text-yellow-400">{balanceError}</p>
-                  ) : null}
+              {/* Demo balance info */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-brandDark-800 border border-brandDark-600">
+                <div>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 mb-0.5">
+                    <Wallet className="w-3 h-3" /> Demo Balance
+                  </p>
+                  <p className="text-lg font-bold text-white">
+                    ${(demoVirtualBalance ?? 10000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <span className="text-xs font-normal text-gray-400 ml-1">USDT</span>
+                  </p>
                 </div>
-              )}
+                <span className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Demo</span>
+              </div>
             </div>
           )}
 
@@ -235,12 +200,19 @@ export default function QuickExecuteModal({ signal, onClose }) {
 
           {/* Use existing bot — secondary option */}
           {activeBots.length > 0 && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-brandDark-700" />
+              <span className="text-xs text-gray-600">or</span>
+              <div className="flex-1 h-px bg-brandDark-700" />
+            </div>
+          )}
+          {activeBots.length > 0 && (
             <button
               onClick={() => setMode(m => m === 'existing' ? 'new' : 'existing')}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-brandDark-600 text-xs text-gray-400 hover:text-white hover:border-brandDark-500 hover:bg-brandDark-700 transition-colors"
             >
               <Bot className="w-3.5 h-3.5" />
-              {mode === 'new' ? 'Or apply to an existing bot instead →' : '← Back to creating a new bot'}
+              {mode === 'new' ? 'Apply to an existing bot' : 'Create a new bot instead'}
             </button>
           )}
 
@@ -266,7 +238,7 @@ export default function QuickExecuteModal({ signal, onClose }) {
                 </button>
               ))}
             </div>
-            {fetchedBalance?.usdt > 0 && (
+            {(demoVirtualBalance || 0) > 0 && (
               <p className="mt-2 text-xs text-gray-400 text-center">
                 If this trade goes wrong, you lose a maximum of <span className="text-red-400 font-semibold">{maxLoss()}</span>
               </p>
@@ -281,8 +253,8 @@ export default function QuickExecuteModal({ signal, onClose }) {
           </button>
           <button
             onClick={() => handleExecute(false)}
-            disabled={loading}
-            className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+            disabled={loading || (mode === 'new' && !selectedExchange) || (mode === 'existing' && !selectedBotId)}
+            className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             {loading ? 'Executing...' : 'Execute Trade'}
