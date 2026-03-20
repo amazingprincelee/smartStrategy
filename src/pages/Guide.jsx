@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Activity, Bot, ArrowRightLeft, Target, Shield, Zap,
   TrendingUp, BarChart2, Layers, AlertTriangle,
-  CheckCircle, ChevronDown, ChevronUp, BookOpen, Cpu, MousePointerClick,
+  CheckCircle, ChevronDown, ChevronUp, BookOpen, Cpu, MousePointerClick, Play,
 } from 'lucide-react';
 
 const Section = ({ icon: Icon, color, title, children }) => {
@@ -43,14 +43,22 @@ export default function Guide() {
     <div className="max-w-3xl mx-auto space-y-4 pb-12 p-4 md:p-6">
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 flex items-center justify-center">
-          <BookOpen className="w-5 h-5 text-cyan-400" />
+      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 flex items-center justify-center">
+            <BookOpen className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">How to Use SmartStrategy</h1>
+            <p className="text-xs text-gray-500 mt-0.5">A practical guide to trading profitably with the system</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">How to Use SmartStrategy</h1>
-          <p className="text-xs text-gray-500 mt-0.5">A practical guide to trading profitably with the system</p>
-        </div>
+        <button
+          onClick={() => { localStorage.removeItem('ss_tour_done'); window.location.reload(); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary-500/40 text-xs text-primary-400 hover:bg-primary-500/10 transition-colors"
+        >
+          <Play className="w-3 h-3" /> Take the tour
+        </button>
       </div>
 
       {/* Quick steps banner */}
@@ -68,6 +76,119 @@ export default function Guide() {
               <p className="text-[10px] text-gray-500 mt-0.5">{sub}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* ── Quickstart Walkthroughs ──────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-primary-500/15 flex items-center justify-center">
+            <Play className="w-4 h-4 text-primary-400" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white">Quickstart Walkthroughs</h2>
+            <p className="text-xs text-gray-500">Step-by-step guides to get trading in minutes</p>
+          </div>
+        </div>
+
+        {/* Walkthrough 1 */}
+        <div className="rounded-2xl overflow-hidden border border-cyan-500/20">
+          <div className="px-5 py-3.5 bg-gradient-to-r from-cyan-500/15 to-blue-600/10 border-b border-cyan-500/15">
+            <p className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Walkthrough 1</p>
+            <h3 className="text-sm font-bold text-white mt-0.5">Run your first Quick Pair Analysis</h3>
+          </div>
+          <div className="p-5 bg-white/2">
+            <ol className="relative space-y-0">
+              {[
+                { n: 1, text: <>Go to <span className="text-white font-semibold">Dashboard</span> from the sidebar</> },
+                { n: 2, text: <>In the Quick Pair Analysis box, type a coin symbol — e.g. <span className="font-mono text-cyan-400 font-semibold">BTC</span></> },
+                { n: 3, text: <>Make sure <span className="text-white font-semibold">Futures</span> and <span className="text-white font-semibold">1h</span> are selected (default)</> },
+                { n: 4, text: <>Click <span className="text-white font-semibold">Analyze</span></> },
+                { n: 5, text: <>Check the score — if ≥ 65, the signal is strong enough to trade</> },
+                { n: 6, text: <>Review Entry, SL, and TP prices that appear below</> },
+              ].map(({ n, text }, i, arr) => (
+                <li key={n} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center flex-shrink-0 z-10">
+                      <span className="text-[10px] font-bold text-cyan-400">{n}</span>
+                    </div>
+                    {i < arr.length - 1 && <div className="w-px flex-1 bg-cyan-500/15 my-1" />}
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed pb-3">{text}</p>
+                </li>
+              ))}
+            </ol>
+            <Link to="/dashboard" className="inline-flex items-center gap-1.5 mt-1 text-xs font-semibold text-cyan-400 hover:underline">
+              <Target className="w-3.5 h-3.5" /> Go to Dashboard →
+            </Link>
+          </div>
+        </div>
+
+        {/* Walkthrough 2 */}
+        <div className="rounded-2xl overflow-hidden border border-violet-500/20">
+          <div className="px-5 py-3.5 bg-gradient-to-r from-violet-500/15 to-purple-600/10 border-b border-violet-500/15">
+            <p className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">Walkthrough 2</p>
+            <h3 className="text-sm font-bold text-white mt-0.5">Execute a trade from a signal</h3>
+          </div>
+          <div className="p-5 bg-white/2">
+            <ol className="relative space-y-0">
+              {[
+                { n: 1, text: <>Find a signal in the analysis result or on the <span className="text-white font-semibold">Signals</span> page</> },
+                { n: 2, text: <>Check the score and that ≥ 4 indicators are green</> },
+                { n: 3, text: <>Click <span className="text-white font-semibold">Execute Trade</span> on the signal card</> },
+                { n: 4, text: <>In the modal: select your exchange (or use <span className="text-white font-semibold">Demo Account</span>)</> },
+                { n: 5, text: <>Choose your risk level — <span className="text-green-400 font-semibold">Safe</span> for beginners, <span className="text-blue-400 font-semibold">Moderate</span> for experienced</> },
+                { n: 6, text: <>Click <span className="text-white font-semibold">Execute Trade</span> — the bot opens the position with SL and TP pre-set</> },
+              ].map(({ n, text }, i, arr) => (
+                <li key={n} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="w-6 h-6 rounded-full bg-violet-500/20 border border-violet-500/40 flex items-center justify-center flex-shrink-0 z-10">
+                      <span className="text-[10px] font-bold text-violet-400">{n}</span>
+                    </div>
+                    {i < arr.length - 1 && <div className="w-px flex-1 bg-violet-500/15 my-1" />}
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed pb-3">{text}</p>
+                </li>
+              ))}
+            </ol>
+            <Link to="/signals" className="inline-flex items-center gap-1.5 mt-1 text-xs font-semibold text-violet-400 hover:underline">
+              <Activity className="w-3.5 h-3.5" /> View Signals →
+            </Link>
+          </div>
+        </div>
+
+        {/* Walkthrough 3 */}
+        <div className="rounded-2xl overflow-hidden border border-emerald-500/20">
+          <div className="px-5 py-3.5 bg-gradient-to-r from-emerald-500/15 to-green-600/10 border-b border-emerald-500/15">
+            <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Walkthrough 3</p>
+            <h3 className="text-sm font-bold text-white mt-0.5">Set up your first trading bot</h3>
+          </div>
+          <div className="p-5 bg-white/2">
+            <ol className="relative space-y-0">
+              {[
+                { n: 1, text: <>Click <span className="text-white font-semibold">Bots</span> in the sidebar, then <span className="text-white font-semibold">Create Bot</span></> },
+                { n: 2, text: <>Choose <span className="text-white font-semibold">Demo Account</span> to practice with virtual money first</> },
+                { n: 3, text: <>Select an exchange and <span className="text-white font-semibold">Futures</span> market</> },
+                { n: 4, text: <>On the next step, pick <span className="text-white font-semibold">Auto</span> mode (bot trades on its own)</> },
+                { n: 5, text: <>Set your risk level — start with <span className="text-green-400 font-semibold">Safe (1%)</span></> },
+                { n: 6, text: <>Review the summary and click <span className="text-white font-semibold">Launch &amp; Start Trading</span></> },
+                { n: 7, text: <>The bot scans pairs every cycle and trades the highest-scored signal</> },
+              ].map(({ n, text }, i, arr) => (
+                <li key={n} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0 z-10">
+                      <span className="text-[10px] font-bold text-emerald-400">{n}</span>
+                    </div>
+                    {i < arr.length - 1 && <div className="w-px flex-1 bg-emerald-500/15 my-1" />}
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed pb-3">{text}</p>
+                </li>
+              ))}
+            </ol>
+            <Link to="/bots/create" className="inline-flex items-center gap-1.5 mt-1 text-xs font-semibold text-emerald-400 hover:underline">
+              <Bot className="w-3.5 h-3.5" /> Create a Bot →
+            </Link>
+          </div>
         </div>
       </div>
 

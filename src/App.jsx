@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { applyThemeClass } from './redux/useTheme';
+import OnboardingTour, { TOUR_KEY } from './components/Tour/OnboardingTour';
 import CryptoArbitrage from './components/Cryptoarbitrage/Cryptoarbitrage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -50,6 +51,8 @@ const queryClient = new QueryClient({
 function AppInner() {
   const profileTheme = useSelector(state => state.user.profile?.preferences?.theme);
   const authTheme    = useSelector(state => state.auth.user?.preferences?.theme);
+  const token        = useSelector(state => state.auth.token);
+  const [showTour, setShowTour] = useState(false);
 
   // Apply from localStorage immediately (avoids flash before Redux loads)
   useEffect(() => {
@@ -64,6 +67,14 @@ function AppInner() {
       applyThemeClass(theme);
     }
   }, [profileTheme, authTheme]);
+
+  // Show onboarding tour once on first login
+  useEffect(() => {
+    if (token && !localStorage.getItem(TOUR_KEY)) {
+      const timer = setTimeout(() => setShowTour(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [token]);
 
   return (
     <Router>
@@ -103,6 +114,15 @@ function AppInner() {
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+
+        {showTour && (
+          <OnboardingTour
+            onDone={() => {
+              localStorage.setItem(TOUR_KEY, '1');
+              setShowTour(false);
+            }}
+          />
+        )}
 
         <ToastContainer
           position="top-center"

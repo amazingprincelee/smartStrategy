@@ -157,6 +157,11 @@ const Sidebar = ({ isOpen, onClose }) => {
                 key={item.name}
                 to={item.href}
                 onClick={onClose}
+                data-tour={
+                  item.name === 'Signals' ? 'nav-signals' :
+                  item.name === 'My Bots' ? 'nav-bots' :
+                  undefined
+                }
                 className={`
                   flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium
                   transition-colors

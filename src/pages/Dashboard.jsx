@@ -297,7 +297,7 @@ const Dashboard = () => {
       </div>
 
       {/* ── Quick Analyze ────────────────────────────────────────── */}
-      <div className="card overflow-hidden p-0">
+      <div data-tour="quick-analysis" className="card overflow-hidden p-0">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
           <div className="flex items-center gap-2">
@@ -386,7 +386,7 @@ const Dashboard = () => {
                 </select>
               </div>
             </div>
-            <button type="submit" disabled={analysisLoading || !azForm.symbol}
+            <button data-tour="analyze-btn" type="submit" disabled={analysisLoading || !azForm.symbol}
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20 mt-auto">
               {analysisLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analyzing…</> : <><Search className="w-4 h-4" /> Analyze</>}
             </button>
@@ -516,7 +516,7 @@ const Dashboard = () => {
                     const remaining = FREE_AZ_LIMIT - freeCount;
                     return (
                       <>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div data-tour="signal-result" className="grid grid-cols-3 gap-2">
                           {[
                             { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-white', bg: 'border-cyan-500/20 bg-cyan-500/8' },
                             { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
