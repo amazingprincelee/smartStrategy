@@ -470,7 +470,6 @@ const CreateBot = () => {
             </div>
           </div>
         )}
-      </div>
 
         {/* Risk preset */}
         <div>
@@ -484,7 +483,6 @@ const CreateBot = () => {
               { key: 'moderate',   pct: 2, label: 'Moderate',   color: 'border-blue-500 bg-blue-500/10 text-blue-400' },
               { key: 'aggressive', pct: 5, label: 'Aggressive', color: 'border-orange-500 bg-orange-500/10 text-orange-400' },
             ].map(r => {
-              const maxLoss = ((form.capitalAllocation.totalCapital || 0) * r.pct / 100).toFixed(2);
               const selected = (form.strategyParams.riskPerTrade ?? 2) === r.pct;
               return (
                 <button
