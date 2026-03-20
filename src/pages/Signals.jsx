@@ -533,7 +533,7 @@ const Signals = () => {
                               stopLoss: az.stopLoss, takeProfit: az.takeProfit,
                               marketType: az.marketType, confidenceScore: az.confidence,
                             })}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors text-white ${isLong ? 'bg-green-500 hover:bg-green-400' : 'bg-orange-500 hover:bg-orange-400'}`}
                           >
                             <Zap className="w-3 h-3" /> Trade This
                           </button>
@@ -584,7 +584,7 @@ const Signals = () => {
                   {hasSignal && (
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-cyan-300'  },
+                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
                         { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
                         { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
                       ].map(({ label, icon: Icon, val, color }) => (
@@ -1632,7 +1632,7 @@ const Signals = () => {
                               stopLoss: az.stopLoss, takeProfit: az.takeProfit,
                               marketType: az.marketType, confidenceScore: az.confidence,
                             })}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors text-white ${isLong ? 'bg-green-500 hover:bg-green-400' : 'bg-orange-500 hover:bg-orange-400'}`}
                           >
                             <Zap className="w-3 h-3" /> Trade This
                           </button>
@@ -1683,7 +1683,7 @@ const Signals = () => {
                   {hasSignal && (
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-cyan-300'  },
+                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
                         { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
                         { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
                       ].map(({ label, icon: Icon, val, color }) => (

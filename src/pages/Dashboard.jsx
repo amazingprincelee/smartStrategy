@@ -444,7 +444,7 @@ const Dashboard = () => {
                             stopLoss: az.stopLoss, takeProfit: az.takeProfit,
                             marketType: az.marketType, confidenceScore: az.confidence,
                           })}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors text-white ${isLong ? 'bg-green-500 hover:bg-green-400' : 'bg-orange-500 hover:bg-orange-400'}`}
                         >
                           <Zap className="w-3 h-3" /> Trade This
                         </button>
@@ -518,7 +518,7 @@ const Dashboard = () => {
                       <>
                         <div className="grid grid-cols-3 gap-2">
                           {[
-                            { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-cyan-300', bg: 'border-cyan-500/20 bg-cyan-500/8' },
+                            { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-white', bg: 'border-cyan-500/20 bg-cyan-500/8' },
                             { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
                             { label: 'Take Profit', short: 'TP', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
                           ].map(({ label, short, icon: Icon, val, color, bg }) => (
