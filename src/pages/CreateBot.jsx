@@ -82,7 +82,7 @@ const CreateBot = () => {
 
   const { loading: botLoading }   = useSelector(state => state.bots);
   const { accounts, balances }    = useSelector(state => state.exchangeAccounts);
-  const demoAccount               = useSelector(state => state.demo?.account);
+  const demoVirtualBalance        = useSelector(state => state.demo?.virtualBalance ?? null);
 
   const [step, setStep]           = useState(0);
   const [fetchedBalance, setFetchedBalance] = useState(null);   // { usdt, total, fetchedAt }
@@ -115,7 +115,7 @@ const CreateBot = () => {
 
     if (form.isDemo) {
       // Demo: use demo account balance directly
-      const bal = demoAccount?.balance ?? null;
+      const bal = demoVirtualBalance;
       if (bal !== null) {
         setFetchedBalance({ usdt: bal, source: 'demo' });
         const alloc = Math.round(bal * allocPct / 100 * 100) / 100;
@@ -141,12 +141,12 @@ const CreateBot = () => {
     } finally {
       setBalanceLoading(false);
     }
-  }, [dispatch, form.isDemo, form.exchangeAccountId, demoAccount, allocPct]);
+  }, [dispatch, form.isDemo, form.exchangeAccountId, demoVirtualBalance, allocPct]);
 
-  // Fetch when account selection changes or demo toggles
+  // Fetch when account selection changes, demo toggles, or demoAccount loads
   useEffect(() => {
     if (form.isDemo || form.exchangeAccountId) loadBalance();
-  }, [form.isDemo, form.exchangeAccountId]);
+  }, [form.isDemo, form.exchangeAccountId, demoVirtualBalance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recompute allocation when slider changes
   useEffect(() => {
@@ -321,31 +321,6 @@ const CreateBot = () => {
         </div>
       </div>
 
-      {/* SmartSignal info panel */}
-      <div className="p-4 rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 space-y-3">
-        <div className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-primary-500 flex-shrink-0" />
-          <p className="text-sm font-semibold text-primary-800 dark:text-primary-300">SmartSignal Bot — quality over quantity</p>
-        </div>
-        <p className="text-xs text-primary-700 dark:text-primary-400 leading-relaxed">
-          The bot scans and scores signals every 5 minutes across multiple indicators — trend alignment,
-          momentum, volume, and confidence. It picks only the single highest-scoring opportunity and
-          waits for it to close before looking again.
-        </p>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          {[
-            ['Signal selection', 'Best scored signal only'],
-            ['Scoring factors',  'MTF · Momentum · Volume'],
-            ['Trades at once',   '1 (focus, not scatter)'],
-            ['R:R minimum',      '1:2 guaranteed'],
-          ].map(([k, v]) => (
-            <div key={k} className="flex flex-col">
-              <span className="text-[10px] font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">{k}</span>
-              <span className="text-xs font-semibold text-primary-900 dark:text-primary-200">{v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 
@@ -379,11 +354,34 @@ const CreateBot = () => {
             <div className="text-xs text-gray-500 dark:text-gray-400">Bot shows you the top 3 signals. You pick which one to execute.</div>
           </button>
         </div>
-        {form.executionMode === 'manual' && (
-          <p className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-            In manual mode the bot won't trade on its own. You'll receive signal suggestions and confirm each trade before it executes.
+      </div>
+
+      {/* SmartSignal info panel — dynamic based on execution mode */}
+      <div className="p-4 rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 space-y-3">
+        <div className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-primary-500 flex-shrink-0" />
+          <p className="text-sm font-semibold text-primary-800 dark:text-primary-300">
+            {form.executionMode === 'auto' ? 'Auto mode — hands-off trading' : 'Manual mode — you stay in control'}
           </p>
-        )}
+        </div>
+        <p className="text-xs text-primary-700 dark:text-primary-400 leading-relaxed">
+          {form.executionMode === 'auto'
+            ? 'The bot scans top pairs every cycle, scores each signal on trend alignment, momentum, volume, and confidence, then picks the single best one and places the trade automatically. You just monitor.'
+            : 'The bot scans and scores signals every cycle but never trades on its own. It surfaces the top 3 ranked opportunities and waits for you to review and approve before any trade executes.'}
+        </p>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          {[
+            ['Signal selection', 'Best scored signal only'],
+            ['Scoring factors',  'MTF · Momentum · Volume'],
+            ['Trades at once',   '1 (focus, not scatter)'],
+            ['R:R minimum',      '1:2 guaranteed'],
+          ].map(([k, v]) => (
+            <div key={k} className="flex flex-col">
+              <span className="text-[10px] font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">{k}</span>
+              <span className="text-xs font-semibold text-primary-900 dark:text-primary-200">{v}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Account Balance */}
