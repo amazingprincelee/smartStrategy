@@ -9,7 +9,7 @@ import {
   CheckCircle,
   Star,
   BarChart2,
-  FlaskConical,
+  Rocket,
   BookOpen,
   Shield,
   RefreshCw,
@@ -344,8 +344,8 @@ const Home = () => {
                 to="/register"
                 className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border border-white/20 bg-white/5 text-white font-semibold text-base hover:bg-white/10 transition-colors duration-200"
               >
-                <FlaskConical className="w-5 h-5 text-purple-400" />
-                Try Demo — Free
+                <Rocket className="w-5 h-5 text-purple-400" />
+                Get Started — Free
               </Link>
             </div>
 

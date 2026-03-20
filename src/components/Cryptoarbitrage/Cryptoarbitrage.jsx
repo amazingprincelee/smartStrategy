@@ -1072,16 +1072,16 @@ const CryptoArbitrage = () => {
 
         {/* Pagination */}
         {pastPagination.pages > 1 && (
-          <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100 dark:border-brandDark-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex flex-col gap-3 pt-4 mt-4 border-t border-gray-100 dark:border-brandDark-700 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400 sm:text-left">
               Showing{' '}
               <span className="font-medium text-gray-700 dark:text-gray-300">
                 {(pastPagination.page - 1) * PAST_LIMIT + 1}–{Math.min(pastPagination.page * PAST_LIMIT, pastPagination.total)}
               </span>{' '}
-              of <span className="font-medium text-gray-700 dark:text-gray-300">{pastPagination.total}</span> opportunities
+              of <span className="font-medium text-gray-700 dark:text-gray-300">{pastPagination.total}</span>
             </p>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-center gap-1 flex-wrap">
               {/* First page */}
               <button
                 onClick={() => setPastPage(1)}
@@ -1098,12 +1098,12 @@ const CryptoArbitrage = () => {
                 disabled={!pastPagination.hasPrev || pastLoading}
                 className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                ‹ Prev
+                ‹
               </button>
 
-              {/* Page numbers */}
+              {/* Page numbers — max 3 visible on mobile */}
               {Array.from({ length: pastPagination.pages }, (_, i) => i + 1)
-                .filter(p => Math.abs(p - pastPagination.page) <= 2)
+                .filter(p => Math.abs(p - pastPagination.page) <= 1)
                 .map(p => (
                   <button
                     key={p}
@@ -1126,7 +1126,7 @@ const CryptoArbitrage = () => {
                 disabled={!pastPagination.hasNext || pastLoading}
                 className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brandDark-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                Next ›
+                ›
               </button>
 
               {/* Last page */}
