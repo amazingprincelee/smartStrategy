@@ -13,7 +13,6 @@ import {
   Info,
   Clock,
   AlertTriangle,
-
   Activity,
   History,
   Bell,
@@ -22,12 +21,14 @@ import {
   Zap,
   Globe,
   ExternalLink,
+  Triangle,
 } from 'lucide-react';
 import {
   fetchArbitrageOpportunities,
   fetchArbitrageStatus,
   clearArbitrageMessages
 } from '../../redux/slices/arbitrageslice';
+import TriangularArbitrage from './TriangularArbitrage';
 import { authAPI } from '../../services/api';
 
 const isPremiumUser = (role) => role === 'premium' || role === 'admin';
@@ -48,6 +49,8 @@ const CryptoArbitrage = () => {
 
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
   const isPremium = isPremiumUser(role);
+
+  const [mainTab, setMainTab] = useState('cross'); // 'cross' | 'triangular'
 
   const [filters, setFilters] = useState({
     search: '',
@@ -198,6 +201,39 @@ const CryptoArbitrage = () => {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ── Main tab switcher ── */}
+      <div className="flex gap-1 p-1 bg-brandDark-800 border border-brandDark-700 rounded-2xl w-fit">
+        <button
+          onClick={() => setMainTab('cross')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            mainTab === 'cross'
+              ? 'bg-cyan-500 text-white shadow'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Globe className="w-4 h-4" />
+          Cross-Exchange
+        </button>
+        <button
+          onClick={() => setMainTab('triangular')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            mainTab === 'triangular'
+              ? 'bg-cyan-500 text-white shadow'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Triangle className="w-4 h-4" />
+          Triangular
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold">NEW</span>
+        </button>
+      </div>
+
+      {/* ── Triangular tab ── */}
+      {mainTab === 'triangular' && <TriangularArbitrage />}
+
+      {/* ── Cross-exchange tab ── */}
+      {mainTab === 'cross' && <>
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1363,6 +1399,7 @@ const CryptoArbitrage = () => {
           </div>
         </div>
       )}
+      </> /* end cross-exchange tab */}
     </div>
   );
 };

@@ -11,7 +11,7 @@ import {
 } from '../../redux/slices/userSlice';
 import { updateBotRealtime, updatePositionPrice } from '../../redux/slices/botSlice';
 import { addLiveSignal } from '../../redux/slices/signalSlice';
-import { setLiveArbitrageOpportunities } from '../../redux/slices/arbitrageslice';
+import { setLiveArbitrageOpportunities, setLiveTriangularOpportunities } from '../../redux/slices/arbitrageslice';
 import { updateAlphaLivePrices } from '../../redux/slices/alphaSlice';
 
 const SocketContext = createContext(null);
@@ -214,6 +214,18 @@ export const SocketProvider = ({ children }) => {
           toast.info(
             `Arbitrage: ${opps.length} opportunit${opps.length === 1 ? 'y' : 'ies'} found`,
             { autoClose: 4000, toastId: 'arb-update', onClick: () => navigate('/arbitrage'), style: { cursor: 'pointer' } }
+          );
+        }
+      });
+
+      // Triangular arbitrage real-time updates
+      socket.on('triangular:update', (data) => {
+        dispatch(setLiveTriangularOpportunities(data));
+        const opps = data.opportunities || [];
+        if (opps.length > 0 && opps[0].netProfitPercent >= 0.5) {
+          toast.info(
+            `🔺 Triangular: ${opps[0].path?.join('→')} — ${opps[0].netProfitPercent.toFixed(3)}% net`,
+            { autoClose: 5000, toastId: 'tri-arb-update', onClick: () => navigate('/arbitrage'), style: { cursor: 'pointer' } }
           );
         }
       });

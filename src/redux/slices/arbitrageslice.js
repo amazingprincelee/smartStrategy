@@ -65,6 +65,34 @@ export const fetchArbitrageStatus = createAsyncThunk(
 );
 
 /* ======================
+  FETCH TRIANGULAR OPPORTUNITIES
+====================== */
+export const fetchTriangularOpportunities = createAsyncThunk(
+  "arbitrage/fetchTriangular",
+  async (_, thunkAPI) => {
+    try {
+      const response = await authAPI.get('/arbitrage/triangular');
+      return response.data;
+    } catch (err) {
+      return thunkAPI.rejectWithValue(err.response?.data?.message || err.message || "Failed to fetch triangular opportunities");
+    }
+  }
+);
+
+export const fetchTriangularHistory = createAsyncThunk(
+  "arbitrage/fetchTriangularHistory",
+  async (params = {}, thunkAPI) => {
+    try {
+      const { limit = 50, status = 'all' } = params;
+      const response = await authAPI.get(`/arbitrage/triangular/history?limit=${limit}&status=${status}`);
+      return response.data;
+    } catch (err) {
+      return thunkAPI.rejectWithValue(err.response?.data?.message || err.message || "Failed to fetch triangular history");
+    }
+  }
+);
+
+/* ======================
   INITIAL STATE
 ====================== */
 const initialState = {
@@ -107,6 +135,18 @@ const initialState = {
     }
   },
   
+  // Triangular arbitrage
+  triangular: {
+    opportunities: [],
+    history: [],
+    loading: false,
+    historyLoading: false,
+    lastScan: null,
+    isScanning: false,
+    gated: false,
+    error: null,
+  },
+
   // Loading states
   loading: {
     opportunities: false,
@@ -150,6 +190,13 @@ const arbitrageSlice = createSlice({
       state.metadata.isRefreshing = false;
       state.metadata.isStale = false;
       state.stats.totalOpportunities = opportunities.length;
+    },
+
+    // Live push from Socket.IO triangular:update event
+    setLiveTriangularOpportunities: (state, action) => {
+      state.triangular.opportunities = action.payload?.opportunities || [];
+      state.triangular.lastScan = action.payload?.lastScan || null;
+      state.triangular.isScanning = false;
     },
   },
   
@@ -256,6 +303,32 @@ const arbitrageSlice = createSlice({
         state.error = action.payload?.message || "Failed to trigger refresh";
       });
 
+    /* ===== TRIANGULAR OPPORTUNITIES ===== */
+    builder
+      .addCase(fetchTriangularOpportunities.pending, (state) => {
+        state.triangular.loading = true;
+        state.triangular.error = null;
+      })
+      .addCase(fetchTriangularOpportunities.fulfilled, (state, action) => {
+        state.triangular.loading = false;
+        state.triangular.opportunities = action.payload.data || [];
+        state.triangular.lastScan = action.payload.metadata?.lastScan || null;
+        state.triangular.isScanning = action.payload.metadata?.isScanning || false;
+        state.triangular.gated = action.payload.metadata?.gated || false;
+      })
+      .addCase(fetchTriangularOpportunities.rejected, (state, action) => {
+        state.triangular.loading = false;
+        state.triangular.error = action.payload || "Failed to fetch triangular opportunities";
+      });
+
+    builder
+      .addCase(fetchTriangularHistory.pending, (state) => { state.triangular.historyLoading = true; })
+      .addCase(fetchTriangularHistory.fulfilled, (state, action) => {
+        state.triangular.historyLoading = false;
+        state.triangular.history = action.payload.data || [];
+      })
+      .addCase(fetchTriangularHistory.rejected, (state) => { state.triangular.historyLoading = false; });
+
     /* ===== FETCH STATUS ===== */
     builder
       .addCase(fetchArbitrageStatus.pending, (state) => {
@@ -286,6 +359,7 @@ export const {
   resetArbitrageState,
   updateLocalStats,
   setLiveArbitrageOpportunities,
+  setLiveTriangularOpportunities,
 } = arbitrageSlice.actions;
 
 export default arbitrageSlice.reducer;
