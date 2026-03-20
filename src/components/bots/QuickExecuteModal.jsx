@@ -1,25 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { X, Zap, Bot, Plus, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader } from 'lucide-react';
+import { X, Zap, Bot, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader, RefreshCw, Wallet } from 'lucide-react';
 import { authAPI } from '../../services/api';
 import { fetchBots } from '../../redux/slices/botSlice';
-import { fetchAccounts } from '../../redux/slices/exchangeAccountSlice';
+import { fetchAccounts, fetchAccountBalance } from '../../redux/slices/exchangeAccountSlice';
 
 const RISK_PRESETS = [
-  { key: 'safe',       label: 'Safe',       pct: 1, desc: 'Lose max 1% per trade' },
-  { key: 'moderate',   label: 'Moderate',   pct: 2, desc: 'Lose max 2% per trade' },
-  { key: 'aggressive', label: 'Aggressive', pct: 5, desc: 'Lose max 5% per trade' },
+  { key: 'safe',       label: 'Safe',       pct: 1 },
+  { key: 'moderate',   label: 'Moderate',   pct: 2 },
+  { key: 'aggressive', label: 'Aggressive', pct: 5 },
 ];
 
-/**
- * QuickExecuteModal
- *
- * Props:
- *   signal        — { pair, type, entry, stopLoss, takeProfit, marketType, confidenceScore, ... }
- *   onClose       — function to close modal
- */
 export default function QuickExecuteModal({ signal, onClose }) {
   const navigate  = useNavigate();
   const dispatch  = useDispatch();
@@ -31,24 +24,45 @@ export default function QuickExecuteModal({ signal, onClose }) {
     dispatch(fetchAccounts());
   }, [dispatch]);
 
-  const [mode, setMode]             = useState('existing'); // 'existing' | 'new'
+  const [mode, setMode]                   = useState('new'); // 'new' is default
   const [selectedBotId, setSelectedBotId] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [accountBalance, setAccountBalance] = useState('');
-  const [riskPreset, setRiskPreset] = useState('moderate');
-  const [loading, setLoading]       = useState(false);
-  const [conflict, setConflict]     = useState(null);
+  const [fetchedBalance, setFetchedBalance]       = useState(null); // { usdt, fetchedAt }
+  const [balanceLoading, setBalanceLoading]       = useState(false);
+  const [balanceError, setBalanceError]           = useState(null);
+  const [riskPreset, setRiskPreset]       = useState('moderate');
+  const [loading, setLoading]             = useState(false);
+  const [conflict, setConflict]           = useState(null);
   const [confirmConflict, setConfirmConflict] = useState(false);
 
   const activeBots = (bots || []).filter(b => b.status === 'running' || b.status === 'paused');
 
-  // Auto-switch to 'new' if no active bots
+  // Auto-fetch balance when exchange account is selected
+  const loadBalance = useCallback(async () => {
+    if (!selectedAccountId) return;
+    setFetchedBalance(null);
+    setBalanceError(null);
+    setBalanceLoading(true);
+    try {
+      const res = await dispatch(fetchAccountBalance(selectedAccountId)).unwrap();
+      const usdtEntry = (res.balances || []).find(b =>
+        b.currency === 'USDT' || b.asset === 'USDT'
+      );
+      const usdt = usdtEntry?.free ?? usdtEntry?.available ?? usdtEntry?.total ?? 0;
+      setFetchedBalance({ usdt, fetchedAt: res.fetchedAt });
+    } catch {
+      setBalanceError('Could not fetch balance. Check your API connection.');
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [dispatch, selectedAccountId]);
+
   useEffect(() => {
-    if (activeBots.length === 0) setMode('new');
-  }, [activeBots.length]);
+    if (selectedAccountId) loadBalance();
+  }, [selectedAccountId]);
 
   const maxLoss = () => {
-    const bal = parseFloat(accountBalance) || 0;
+    const bal = fetchedBalance?.usdt || 0;
     const pct = RISK_PRESETS.find(r => r.key === riskPreset)?.pct || 2;
     return bal > 0 ? `$${(bal * pct / 100).toFixed(2)}` : '—';
   };
@@ -60,17 +74,17 @@ export default function QuickExecuteModal({ signal, onClose }) {
     }
     if (mode === 'new') {
       if (!selectedAccountId) { toast.error('Please select an exchange account'); return; }
-      if (!accountBalance || parseFloat(accountBalance) < 10) { toast.error('Account balance must be at least $10'); return; }
+      if (!fetchedBalance?.usdt || fetchedBalance.usdt < 10) { toast.error('Account balance must be at least $10'); return; }
     }
 
     setLoading(true);
     try {
       const payload = {
-        signalData:        signal,
+        signalData: signal,
         riskPreset,
         ...(mode === 'existing'
           ? { botId: selectedBotId }
-          : { exchangeAccountId: selectedAccountId, accountBalance: parseFloat(accountBalance) }),
+          : { exchangeAccountId: selectedAccountId, accountBalance: fetchedBalance.usdt }),
       };
 
       const res = await authAPI.post('/bots/quick-execute', payload);
@@ -147,46 +161,8 @@ export default function QuickExecuteModal({ signal, onClose }) {
         )}
 
         <div className="px-5 py-4 space-y-4">
-          {/* Mode toggle */}
-          {activeBots.length > 0 && (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setMode('existing')}
-                className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm border transition-colors ${
-                  mode === 'existing' ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-brandDark-600 text-gray-400 hover:bg-brandDark-700'
-                }`}
-              >
-                <Bot className="w-4 h-4" /> Use Existing Bot
-              </button>
-              <button
-                onClick={() => setMode('new')}
-                className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm border transition-colors ${
-                  mode === 'new' ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-brandDark-600 text-gray-400 hover:bg-brandDark-700'
-                }`}
-              >
-                <Plus className="w-4 h-4" /> Create New Bot
-              </button>
-            </div>
-          )}
 
-          {/* Existing bot selector */}
-          {mode === 'existing' && (
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Select Bot</label>
-              <select
-                value={selectedBotId}
-                onChange={e => setSelectedBotId(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-brandDark-800 border border-brandDark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
-              >
-                <option value="">Choose a bot...</option>
-                {activeBots.map(b => (
-                  <option key={b._id} value={b._id}>{b.name} ({b.exchange})</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* New bot — exchange + balance */}
+          {/* New bot — exchange account + auto-fetched balance */}
           {mode === 'new' && (
             <div className="space-y-3">
               <div>
@@ -202,18 +178,70 @@ export default function QuickExecuteModal({ signal, onClose }) {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Account Balance (USDT)</label>
-                <input
-                  type="number"
-                  min="10"
-                  value={accountBalance}
-                  onChange={e => setAccountBalance(e.target.value)}
-                  placeholder="e.g. 500"
-                  className="w-full px-3 py-2 text-sm bg-brandDark-800 border border-brandDark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
-                />
-              </div>
+
+              {/* Auto-fetched balance */}
+              {selectedAccountId && (
+                <div className="p-3 rounded-xl bg-brandDark-800 border border-brandDark-600">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <Wallet className="w-3 h-3" /> Available Balance
+                    </span>
+                    <button
+                      onClick={loadBalance}
+                      disabled={balanceLoading}
+                      className="flex items-center gap-1 text-[10px] text-primary-400 hover:text-primary-300 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-2.5 h-2.5 ${balanceLoading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </button>
+                  </div>
+                  {balanceLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Loader className="w-3 h-3 animate-spin" /> Fetching balance...
+                    </div>
+                  ) : fetchedBalance ? (
+                    <p className="text-lg font-bold text-white">
+                      ${fetchedBalance.usdt?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <span className="text-xs font-normal text-gray-400 ml-1">USDT</span>
+                    </p>
+                  ) : balanceError ? (
+                    <p className="text-xs text-yellow-400">{balanceError}</p>
+                  ) : null}
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Existing bot selector */}
+          {mode === 'existing' && (
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">Select Bot</label>
+              {activeBots.length === 0 ? (
+                <p className="text-xs text-gray-500 py-2">No active bots found. Create a new one instead.</p>
+              ) : (
+                <select
+                  value={selectedBotId}
+                  onChange={e => setSelectedBotId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-brandDark-800 border border-brandDark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
+                >
+                  <option value="">Choose a bot...</option>
+                  {activeBots.map(b => (
+                    <option key={b._id} value={b._id}>{b.name} ({b.exchange})</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {/* Use existing bot — secondary option */}
+          {activeBots.length > 0 && (
+            <button
+              onClick={() => setMode(m => m === 'existing' ? 'new' : 'existing')}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              {mode === 'new' ? 'Or apply to an existing bot instead →' : '← Back to creating a new bot'}
+            </button>
           )}
 
           {/* Risk preset */}
@@ -238,7 +266,7 @@ export default function QuickExecuteModal({ signal, onClose }) {
                 </button>
               ))}
             </div>
-            {parseFloat(accountBalance) > 0 && (
+            {fetchedBalance?.usdt > 0 && (
               <p className="mt-2 text-xs text-gray-400 text-center">
                 If this trade goes wrong, you lose a maximum of <span className="text-red-400 font-semibold">{maxLoss()}</span>
               </p>
