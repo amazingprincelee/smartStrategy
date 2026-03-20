@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -88,6 +88,8 @@ const CreateBot = () => {
   const demoVirtualBalance        = useSelector(state => state.demo?.virtualBalance ?? null);
 
   const [step, setStep]           = useState(0);
+  // Unique suffix per session so two bots never share the same auto-generated name
+  const nameSuffix = useRef(Math.random().toString(36).slice(2, 5).toUpperCase());
   const [fetchedBalance, setFetchedBalance] = useState(null);   // { usdt, total, fetchedAt }
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError]     = useState(null);
@@ -159,6 +161,19 @@ const CreateBot = () => {
     }
   }, [allocPct, fetchedBalance]);
 
+  // Dynamic default bot name — updates as user configures, unique per session
+  const autoName = useMemo(() => {
+    const suffix = `#${nameSuffix.current}`;
+    if (prefill?.pair) {
+      const base = prefill.pair.replace('USDT', '');
+      return `${base} ${prefill.signal ?? ''} Trade ${suffix}`.trim();
+    }
+    const mode   = form.executionMode === 'auto' ? 'Auto' : 'Manual';
+    const market = form.marketType === 'futures' ? 'Futures' : 'Spot';
+    const exch   = form.exchange ? ` · ${form.exchange.charAt(0).toUpperCase() + form.exchange.slice(1)}` : '';
+    return `${market} ${mode} Bot${exch} ${suffix}`;
+  }, [prefill, form.executionMode, form.marketType, form.exchange]);
+
   const update       = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const updateNested = (parent, key, val) => setForm(f => ({ ...f, [parent]: { ...f[parent], [key]: val } }));
   const updateParams = (key, val) => setForm(f => ({ ...f, strategyParams: { ...f.strategyParams, [key]: val } }));
@@ -176,13 +191,10 @@ const CreateBot = () => {
 
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!form.name.trim()) {
-      toast.error('Please enter a bot name');
-      return;
-    }
+    const finalName = form.name.trim() || autoName;
     try {
-      const bot = await dispatch(createBot(form)).unwrap();
-      toast.success(`"${form.name}" is live and trading!`);
+      const bot = await dispatch(createBot({ ...form, name: finalName })).unwrap();
+      toast.success(`"${finalName}" is live and trading!`);
       navigate(`/bots/${bot._id}`);
     } catch (err) {
       toast.error(err || 'Failed to create bot');
@@ -582,9 +594,9 @@ const CreateBot = () => {
           <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">Bot Name</label>
           <input
             type="text"
-            value={form.name}
+            value={form.name || autoName}
             onChange={e => update('name', e.target.value)}
-            placeholder="e.g. My SmartSignal Bot"
+            placeholder={autoName}
             className="w-full rounded-lg border border-gray-300 dark:border-brandDark-600 bg-white dark:bg-brandDark-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white"
           />
         </div>
