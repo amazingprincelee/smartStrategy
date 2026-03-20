@@ -53,6 +53,9 @@ function FieldHint({ text }) {
   );
 }
 
+// Leverage derived automatically from risk preset (futures only)
+const RISK_LEVERAGE_MAP = { safe: 2, moderate: 5, aggressive: 10 };
+
 const DEFAULTS = {
   isDemo: true,
   exchangeAccountId: '',
@@ -70,7 +73,7 @@ const DEFAULTS = {
     maxConcurrentTrades:  1,
     riskPerTrade:         2,
     signalMaxAgeMinutes:  120,
-    leverage:             3,
+    leverage:             5, // auto-derived from risk preset: safe=2, moderate=5, aggressive=10
   },
 };
 
@@ -303,7 +306,7 @@ const CreateBot = () => {
       {/* Market type */}
       <div>
         <label className="block mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Market Type</label>
-        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Spot buys actual coins; Futures trades contracts with optional leverage.</p>
+        <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">Spot buys actual coins; Futures trades contracts — leverage is set automatically based on your risk preference.</p>
         <div className="flex gap-3">
           {['futures', 'spot'].map(type => (
             <button
@@ -486,7 +489,10 @@ const CreateBot = () => {
                 <button
                   key={r.key}
                   type="button"
-                  onClick={() => updateParams('riskPerTrade', r.pct)}
+                  onClick={() => {
+                    updateParams('riskPerTrade', r.pct);
+                    updateParams('leverage', RISK_LEVERAGE_MAP[r.key]);
+                  }}
                   className={`p-3 rounded-xl border text-center transition-colors ${selected ? r.color : 'border-gray-200 dark:border-brandDark-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brandDark-600'}`}
                 >
                   <div className="text-sm font-bold">{r.label}</div>
@@ -510,32 +516,7 @@ const CreateBot = () => {
         </p>
       </div>
 
-      {/* Leverage — futures only */}
-      {form.marketType === 'futures' && (
-        <div className="p-4 space-y-3 border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800 rounded-xl">
-          <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300">Futures Leverage</h3>
-          <div>
-            <label className="flex items-center mb-1 text-xs font-medium text-orange-700 dark:text-orange-400">
-              Leverage (1×–20×)
-              <FieldHint text="Multiplies your position size. 3× means $100 controls a $300 position. The ATR stop-loss exits before liquidation risk. Recommended: 2–5×." />
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={form.strategyParams.leverage ?? 3}
-              onFocus={e => e.target.select()}
-              onChange={e => {
-                const v = e.target.value.trim();
-                updateParams('leverage', v === '' ? '' : Math.max(1, Math.min(20, parseInt(v) || 1)));
-              }}
-              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-orange-300 rounded-lg dark:border-orange-700 dark:bg-brandDark-800 dark:text-white"
-            />
-            <p className="mt-1 text-xs text-orange-600 dark:text-orange-400">
-              ⚠ Higher leverage increases both potential profit and liquidation risk.
-            </p>
-          </div>
-        </div>
-      )}
+
 
       {/* Daily Safety Limits */}
       <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
@@ -630,10 +611,9 @@ const CreateBot = () => {
             ['Balance',        fetchedBalance ? `$${fetchedBalance.usdt?.toFixed(2)} USDT (${fetchedBalance.source})` : '—'],
             ['Bot Allocation', `$${form.capitalAllocation.totalCapital} USDT (${allocPct}% of balance)`],
             ['Max Trades',     1],
-            ['Risk/Trade',     `${form.strategyParams.riskPerTrade}%`],
+            ['Risk/Trade',     `${form.strategyParams.riskPerTrade}%${form.marketType === 'futures' ? ` · ${form.strategyParams.leverage}× leverage` : ''}`],
             ['Max Loss/Trade', `$${((form.capitalAllocation.totalCapital || 0) * (form.strategyParams.riskPerTrade || 2) / 100).toFixed(2)}`],
             ['Cooldown',       `${form.cooldownMinutes ?? 30} min between trades`],
-            ...(form.marketType === 'futures' ? [['Leverage', `${form.strategyParams.leverage}×`]] : []),
             ['Daily Loss Cap', `${form.riskParams.dailyLossLimitPercent}%`],
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between">
