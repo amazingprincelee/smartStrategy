@@ -59,12 +59,14 @@ const DEFAULTS = {
   symbol: 'MULTI',
   marketType: 'futures',
   strategyId: 'smart_signal',
+  executionMode: 'auto',
+  cooldownMinutes: 30,
   name: '',
-  capitalAllocation: { totalCapital: 100, currency: 'USDT', maxOpenPositions: 3 },
+  capitalAllocation: { totalCapital: 100, currency: 'USDT', maxOpenPositions: 1 },
   riskParams: { globalDrawdownLimitPercent: 10, dailyLossLimitPercent: 5 },
   strategyParams: {
     minConfidencePercent: 60,
-    maxConcurrentTrades:  3,
+    maxConcurrentTrades:  1,
     riskPerTrade:         2,
     signalMaxAgeMinutes:  120,
     leverage:             3,
@@ -296,6 +298,38 @@ const CreateBot = () => {
     <div className="space-y-6">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configure Bot</h2>
 
+      {/* Execution Mode */}
+      <div className="p-4 space-y-3 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Execution Mode</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => update('executionMode', 'auto')}
+            className={`p-3 rounded-xl border text-left transition-colors ${form.executionMode === 'auto' ? 'border-primary-500 bg-primary-500/10' : 'border-gray-200 dark:border-brandDark-600 hover:bg-gray-100 dark:hover:bg-brandDark-600'}`}
+          >
+            <div className={`text-sm font-semibold mb-1 ${form.executionMode === 'auto' ? 'text-primary-400' : 'text-gray-900 dark:text-white'}`}>
+              ⚡ Auto
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Bot selects and executes the best signal automatically. No action needed.</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => update('executionMode', 'manual')}
+            className={`p-3 rounded-xl border text-left transition-colors ${form.executionMode === 'manual' ? 'border-primary-500 bg-primary-500/10' : 'border-gray-200 dark:border-brandDark-600 hover:bg-gray-100 dark:hover:bg-brandDark-600'}`}
+          >
+            <div className={`text-sm font-semibold mb-1 ${form.executionMode === 'manual' ? 'text-primary-400' : 'text-gray-900 dark:text-white'}`}>
+              👆 Manual
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Bot shows you the top 3 signals. You pick which one to execute.</div>
+          </button>
+        </div>
+        {form.executionMode === 'manual' && (
+          <p className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+            In manual mode the bot won't trade on its own. You'll receive signal suggestions and confirm each trade before it executes.
+          </p>
+        )}
+      </div>
+
       {/* Capital */}
       <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Capital Allocation</h3>
@@ -478,7 +512,24 @@ const CreateBot = () => {
               className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
             />
           </div>
+          <div>
+            <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
+              Cooldown Between Trades (min)
+              <FieldHint text="How long the bot waits after a trade before looking for the next one. Helps avoid overtrading. Recommended: 30 min." />
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={form.cooldownMinutes ?? 30}
+              onFocus={e => e.target.select()}
+              onChange={e => update('cooldownMinutes', e.target.value === '' ? '' : parseInt(e.target.value))}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
+            />
+          </div>
         </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-3 py-2">
+          ⚠ After 2 consecutive losing trades, the bot automatically pauses for 1 hour to reassess market conditions.
+        </p>
       </div>
     </div>
   );
@@ -514,17 +565,19 @@ const CreateBot = () => {
         )}
         <div className="p-4 space-y-2 text-sm bg-gray-50 dark:bg-brandDark-700 rounded-xl">
           {[
-            ['Mode',         form.isDemo ? 'Demo (Paper Trading)' : 'Live Trading'],
-            ['Exchange',     accountLabel ? `${form.exchange} — ${accountLabel}` : form.exchange],
-            ['Market',       form.marketType],
-            ['Strategy',     prefill ? 'AI Signal (single pair)' : 'SmartSignal Bot'],
-            ['Pair',         prefill ? prefill.pair?.replace('USDT', '/USDT') : 'Automatic (signal-based)'],
-            ['Capital',      `$${form.capitalAllocation.totalCapital} USDT`],
-            ['Max Trades',   form.capitalAllocation.maxOpenPositions],
-            ['Confidence',   `≥ ${form.strategyParams.minConfidencePercent}%`],
-            ['Risk/Trade',   `${form.strategyParams.riskPerTrade}%`],
+            ['Mode',           form.isDemo ? 'Demo (Paper Trading)' : 'Live Trading'],
+            ['Exchange',       accountLabel ? `${form.exchange} — ${accountLabel}` : form.exchange],
+            ['Market',         form.marketType],
+            ['Execution',      form.executionMode === 'auto' ? '⚡ Auto — bot trades on its own' : '👆 Manual — you approve each trade'],
+            ['Strategy',       prefill ? 'AI Signal (single pair)' : 'SmartSignal Bot'],
+            ['Pair',           prefill ? prefill.pair?.replace('USDT', '/USDT') : 'Automatic (best scored signal)'],
+            ['Capital',        `$${form.capitalAllocation.totalCapital} USDT`],
+            ['Max Trades',     1],
+            ['Risk/Trade',     `${form.strategyParams.riskPerTrade}%`],
+            ['Max Loss/Trade', `$${((form.capitalAllocation.totalCapital || 0) * (form.strategyParams.riskPerTrade || 2) / 100).toFixed(2)}`],
+            ['Cooldown',       `${form.cooldownMinutes ?? 30} min between trades`],
             ...(form.marketType === 'futures' ? [['Leverage', `${form.strategyParams.leverage}×`]] : []),
-            ['Drawdown Cap', `${form.riskParams.globalDrawdownLimitPercent}%`],
+            ['Daily Loss Cap', `${form.riskParams.dailyLossLimitPercent}%`],
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between">
               <span className="text-gray-500 dark:text-gray-400">{label}</span>

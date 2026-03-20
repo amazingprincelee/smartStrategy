@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
+import QuickExecuteModal from '../components/bots/QuickExecuteModal';
 import {
   runBacktest,
   clearBacktestResult,
@@ -264,6 +265,7 @@ const Signals = () => {
   const [azForm, setAzForm] = useState({
     symbol: 'BTCUSDT', timeframe: '1h', marketType: 'futures',
   });
+  const [quickExecuteSignal, setQuickExecuteSignal] = useState(null);
 
   // Fetch live signals when on spot/futures tab; reset show-all on tab switch
   useEffect(() => {
@@ -526,10 +528,11 @@ const Signals = () => {
                         )}
                         {hasSignal && (
                           <button
-                            onClick={() => navigate('/bots/create', { state: { prefill: {
-                              pair: az.pair, signal: az.signal, entry: az.entry,
-                              stopLoss: az.stopLoss, takeProfit: az.takeProfit, marketType: az.marketType,
-                            }}})}
+                            onClick={() => setQuickExecuteSignal({
+                              pair: az.pair, type: az.signal, entry: az.entry,
+                              stopLoss: az.stopLoss, takeProfit: az.takeProfit,
+                              marketType: az.marketType, confidenceScore: az.confidence,
+                            })}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
                           >
                             <Zap className="w-3 h-3" /> Trade This
@@ -1624,10 +1627,11 @@ const Signals = () => {
                         )}
                         {hasSignal && (
                           <button
-                            onClick={() => navigate('/bots/create', { state: { prefill: {
-                              pair: az.pair, signal: az.signal, entry: az.entry,
-                              stopLoss: az.stopLoss, takeProfit: az.takeProfit, marketType: az.marketType,
-                            }}})}
+                            onClick={() => setQuickExecuteSignal({
+                              pair: az.pair, type: az.signal, entry: az.entry,
+                              stopLoss: az.stopLoss, takeProfit: az.takeProfit,
+                              marketType: az.marketType, confidenceScore: az.confidence,
+                            })}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
                           >
                             <Zap className="w-3 h-3" /> Trade This
@@ -1899,6 +1903,12 @@ const Signals = () => {
         guarantee future results. Always validate with your own research and use the demo account
         before trading real capital.
       </div>
+      {quickExecuteSignal && (
+        <QuickExecuteModal
+          signal={quickExecuteSignal}
+          onClose={() => setQuickExecuteSignal(null)}
+        />
+      )}
     </div>
   );
 };

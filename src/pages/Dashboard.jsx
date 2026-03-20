@@ -26,6 +26,7 @@ import {
 import { fetchPlatformStats, fetchSignals, fetchSignalHistory, analyzeSignal, fetchAvailablePairs } from '../redux/slices/signalSlice';
 import { fetchArbitrageOpportunities } from '../redux/slices/arbitrageslice';
 import { fetchBots } from '../redux/slices/botSlice';
+import QuickExecuteModal from '../components/bots/QuickExecuteModal';
 
 /* ─── free-tier daily signal counter (resets at midnight) ───── */
 const AZ_KEY = 'az_count'; // { date: 'YYYY-MM-DD', count: n }
@@ -195,6 +196,7 @@ const Dashboard = () => {
   const POPULAR_CHIPS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT'];
   const [azForm, setAzForm]   = useState({ symbol: '', timeframe: '1h', marketType: 'futures' });
   const [azQuery, setAzQuery] = useState('');
+  const [quickExecuteSignal, setQuickExecuteSignal] = useState(null);
 
   const filteredPairs = azQuery.length >= 2
     ? (availablePairs || []).filter(p => p.replace('USDT','').startsWith(azQuery.toUpperCase()) || p.startsWith(azQuery.toUpperCase())).slice(0, 8)
@@ -437,10 +439,11 @@ const Dashboard = () => {
                       </span>
                       {hasSignal && (
                         <button
-                          onClick={() => navigate('/bots/create', { state: { prefill: {
-                            pair: az.pair, signal: az.signal, entry: az.entry,
-                            stopLoss: az.stopLoss, takeProfit: az.takeProfit, marketType: az.marketType,
-                          }}})}
+                          onClick={() => setQuickExecuteSignal({
+                            pair: az.pair, type: az.signal, entry: az.entry,
+                            stopLoss: az.stopLoss, takeProfit: az.takeProfit,
+                            marketType: az.marketType, confidenceScore: az.confidence,
+                          })}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'}`}
                         >
                           <Zap className="w-3 h-3" /> Trade This
@@ -866,6 +869,13 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Quick Execute Modal */}
+      {quickExecuteSignal && (
+        <QuickExecuteModal
+          signal={quickExecuteSignal}
+          onClose={() => setQuickExecuteSignal(null)}
+        />
+      )}
     </div>
   );
 };
