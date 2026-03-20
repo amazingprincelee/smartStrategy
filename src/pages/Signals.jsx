@@ -467,11 +467,11 @@ const Signals = () => {
 
             {analysisLoading && (
               <div className="space-y-3 animate-pulse">
-                <div className="h-24 bg-white/4 rounded-xl" />
-                <div className="grid grid-cols-3 gap-3">
-                  {[0,1,2].map(i => <div key={i} className="h-16 bg-white/4 rounded-xl" />)}
+                <div className="h-20 sm:h-24 bg-white/4 rounded-xl" />
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                  {[0,1,2].map(i => <div key={i} className="h-14 sm:h-16 bg-white/4 rounded-xl" />)}
                 </div>
-                <div className="h-32 bg-white/4 rounded-xl" />
+                <div className="h-28 sm:h-32 bg-white/4 rounded-xl" />
               </div>
             )}
 
@@ -486,23 +486,23 @@ const Signals = () => {
                 <div className="space-y-4">
 
                   {/* ── Signal verdict ── */}
-                  <div className={`p-5 rounded-xl border ${
+                  <div className={`p-3 sm:p-5 rounded-xl border ${
                     hasSignal
                       ? isLong
                         ? 'border-green-500/40 bg-green-500/8'
                         : 'border-red-500/40 bg-red-500/8'
                       : 'border-white/10 bg-white/3'
                   }`}>
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {hasSignal
                             ? isLong
-                              ? <CheckCircle className="w-5 h-5 text-green-400" />
-                              : <XCircle className="w-5 h-5 text-red-400" />
-                            : <MinusCircle className="w-5 h-5 text-gray-500" />
+                              ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+                              : <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 flex-shrink-0" />
+                            : <MinusCircle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
                           }
-                          <span className="text-lg font-bold text-white">
+                          <span className="text-base sm:text-lg font-bold text-white">
                             {az.pair?.replace('USDT', '/USDT')}
                           </span>
                           <span className="text-xs text-gray-500 uppercase">{az.timeframe} · {az.marketType}</span>
@@ -512,7 +512,7 @@ const Signals = () => {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {hasSignal ? (
                           <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${
                             isLong
@@ -582,13 +582,13 @@ const Signals = () => {
 
                   {/* ── Entry / SL / TP ── */}
                   {hasSignal && (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
                       {[
                         { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
                         { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
                         { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
                       ].map(({ label, icon: Icon, val, color }) => (
-                        <div key={label} className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/4 border border-white/8">
+                        <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8">
                           <Icon className={`w-4 h-4 ${color}`} />
                           <span className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</span>
                           {isPremium ? (
@@ -603,7 +603,7 @@ const Signals = () => {
 
                   {/* R:R + confidence */}
                   {hasSignal && (
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                       {az.riskReward != null && (
                         <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-semibold">
                           R:R {Number(az.riskReward).toFixed(1)}
@@ -1566,11 +1566,11 @@ const Signals = () => {
 
             {analysisLoading && (
               <div className="space-y-3 animate-pulse">
-                <div className="h-24 bg-white/4 rounded-xl" />
-                <div className="grid grid-cols-3 gap-3">
-                  {[0,1,2].map(i => <div key={i} className="h-16 bg-white/4 rounded-xl" />)}
+                <div className="h-20 sm:h-24 bg-white/4 rounded-xl" />
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                  {[0,1,2].map(i => <div key={i} className="h-14 sm:h-16 bg-white/4 rounded-xl" />)}
                 </div>
-                <div className="h-32 bg-white/4 rounded-xl" />
+                <div className="h-28 sm:h-32 bg-white/4 rounded-xl" />
               </div>
             )}
 
@@ -1585,23 +1585,23 @@ const Signals = () => {
                 <div className="space-y-4">
 
                   {/* ── Signal verdict ── */}
-                  <div className={`p-5 rounded-xl border ${
+                  <div className={`p-3 sm:p-5 rounded-xl border ${
                     hasSignal
                       ? isLong
                         ? 'border-green-500/40 bg-green-500/8'
                         : 'border-red-500/40 bg-red-500/8'
                       : 'border-white/10 bg-white/3'
                   }`}>
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {hasSignal
                             ? isLong
-                              ? <CheckCircle className="w-5 h-5 text-green-400" />
-                              : <XCircle className="w-5 h-5 text-red-400" />
-                            : <MinusCircle className="w-5 h-5 text-gray-500" />
+                              ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+                              : <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 flex-shrink-0" />
+                            : <MinusCircle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
                           }
-                          <span className="text-lg font-bold text-white">
+                          <span className="text-base sm:text-lg font-bold text-white">
                             {az.pair?.replace('USDT', '/USDT')}
                           </span>
                           <span className="text-xs text-gray-500 uppercase">{az.timeframe} · {az.marketType}</span>
@@ -1611,7 +1611,7 @@ const Signals = () => {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {hasSignal ? (
                           <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${
                             isLong
@@ -1681,13 +1681,13 @@ const Signals = () => {
 
                   {/* ── Entry / SL / TP ── */}
                   {hasSignal && (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
                       {[
                         { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
                         { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
                         { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
                       ].map(({ label, icon: Icon, val, color }) => (
-                        <div key={label} className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/4 border border-white/8">
+                        <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8">
                           <Icon className={`w-4 h-4 ${color}`} />
                           <span className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</span>
                           {isPremium ? (
@@ -1702,7 +1702,7 @@ const Signals = () => {
 
                   {/* R:R + confidence */}
                   {hasSignal && (
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                       {az.riskReward != null && (
                         <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-semibold">
                           R:R {Number(az.riskReward).toFixed(1)}

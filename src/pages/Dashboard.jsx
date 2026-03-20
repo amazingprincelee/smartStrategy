@@ -411,8 +411,8 @@ const Dashboard = () => {
             {analysisLoading && (
               <div className="space-y-3 animate-pulse">
                 <div className="h-14 bg-white/4 rounded-xl" />
-                <div className="grid grid-cols-3 gap-2">{[0,1,2,3,4,5].map(i => <div key={i} className="h-12 bg-white/4 rounded-lg" />)}</div>
-                <div className="grid grid-cols-3 gap-2">{[0,1,2].map(i => <div key={i} className="h-14 bg-white/4 rounded-xl" />)}</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{[0,1,2,3,4,5].map(i => <div key={i} className="h-12 bg-white/4 rounded-lg" />)}</div>
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">{[0,1,2].map(i => <div key={i} className="h-14 bg-white/4 rounded-xl" />)}</div>
               </div>
             )}
             {analysis && !analysisLoading && (() => {
@@ -422,20 +422,20 @@ const Dashboard = () => {
               const fmtV = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d });
               return (
                 <div className="space-y-4">
-                  <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${hasSignal ? isLong ? 'border-green-500/30 bg-green-500/8' : 'border-red-500/30 bg-red-500/8' : 'border-white/8 bg-white/3'}`}>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        {hasSignal ? isLong ? <CheckCircle className="w-4 h-4 text-green-400" /> : <XCircle className="w-4 h-4 text-red-400" /> : <MinusCircle className="w-4 h-4 text-gray-500" />}
+                  <div className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between px-3 py-3 sm:px-4 rounded-xl border ${hasSignal ? isLong ? 'border-green-500/30 bg-green-500/8' : 'border-red-500/30 bg-red-500/8' : 'border-white/8 bg-white/3'}`}>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {hasSignal ? isLong ? <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" /> : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" /> : <MinusCircle className="w-4 h-4 text-gray-500 flex-shrink-0" />}
                         <span className="font-bold text-white">{az.pair?.replace('USDT', '/USDT')}</span>
                         <span className="text-[10px] text-gray-500 uppercase">{az.timeframe} · {az.marketType}</span>
                       </div>
-                      <p className="text-xs text-gray-500 ml-6 mt-0.5">
+                      <p className="text-xs text-gray-500 ml-[22px] mt-0.5">
                         <span className="font-mono text-gray-300">${fmtV(az.currentPrice, 4)}</span>
                         <span className="mx-2 text-gray-700">·</span>
                         {az.longScore ?? 0} bullish · {az.shortScore ?? 0} bearish
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${hasSignal ? isLong ? 'bg-green-500/20 text-green-300 border border-green-500/35' : 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-gray-500/15 text-gray-400 border border-gray-500/20'}`}>
                         {hasSignal ? (isLong ? '▲ LONG' : '▼ SHORT') : 'NEUTRAL'}
                       </span>
@@ -468,7 +468,7 @@ const Dashboard = () => {
                     </div>
                   )}
                   {az.indicators && (
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2">
                       {az.indicators.rsi != null && (() => { const b = az.indicators.rsi < 35, bear = az.indicators.rsi > 65; return (
                         <div className={`p-2 rounded-lg border text-center ${b ? 'border-green-500/20 bg-green-500/8' : bear ? 'border-red-500/20 bg-red-500/8' : 'border-white/6 bg-white/3'}`}>
                           <p className="text-[9px] text-gray-600 mb-0.5 flex items-center justify-center gap-0.5">RSI<Hint text="Relative Strength Index (0–100). Below 35 = oversold, price may bounce up. Above 65 = overbought, price may drop. In between = neutral momentum." /></p>
@@ -518,7 +518,7 @@ const Dashboard = () => {
                     const remaining = FREE_AZ_LIMIT - freeCount;
                     return (
                       <>
-                        <div data-tour="signal-result" className="grid grid-cols-3 gap-2">
+                        <div data-tour="signal-result" className="grid grid-cols-3 gap-1.5 sm:gap-2">
                           {[
                             { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-white', bg: 'border-cyan-500/20 bg-cyan-500/8' },
                             { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
