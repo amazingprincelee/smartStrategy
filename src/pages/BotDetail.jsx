@@ -60,16 +60,28 @@ function getStrategyConditions(strategyId, params, analysis) {
     case 'ai_signal':
       return [
         {
-          label: 'Signal confidence',
-          met: true,
-          actual: `≥ ${params?.minConfidencePercent || 70}%`,
-          need: 'threshold met',
+          label: 'MTF Alignment (35%)',
+          met: analysis.trend === 'bullish' || analysis.trend === 'bearish',
+          actual: analysis.trend || '—',
+          need: '≥ 2 of 3 timeframes agree',
         },
         {
-          label: 'Concurrent trades',
+          label: 'Momentum — RSI + MACD (25%)',
+          met: rsi != null && (rsi < 45 || rsi > 55),
+          actual: rsi != null ? `RSI ${rsi.toFixed ? rsi.toFixed(1) : rsi}` : '—',
+          need: 'RSI not neutral',
+        },
+        {
+          label: 'Volume (15%)',
+          met: vr != null && vr > 1.0,
+          actual: vr != null ? `${vr.toFixed ? vr.toFixed(2) : vr}× avg` : '—',
+          need: '> 1.0× average',
+        },
+        {
+          label: 'Min score gate',
           met: true,
-          actual: `max ${params?.maxConcurrentTrades || 2}`,
-          need: 'slots available',
+          actual: 'score ≥ 65',
+          need: 'passing threshold',
         },
       ];
     case 'swing_rider':
@@ -254,7 +266,7 @@ function BotStatusPanel({ bot }) {
       ) : (
         <>
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-            {metCount} / {conditions.length} conditions met to open a trade
+            {metCount} / {conditions.length} scoring factors active
           </div>
           <div className="space-y-2 mb-4">
             {conditions.map(c => (
