@@ -1,13 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   Bot, PlusCircle, TrendingUp, TrendingDown, Play, Square,
   FlaskConical, BookOpen, Loader, AlertCircle, Activity,
-  Crown, Zap, Lock, CheckCircle, ArrowRight, ShieldCheck,
+  Crown, Zap, Lock, CheckCircle, ArrowRight, ShieldCheck, Trash2,
 } from 'lucide-react';
-import { fetchBots, startBot, stopBot } from '../redux/slices/botSlice';
+import { fetchBots, startBot, stopBot, deleteBot } from '../redux/slices/botSlice';
 
 const STRATEGY_LABELS = {
   smart_signal:  'SmartSignal Bot',
@@ -35,7 +35,8 @@ const STATUS_COLORS = {
   error: 'bg-red-500',
 };
 
-const BotCard = ({ bot, onStart, onStop, loading }) => {
+const BotCard = ({ bot, onStart, onStop, onDelete, loading }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const pnl = bot.stats?.totalPnL ?? 0;
   const pnlPct = bot.stats?.totalPnLPercent ?? 0;
   const isPositive = pnl >= 0;
@@ -51,7 +52,7 @@ const BotCard = ({ bot, onStart, onStop, loading }) => {
           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_COLORS[bot.status] || 'bg-gray-400'}`} />
           <h3 className="font-semibold text-gray-900 dark:text-white truncate">{bot.name}</h3>
         </div>
-        <div className="flex gap-1 flex-shrink-0 ml-2">
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
           {bot.isDemo && (
             <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
               Demo
@@ -60,6 +61,32 @@ const BotCard = ({ bot, onStart, onStop, loading }) => {
           <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-brandDark-700 dark:text-gray-300 rounded-full capitalize">
             {bot.marketType}
           </span>
+          {/* Delete */}
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-red-400 font-medium">Delete?</span>
+              <button
+                onClick={() => { onDelete(bot._id); setConfirmDelete(false); }}
+                className="px-1.5 py-0.5 text-xs font-bold bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="px-1.5 py-0.5 text-xs font-bold bg-gray-200 dark:bg-brandDark-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-brandDark-500 transition-colors"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              title="Delete bot"
+              className="p-1 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -329,6 +356,16 @@ const BotDashboard = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await dispatch(deleteBot(id)).unwrap();
+      toast.info('Bot deleted');
+      dispatch(fetchBots());
+    } catch (err) {
+      toast.error(err || 'Failed to delete bot');
+    }
+  };
+
   const handleStop = async (id) => {
     try {
       await dispatch(stopBot(id)).unwrap();
@@ -495,6 +532,7 @@ const BotDashboard = () => {
                 bot={bot}
                 onStart={handleStart}
                 onStop={handleStop}
+                onDelete={handleDelete}
                 loading={loading.action}
               />
             ))}
