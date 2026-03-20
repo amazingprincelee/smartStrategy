@@ -483,7 +483,28 @@ const Signals = () => {
               const confPct = Math.round(conf * 100);
 
               return (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
+
+                  {/* ── Entry / SL / TP — shown first so key numbers are immediately visible ── */}
+                  {hasSignal && (
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                      {[
+                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
+                        { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
+                        { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
+                      ].map(({ label, icon: Icon, val, color }) => (
+                        <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8 overflow-hidden">
+                          <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${color} flex-shrink-0`} />
+                          <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider text-center">{label}</span>
+                          {isPremium ? (
+                            <span className={`text-[10px] sm:text-sm font-bold font-mono leading-tight text-center w-full truncate ${color}`} title={`$${fmt(val, 4)}`}>${fmt(val, 2)}</span>
+                          ) : (
+                            <span className="text-[10px] sm:text-sm font-bold text-gray-600 blur-[5px] select-none">••••••</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* ── Signal verdict ── */}
                   <div className={`p-3 sm:p-5 rounded-xl border ${
@@ -579,27 +600,6 @@ const Signals = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* ── Entry / SL / TP ── */}
-                  {hasSignal && (
-                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
-                      {[
-                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
-                        { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
-                        { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
-                      ].map(({ label, icon: Icon, val, color }) => (
-                        <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8">
-                          <Icon className={`w-4 h-4 ${color}`} />
-                          <span className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</span>
-                          {isPremium ? (
-                            <span className={`text-sm font-bold font-mono ${color}`}>${fmt(val, 4)}</span>
-                          ) : (
-                            <span className="text-sm font-bold text-gray-600 blur-[5px] select-none">${fmt(val, 4)}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   {/* R:R + confidence */}
                   {hasSignal && (
@@ -1582,7 +1582,28 @@ const Signals = () => {
               const confPct = Math.round(conf * 100);
 
               return (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
+
+                  {/* ── Entry / SL / TP — shown first so key numbers are immediately visible ── */}
+                  {hasSignal && (
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                      {[
+                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
+                        { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
+                        { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
+                      ].map(({ label, icon: Icon, val, color }) => (
+                        <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8 overflow-hidden">
+                          <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${color} flex-shrink-0`} />
+                          <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider text-center">{label}</span>
+                          {isPremium ? (
+                            <span className={`text-[10px] sm:text-sm font-bold font-mono leading-tight text-center w-full truncate ${color}`} title={`$${fmt(val, 4)}`}>${fmt(val, 2)}</span>
+                          ) : (
+                            <span className="text-[10px] sm:text-sm font-bold text-gray-600 blur-[5px] select-none">••••••</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* ── Signal verdict ── */}
                   <div className={`p-3 sm:p-5 rounded-xl border ${
@@ -1678,27 +1699,6 @@ const Signals = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* ── Entry / SL / TP ── */}
-                  {hasSignal && (
-                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
-                      {[
-                        { label: 'Entry',       icon: Target, val: az.entry,      color: 'text-white'     },
-                        { label: 'Stop Loss',   icon: Shield, val: az.stopLoss,   color: 'text-red-400'   },
-                        { label: 'Take Profit', icon: Zap,    val: az.takeProfit, color: 'text-green-400' },
-                      ].map(({ label, icon: Icon, val, color }) => (
-                        <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8">
-                          <Icon className={`w-4 h-4 ${color}`} />
-                          <span className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</span>
-                          {isPremium ? (
-                            <span className={`text-sm font-bold font-mono ${color}`}>${fmt(val, 4)}</span>
-                          ) : (
-                            <span className="text-sm font-bold text-gray-600 blur-[5px] select-none">${fmt(val, 4)}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   {/* R:R + confidence */}
                   {hasSignal && (

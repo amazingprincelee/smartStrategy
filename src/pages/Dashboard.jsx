@@ -421,7 +421,31 @@ const Dashboard = () => {
               const isLong = az.signal === 'LONG';
               const fmtV = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d });
               return (
-                <div className="space-y-4">
+                <div className="space-y-3">
+                  {/* ── Entry / SL / TP first ── */}
+                  {hasSignal && (() => {
+                    const canSee = isPremium || freeCount <= FREE_AZ_LIMIT;
+                    return (
+                      <div data-tour="signal-result" className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                        {[
+                          { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-white', bg: 'border-cyan-500/20 bg-cyan-500/8' },
+                          { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
+                          { label: 'Take Profit', short: 'TP', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
+                        ].map(({ label, short, icon: Icon, val, color, bg }) => (
+                          <div key={label} className={`flex flex-col gap-1 p-2 sm:p-3 rounded-xl border overflow-hidden ${bg}`}>
+                            <div className="flex items-center gap-1">
+                              <Icon className={`w-3 h-3 flex-shrink-0 ${color}`} />
+                              <span className="text-[9px] sm:text-[10px] text-gray-500 font-medium truncate">{short}:</span>
+                            </div>
+                            {canSee
+                              ? <span className={`text-[10px] sm:text-sm font-bold font-mono truncate ${color}`} title={`$${fmtV(val, 4)}`}>${fmtV(val, 2)}</span>
+                              : <span className="text-[10px] sm:text-sm font-bold text-gray-600 blur-sm select-none">••••••</span>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
                   <div className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between px-3 py-3 sm:px-4 rounded-xl border ${hasSignal ? isLong ? 'border-green-500/30 bg-green-500/8' : 'border-red-500/30 bg-red-500/8' : 'border-white/8 bg-white/3'}`}>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -518,23 +542,6 @@ const Dashboard = () => {
                     const remaining = FREE_AZ_LIMIT - freeCount;
                     return (
                       <>
-                        <div data-tour="signal-result" className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                          {[
-                            { label: 'Entry', short: 'Entry', icon: Target, val: az.entry, color: 'text-white', bg: 'border-cyan-500/20 bg-cyan-500/8' },
-                            { label: 'Stop Loss', short: 'SL', icon: Shield, val: az.stopLoss, color: 'text-red-400', bg: 'border-red-500/20 bg-red-500/8' },
-                            { label: 'Take Profit', short: 'TP', icon: Zap, val: az.takeProfit, color: 'text-green-400', bg: 'border-green-500/20 bg-green-500/8' },
-                          ].map(({ label, short, icon: Icon, val, color, bg }) => (
-                            <div key={label} className={`flex flex-col gap-1 p-3 rounded-xl border ${bg}`}>
-                              <div className="flex items-center gap-1.5">
-                                <Icon className={`w-3 h-3 ${color}`} />
-                                <span className="text-[10px] text-gray-500 font-medium">{short}:</span>
-                              </div>
-                              {canSee
-                                ? <span className={`text-sm font-bold font-mono ${color}`}>${fmtV(val, 4)}</span>
-                                : <span className="text-sm font-bold text-gray-600 blur-sm select-none">${fmtV(val, 4)}</span>}
-                            </div>
-                          ))}
-                        </div>
                         {!isPremium && canSee && remaining > 0 && (
                           <p className="text-[11px] text-gray-500 flex items-center gap-1">
                             <CheckCircle className="w-3 h-3 text-green-500" />
@@ -686,18 +693,16 @@ const Dashboard = () => {
 
                 {/* Entry / SL / TP */}
                 <div className="grid grid-cols-3 gap-0 divide-x divide-white/5 px-1 py-3">
-                  <div className="px-3 text-center">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Entry</p>
-                    <p className="text-sm font-bold text-white">${fmt(latestSignal.entry, 4)}</p>
-                  </div>
-                  <div className="px-3 text-center">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Stop Loss</p>
-                    <p className="text-sm font-bold text-red-400">${fmt(latestSignal.stopLoss, 4)}</p>
-                  </div>
-                  <div className="px-3 text-center">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Take Profit</p>
-                    <p className="text-sm font-bold text-green-400">${fmt(latestSignal.takeProfit, 4)}</p>
-                  </div>
+                  {[
+                    { label: 'Entry',       val: latestSignal.entry,      color: 'text-white'      },
+                    { label: 'Stop Loss',   val: latestSignal.stopLoss,   color: 'text-red-400'    },
+                    { label: 'Take Profit', val: latestSignal.takeProfit, color: 'text-green-400'  },
+                  ].map(({ label, val, color }) => (
+                    <div key={label} className="px-1 sm:px-3 text-center overflow-hidden">
+                      <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider mb-0.5 truncate">{label}</p>
+                      <p className={`text-[10px] sm:text-sm font-bold font-mono truncate ${color}`} title={`$${fmt(val, 4)}`}>${fmt(val, 2)}</p>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Confidence bar + R:R */}

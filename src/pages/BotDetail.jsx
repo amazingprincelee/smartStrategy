@@ -8,7 +8,7 @@ import {
 import {
   ArrowLeft, Play, Square, Trash2, TrendingUp, TrendingDown,
   Activity, Loader, AlertCircle, ChevronLeft, ChevronRight,
-  CheckCircle2, XCircle, Clock, RefreshCw, Zap, BarChart3, Shield
+  CheckCircle2, XCircle, Clock, RefreshCw, Zap, BarChart3, Shield, X, DollarSign
 } from 'lucide-react';
 import {
   fetchBotDetail, fetchBotTrades, fetchBotPositions, startBot, stopBot, deleteBot
@@ -349,6 +349,8 @@ const BotDetail = () => {
   const [tradePage, setTradePage]         = useState(1);
   const [pendingSignals, setPendingSignals] = useState([]);
   const [executingId, setExecutingId]     = useState(null);
+  const [selectedPos, setSelectedPos]     = useState(null); // position detail modal
+  const [closingId, setClosingId]         = useState(null); // which position is being closed
 
   const bot = detail?.bot;
   const isManual = bot?.executionMode === 'manual';
@@ -442,10 +444,28 @@ const BotDetail = () => {
     );
   }
 
-  const pnl = bot.stats?.totalPnL ?? 0;
+  const unrealizedTotal = openPositions.reduce((s, p) => s + (p.unrealizedPnL || 0), 0);
+  const pnl = (bot.stats?.totalPnL ?? 0) + unrealizedTotal;
   const winRate = bot.stats?.totalTrades > 0
     ? ((bot.stats.winningTrades / bot.stats.totalTrades) * 100).toFixed(1)
     : 0;
+
+  // Close a position manually
+  const handleClosePosition = async (pos) => {
+    if (!window.confirm(`Close ${(pos.symbol || '').replace('/', '')} at $${(pos.currentPrice || pos.entryPrice)?.toFixed(2)}?\nThis will realize ${pos.unrealizedPnL >= 0 ? '+' : ''}$${(pos.unrealizedPnL || 0).toFixed(4)}`)) return;
+    setClosingId(pos._id);
+    try {
+      await authAPI.post(`/bots/${bot._id}/positions/${pos._id}/close`);
+      toast.success('Position closed successfully');
+      setSelectedPos(null);
+      dispatch(fetchBotPositions({ id: bot._id, status: 'open' }));
+      dispatch(fetchBotDetail(bot._id));
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to close position');
+    } finally {
+      setClosingId(null);
+    }
+  };
 
   // Build a simple P&L chart from trades
   const pnlChartData = trades
@@ -652,61 +672,181 @@ const BotDetail = () => {
       )}
 
       {/* Open Positions */}
-      <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-          Open Positions ({openPositions.length})
-        </h2>
+      <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+            Open Positions ({openPositions.length})
+          </h2>
+          {unrealizedTotal !== 0 && (
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${unrealizedTotal >= 0 ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+              Unrealized {unrealizedTotal >= 0 ? '+' : ''}${unrealizedTotal.toFixed(2)}
+            </span>
+          )}
+        </div>
+
         {openPositions.length === 0 ? (
           <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No open positions</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-brandDark-700">
-                  <th className="text-left py-2 pr-4">Pair</th>
-                  <th className="text-left py-2 pr-4">Market</th>
-                  <th className="text-left py-2 pr-4">Portion</th>
-                  <th className="text-right py-2 pr-4">Entry</th>
-                  <th className="text-right py-2 pr-4">Current</th>
-                  <th className="text-right py-2 pr-4">Unrealized P&L</th>
-                  <th className="text-right py-2 pr-4">Stop Loss</th>
-                  <th className="text-right py-2">Take Profit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {openPositions.map(pos => {
-                  const upnl = pos.unrealizedPnL || 0;
-                  return (
-                    <tr key={pos._id} className="border-b border-gray-50 dark:border-brandDark-700 hover:bg-gray-50 dark:hover:bg-brandDark-700">
-                      <td className="py-2 pr-4 font-mono font-semibold text-gray-900 dark:text-white">
-                        {(pos.symbol || '—').replace('/', '')}
-                      </td>
-                      <td className="py-2 pr-4">
-                        {(() => {
-                          const mt = (pos.marketType || bot?.marketType || 'spot').toLowerCase();
-                          return mt === 'futures'
-                            ? <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">FUTURES</span>
-                            : <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">SPOT</span>;
-                        })()}
-                      </td>
-                      <td className="py-2 pr-4 text-gray-700 dark:text-gray-300">#{pos.portionIndex + 1}</td>
-                      <td className="text-right py-2 pr-4 font-mono text-gray-800 dark:text-gray-200">${pos.entryPrice?.toFixed(4)}</td>
-                      <td className="text-right py-2 pr-4 font-mono text-gray-800 dark:text-gray-200">${(pos.currentPrice || pos.entryPrice)?.toFixed(4)}</td>
-                      <td className={`text-right py-2 pr-4 font-medium font-mono ${upnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                        {upnl >= 0 ? '+' : ''}${upnl.toFixed(4)}
-                      </td>
-                      <td className="text-right py-2 pr-4 font-mono text-red-500 dark:text-red-400">${pos.stopLossPrice?.toFixed(4)}</td>
-                      <td className="text-right py-2 font-mono text-green-600 dark:text-green-400">
-                        {pos.takeProfitPrice ? `$${pos.takeProfitPrice.toFixed(4)}` : '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* ── Mobile cards (tap to see details) ── */}
+            <div className="sm:hidden space-y-2">
+              {openPositions.map(pos => {
+                const upnl = pos.unrealizedPnL || 0;
+                const mt = (pos.marketType || bot?.marketType || 'spot').toLowerCase();
+                return (
+                  <button
+                    key={pos._id}
+                    onClick={() => setSelectedPos(pos)}
+                    className="w-full text-left p-3 rounded-xl border border-gray-100 dark:border-brandDark-700 bg-gray-50 dark:bg-brandDark-900 hover:bg-gray-100 dark:hover:bg-brandDark-700 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-gray-900 dark:text-white">
+                          {(pos.symbol || '—').replace('/', '')}
+                        </span>
+                        <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${mt === 'futures' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                          {mt.toUpperCase()}
+                        </span>
+                        <span className="text-[10px] text-gray-500">#{pos.portionIndex + 1}</span>
+                      </div>
+                      <span className={`text-sm font-bold font-mono ${upnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {upnl >= 0 ? '+' : ''}${upnl.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <span>Entry <span className="font-mono text-gray-700 dark:text-gray-300">${pos.entryPrice?.toFixed(2)}</span></span>
+                      <span>Current <span className="font-mono text-gray-700 dark:text-gray-300">${(pos.currentPrice || pos.entryPrice)?.toFixed(2)}</span></span>
+                      <span className="text-primary-400">Tap for details →</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── Desktop table ── */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-brandDark-700">
+                    <th className="text-left py-2 pr-4">Pair</th>
+                    <th className="text-left py-2 pr-4">Market</th>
+                    <th className="text-left py-2 pr-4">Portion</th>
+                    <th className="text-right py-2 pr-4">Entry</th>
+                    <th className="text-right py-2 pr-4">Current</th>
+                    <th className="text-right py-2 pr-4">Unrealized P&L</th>
+                    <th className="text-right py-2 pr-4">Stop Loss</th>
+                    <th className="text-right py-2 pr-4">Take Profit</th>
+                    <th className="text-right py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {openPositions.map(pos => {
+                    const upnl = pos.unrealizedPnL || 0;
+                    const mt = (pos.marketType || bot?.marketType || 'spot').toLowerCase();
+                    return (
+                      <tr key={pos._id} className="border-b border-gray-50 dark:border-brandDark-700 hover:bg-gray-50 dark:hover:bg-brandDark-700">
+                        <td className="py-2 pr-4 font-mono font-semibold text-gray-900 dark:text-white">
+                          {(pos.symbol || '—').replace('/', '')}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${mt === 'futures' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                            {mt.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-4 text-gray-700 dark:text-gray-300">#{pos.portionIndex + 1}</td>
+                        <td className="text-right py-2 pr-4 font-mono text-gray-800 dark:text-gray-200">${pos.entryPrice?.toFixed(4)}</td>
+                        <td className="text-right py-2 pr-4 font-mono text-gray-800 dark:text-gray-200">${(pos.currentPrice || pos.entryPrice)?.toFixed(4)}</td>
+                        <td className={`text-right py-2 pr-4 font-medium font-mono ${upnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                          {upnl >= 0 ? '+' : ''}${upnl.toFixed(4)}
+                        </td>
+                        <td className="text-right py-2 pr-4 font-mono text-red-500 dark:text-red-400">${pos.stopLossPrice?.toFixed(4)}</td>
+                        <td className="text-right py-2 pr-4 font-mono text-green-600 dark:text-green-400">
+                          {pos.takeProfitPrice ? `$${pos.takeProfitPrice.toFixed(4)}` : '—'}
+                        </td>
+                        <td className="text-right py-2">
+                          <button
+                            onClick={() => handleClosePosition(pos)}
+                            disabled={closingId === pos._id}
+                            className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/25 transition-colors disabled:opacity-50"
+                          >
+                            {closingId === pos._id ? '…' : 'Close'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
+
+      {/* ── Position Detail Modal (mobile) ── */}
+      {selectedPos && (() => {
+        const pos = selectedPos;
+        const upnl = pos.unrealizedPnL || 0;
+        const mt = (pos.marketType || bot?.marketType || 'spot').toLowerCase();
+        const currentPrice = pos.currentPrice || pos.entryPrice;
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm px-0 sm:px-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setSelectedPos(null); }}>
+            <div className="w-full sm:max-w-md bg-brandDark-800 rounded-t-2xl sm:rounded-2xl border border-brandDark-600 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-brandDark-700">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-white text-lg">{(pos.symbol || '').replace('/', '')}</span>
+                  <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${mt === 'futures' ? 'bg-purple-900/40 text-purple-300' : 'bg-blue-900/40 text-blue-300'}`}>
+                    {mt.toUpperCase()}
+                  </span>
+                  <span className="text-xs text-gray-500">Portion #{pos.portionIndex + 1}</span>
+                </div>
+                <button onClick={() => setSelectedPos(null)} className="p-1.5 rounded-lg hover:bg-white/8 text-gray-400">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Unrealized P&L — big number */}
+              <div className={`px-4 py-5 text-center border-b border-brandDark-700 ${upnl >= 0 ? 'bg-green-500/5' : 'bg-red-500/5'}`}>
+                <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Unrealized P&L</p>
+                <p className={`text-3xl font-bold font-mono ${upnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {upnl >= 0 ? '+' : ''}${upnl.toFixed(4)}
+                </p>
+              </div>
+
+              {/* Detail rows */}
+              <div className="p-4 space-y-3">
+                {[
+                  { label: 'Entry Price',   val: `$${pos.entryPrice?.toFixed(4)}`,       color: 'text-white' },
+                  { label: 'Current Price', val: `$${currentPrice?.toFixed(4)}`,          color: 'text-white' },
+                  { label: 'Stop Loss',     val: pos.stopLossPrice ? `$${pos.stopLossPrice.toFixed(4)}` : '—',   color: 'text-red-400' },
+                  { label: 'Take Profit',   val: pos.takeProfitPrice ? `$${pos.takeProfitPrice.toFixed(4)}` : '—', color: 'text-green-400' },
+                  { label: 'Amount',        val: pos.amount?.toFixed(6) ?? '—',           color: 'text-gray-300' },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">{label}</span>
+                    <span className={`text-sm font-mono font-semibold ${color}`}>{val}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Close button */}
+              <div className="px-4 pb-6">
+                <button
+                  onClick={() => handleClosePosition(pos)}
+                  disabled={closingId === pos._id}
+                  className="w-full py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-400 font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {closingId === pos._id
+                    ? <><Loader className="w-4 h-4 animate-spin" /> Closing…</>
+                    : <><DollarSign className="w-4 h-4" /> Close Position & Take Profit</>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Trade History */}
       <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-5">

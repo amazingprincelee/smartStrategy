@@ -24,8 +24,10 @@ const Sidebar = ({ isOpen, onClose }) => {
   const demo = useSelector((state) => state.demo);
   const userRole = useSelector(state => state.auth?.user?.role ?? 'user');
 
-  const activeBots = bots.filter(b => b.status === 'running').length;
-  const totalPnL = bots.reduce((sum, b) => sum + (b.stats?.totalPnL || 0), 0);
+  const activeBots    = bots.filter(b => b.status === 'running').length;
+  const realizedPnL   = bots.reduce((sum, b) => sum + (b.stats?.totalPnL || 0), 0);
+  const unrealizedPnL = bots.reduce((sum, b) => sum + (b.unrealizedPnL || 0), 0);
+  const totalPnL      = realizedPnL + unrealizedPnL;
   const demoBalance = demo?.virtualBalance ?? 10000;
 
   const navigation = [
