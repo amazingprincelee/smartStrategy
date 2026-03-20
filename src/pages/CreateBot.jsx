@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   ChevronRight, ChevronLeft, Bot, FlaskConical, Zap, Shield, CheckCircle,
-  Loader, AlertCircle, Plus, Info, TrendingUp, TrendingDown, Target
+  Loader, AlertCircle, Plus, Info, TrendingUp, TrendingDown, Target, RefreshCw, Wallet
 } from 'lucide-react';
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
-import { fetchAccounts } from '../redux/slices/exchangeAccountSlice';
+import { fetchAccounts, fetchAccountBalance } from '../redux/slices/exchangeAccountSlice';
+import { fetchDemoAccount } from '../redux/slices/demoSlice';
 
 // Steps
 const STEPS = ['Mode & Exchange', 'Configure', 'Review & Launch'];
@@ -79,10 +80,16 @@ const CreateBot = () => {
   const location  = useLocation();
   const prefill   = location.state?.prefill ?? null;
 
-  const { loading: botLoading } = useSelector(state => state.bots);
-  const { accounts }            = useSelector(state => state.exchangeAccounts);
+  const { loading: botLoading }   = useSelector(state => state.bots);
+  const { accounts, balances }    = useSelector(state => state.exchangeAccounts);
+  const demoAccount               = useSelector(state => state.demo?.account);
 
-  const [step, setStep] = useState(0);
+  const [step, setStep]           = useState(0);
+  const [fetchedBalance, setFetchedBalance] = useState(null);   // { usdt, total, fetchedAt }
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError]     = useState(null);
+  const [allocPct, setAllocPct]   = useState(20); // % of balance to allocate
+
   const [form, setForm] = useState(() => {
     if (!prefill) return DEFAULTS;
     const base = prefill.pair?.replace('USDT', '') ?? '';
@@ -98,7 +105,56 @@ const CreateBot = () => {
   useEffect(() => {
     dispatch(fetchStrategies());
     dispatch(fetchAccounts());
+    dispatch(fetchDemoAccount());
   }, [dispatch]);
+
+  // Auto-fetch balance when demo/exchange account changes
+  const loadBalance = useCallback(async () => {
+    setFetchedBalance(null);
+    setBalanceError(null);
+
+    if (form.isDemo) {
+      // Demo: use demo account balance directly
+      const bal = demoAccount?.balance ?? null;
+      if (bal !== null) {
+        setFetchedBalance({ usdt: bal, source: 'demo' });
+        const alloc = Math.round(bal * allocPct / 100 * 100) / 100;
+        setForm(f => ({ ...f, capitalAllocation: { ...f.capitalAllocation, totalCapital: alloc } }));
+      }
+      return;
+    }
+
+    if (!form.exchangeAccountId) return;
+
+    setBalanceLoading(true);
+    try {
+      const res = await dispatch(fetchAccountBalance(form.exchangeAccountId)).unwrap();
+      const usdtEntry = (res.balances || []).find(b =>
+        b.currency === 'USDT' || b.asset === 'USDT'
+      );
+      const usdt = usdtEntry?.free ?? usdtEntry?.available ?? usdtEntry?.total ?? 0;
+      setFetchedBalance({ usdt, fetchedAt: res.fetchedAt, source: 'live' });
+      const alloc = Math.round(usdt * allocPct / 100 * 100) / 100;
+      setForm(f => ({ ...f, capitalAllocation: { ...f.capitalAllocation, totalCapital: alloc } }));
+    } catch (err) {
+      setBalanceError('Could not fetch balance. You can enter it manually below.');
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [dispatch, form.isDemo, form.exchangeAccountId, demoAccount, allocPct]);
+
+  // Fetch when account selection changes or demo toggles
+  useEffect(() => {
+    if (form.isDemo || form.exchangeAccountId) loadBalance();
+  }, [form.isDemo, form.exchangeAccountId]);
+
+  // Recompute allocation when slider changes
+  useEffect(() => {
+    if (fetchedBalance?.usdt) {
+      const alloc = Math.round(fetchedBalance.usdt * allocPct / 100 * 100) / 100;
+      setForm(f => ({ ...f, capitalAllocation: { ...f.capitalAllocation, totalCapital: alloc } }));
+    }
+  }, [allocPct, fetchedBalance]);
 
   const update       = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const updateNested = (parent, key, val) => setForm(f => ({ ...f, [parent]: { ...f[parent], [key]: val } }));
@@ -332,25 +388,89 @@ const CreateBot = () => {
 
       {/* Account Balance */}
       <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Account Balance</h3>
-        <div>
-          <label className="flex items-center mb-1 text-xs font-medium text-gray-900 dark:text-white">
-            How much is in your exchange account? (USDT)
-            <FieldHint text="This tells the bot how much capital to base its position sizing on. It does not send funds anywhere." />
-          </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="e.g. 500"
-            value={form.capitalAllocation.totalCapital}
-            onFocus={e => e.target.select()}
-            onChange={e => {
-              const v = e.target.value.trim();
-              updateNested('capitalAllocation', 'totalCapital', v === '' ? '' : parseFloat(v));
-            }}
-            className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
-          />
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <Wallet className="w-4 h-4 text-primary-400" /> Account Balance
+          </h3>
+          <button
+            type="button"
+            onClick={loadBalance}
+            disabled={balanceLoading}
+            className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${balanceLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
+
+        {/* Fetched balance display */}
+        {balanceLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <Loader className="w-4 h-4 animate-spin" /> Fetching your balance...
+          </div>
+        ) : fetchedBalance ? (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-brandDark-800 border border-gray-200 dark:border-brandDark-600">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                {fetchedBalance.source === 'demo' ? 'Demo Account Balance' : 'Available USDT'}
+              </p>
+              <p className="text-xl font-bold text-gray-900 dark:text-white">
+                ${fetchedBalance.usdt?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span className="text-sm font-normal text-gray-400 ml-1">USDT</span>
+              </p>
+            </div>
+            {fetchedBalance.source === 'live' && (
+              <span className="text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-full">Live</span>
+            )}
+            {fetchedBalance.source === 'demo' && (
+              <span className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-full">Demo</span>
+            )}
+          </div>
+        ) : balanceError ? (
+          <div className="space-y-2">
+            <p className="text-xs text-yellow-400">{balanceError}</p>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Enter balance manually, e.g. 500"
+              value={form.capitalAllocation.totalCapital}
+              onFocus={e => e.target.select()}
+              onChange={e => {
+                const v = e.target.value.trim();
+                updateNested('capitalAllocation', 'totalCapital', v === '' ? '' : parseFloat(v));
+              }}
+              className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg dark:border-brandDark-600 dark:bg-brandDark-800 dark:text-white"
+            />
+          </div>
+        ) : null}
+
+        {/* Allocation slider */}
+        {fetchedBalance && !balanceError && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-gray-900 dark:text-white flex items-center gap-1">
+                How much to allocate to this bot?
+                <FieldHint text="You don't have to give the bot your full balance. Allocate only what you're comfortable with this bot managing." />
+              </label>
+              <span className="text-xs font-bold text-primary-400">{allocPct}%</span>
+            </div>
+            <input
+              type="range"
+              min={5} max={100} step={5}
+              value={allocPct}
+              onChange={e => setAllocPct(parseInt(e.target.value))}
+              className="w-full accent-primary-500"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>5%</span>
+              <span className="text-white font-semibold">
+                Bot gets: ${form.capitalAllocation.totalCapital?.toFixed(2)} USDT
+              </span>
+              <span>100%</span>
+            </div>
+          </div>
+        )}
+      </div>
 
         {/* Risk preset */}
         <div>
@@ -508,7 +628,8 @@ const CreateBot = () => {
             ['Execution',      form.executionMode === 'auto' ? '⚡ Auto — bot trades on its own' : '👆 Manual — you approve each trade'],
             ['Strategy',       prefill ? 'AI Signal (single pair)' : 'SmartSignal Bot'],
             ['Pair',           prefill ? prefill.pair?.replace('USDT', '/USDT') : 'Automatic (best scored signal)'],
-            ['Capital',        `$${form.capitalAllocation.totalCapital} USDT`],
+            ['Balance',        fetchedBalance ? `$${fetchedBalance.usdt?.toFixed(2)} USDT (${fetchedBalance.source})` : '—'],
+            ['Bot Allocation', `$${form.capitalAllocation.totalCapital} USDT (${allocPct}% of balance)`],
             ['Max Trades',     1],
             ['Risk/Trade',     `${form.strategyParams.riskPerTrade}%`],
             ['Max Loss/Trade', `$${((form.capitalAllocation.totalCapital || 0) * (form.strategyParams.riskPerTrade || 2) / 100).toFixed(2)}`],
