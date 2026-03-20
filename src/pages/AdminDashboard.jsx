@@ -5,6 +5,7 @@ import {
   BarChart2, Shield, Mail, CheckCircle, XCircle,
   AlertTriangle, Trash2, Gift, TrendingUp, Send,
   Megaphone, Eye, EyeOff, Loader, ArrowDownCircle, Clock, Key,
+  Receipt, ChevronRight, RefreshCw,
 } from 'lucide-react';
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminSubscriptions,
@@ -13,6 +14,7 @@ import {
   fetchRevenueAnalytics, fetchUserAnalytics, fetchPlatformAnalytics,
   fetchAuditLogs, sendTargetedEmail, updateAnnouncement,
   clearAdminAction, fetchPaymentKeyStatus, savePaymentKeys,
+  fetchAdminTransactions, fetchTransactionStats, fetchTransactionDetail,
 } from '../redux/slices/adminSlice';
 import { adminFetchAllTickets, adminFetchTicket, adminReplyTicket } from '../redux/slices/supportSlice';
 import { adminFetchWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal, adminMarkPaid } from '../redux/slices/withdrawalSlice';
@@ -985,11 +987,270 @@ function SettingsTab({ settings, loading, dispatch, actionSuccess, error }) {
   );
 }
 
+// ── TransactionsTab ───────────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  initiated:  'bg-gray-500/20 text-gray-300',
+  pending:    'bg-yellow-500/20 text-yellow-300',
+  processing: 'bg-blue-500/20 text-blue-300',
+  completed:  'bg-green-500/20 text-green-300',
+  failed:     'bg-red-500/20 text-red-400',
+  expired:    'bg-orange-500/20 text-orange-300',
+  refunded:   'bg-purple-500/20 text-purple-300',
+};
+
+function TransactionsTab({ dispatch }) {
+  const { transactions, transactionsTotal, transactionStats, transactionDetail, loading } = useSelector(s => s.admin);
+  const [status,   setStatus]   = useState('all');
+  const [provider, setProvider] = useState('all');
+  const [range,    setRange]    = useState('30d');
+  const [search,   setSearch]   = useState('');
+  const [page,     setPage]     = useState(1);
+  const [selected, setSelected] = useState(null); // open detail modal
+
+  const load = () => {
+    const params = { page, limit: 20, status, provider, range };
+    if (search) params.search = search;
+    dispatch(fetchAdminTransactions(params));
+    dispatch(fetchTransactionStats());
+  };
+
+  useEffect(() => { load(); }, [status, provider, range, page]); // eslint-disable-line
+  const handleSearch = (e) => { e.preventDefault(); setPage(1); load(); };
+
+  const openDetail = (txn) => {
+    setSelected(txn);
+    dispatch(fetchTransactionDetail(txn._id));
+  };
+
+  const stats = transactionStats;
+  const totalPages = Math.ceil(transactionsTotal / 20);
+
+  return (
+    <div className="space-y-4">
+
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Revenue',     value: `$${(stats?.totalRevenue || 0).toFixed(2)}`, color: 'text-green-400',  sub: `${stats?.completed || 0} completed` },
+          { label: 'Pending',     value: stats?.pending    || 0,                       color: 'text-yellow-400', sub: 'awaiting payment' },
+          { label: 'Failed',      value: stats?.failed     || 0,                       color: 'text-red-400',    sub: `${stats?.expired || 0} expired` },
+          { label: 'Success Rate',value: `${stats?.successRate || 0}%`,                color: 'text-blue-400',   sub: `${stats?.total || 0} total attempts` },
+        ].map(({ label, value, color, sub }) => (
+          <div key={label} className="bg-brandDark-900 rounded-xl border border-white/8 p-3 sm:p-4">
+            <p className="text-xs text-gray-500 mb-1">{label}</p>
+            <p className={`text-xl sm:text-2xl font-bold ${color}`}>{value}</p>
+            <p className="text-[10px] text-gray-600 mt-0.5">{sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filters ── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-0">
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by email…"
+            className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-brandDark-900 border border-white/10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary-500"
+          />
+          <button type="submit" className="px-3 py-1.5 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-500">Go</button>
+        </form>
+        <div className="flex gap-2 flex-wrap">
+          {['all','initiated','pending','processing','completed','failed','expired'].map(s => (
+            <button key={s} onClick={() => { setStatus(s); setPage(1); }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${status === s ? 'bg-primary-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {['today','7d','30d','90d','all'].map(r => (
+            <button key={r} onClick={() => { setRange(r); setPage(1); }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${range === r ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}>
+              {r}
+            </button>
+          ))}
+        </div>
+        <button onClick={load} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors">
+          <RefreshCw className={`w-4 h-4 ${loading.transactions ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {/* ── Mobile cards / Desktop table ── */}
+      {loading.transactions ? (
+        <div className="flex justify-center py-12"><Loader className="w-6 h-6 animate-spin text-primary-400" /></div>
+      ) : transactions.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 text-sm">No transactions found</div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-2">
+            {transactions.map(txn => (
+              <button key={txn._id} onClick={() => openDetail(txn)}
+                className="w-full text-left p-3 rounded-xl border border-white/8 bg-brandDark-900 hover:bg-brandDark-700 transition-colors">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-semibold text-white truncate mr-2">{txn.userEmail}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${STATUS_COLORS[txn.status] || 'bg-gray-500/20 text-gray-300'}`}>
+                    {txn.status.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span className="text-green-400 font-mono font-semibold">${(txn.amountUSD || 0).toFixed(2)}</span>
+                  <span className="capitalize">{txn.provider?.replace('_', ' ')}</span>
+                  <span>{new Date(txn.createdAt).toLocaleDateString()}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border border-white/8">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-500 border-b border-white/8 bg-white/3">
+                  <th className="text-left px-4 py-3">User</th>
+                  <th className="text-left px-4 py-3">Provider</th>
+                  <th className="text-right px-4 py-3">Amount</th>
+                  <th className="text-left px-4 py-3">Status</th>
+                  <th className="text-left px-4 py-3">Date</th>
+                  <th className="text-left px-4 py-3">Ref ID</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map(txn => (
+                  <tr key={txn._id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="text-white font-medium truncate max-w-[160px]">{txn.userEmail}</p>
+                      <p className="text-[10px] text-gray-600">{txn.userName}</p>
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 capitalize">{txn.provider?.replace(/_/g, ' ')}</td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold text-green-400">${(txn.amountUSD || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_COLORS[txn.status] || 'bg-gray-500/20 text-gray-300'}`}>
+                        {txn.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">{new Date(txn.createdAt).toLocaleString()}</td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-gray-600 max-w-[120px] truncate" title={txn.chargeId}>
+                      {txn.chargeId ? txn.chargeId.slice(0, 12) + '…' : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => openDetail(txn)} className="text-xs text-primary-400 hover:text-primary-300 font-medium">
+                        Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">{transactionsTotal} total</span>
+              <div className="flex gap-2">
+                <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded-lg bg-white/5 text-gray-400 disabled:opacity-40">Prev</button>
+                <span className="px-3 py-1 text-gray-400">{page} / {totalPages}</span>
+                <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded-lg bg-white/5 text-gray-400 disabled:opacity-40">Next</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Detail modal ── */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm px-0 sm:px-4"
+          onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}>
+          <div className="w-full sm:max-w-lg bg-brandDark-800 rounded-t-2xl sm:rounded-2xl border border-brandDark-600 overflow-hidden max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-brandDark-700 flex-shrink-0">
+              <div>
+                <p className="font-semibold text-white">{selected.userEmail}</p>
+                <p className="text-xs text-gray-500">{selected.provider?.replace(/_/g, ' ')} · ${(selected.amountUSD||0).toFixed(2)}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_COLORS[selected.status]}`}>{selected.status.toUpperCase()}</span>
+                <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-white text-lg leading-none">✕</button>
+              </div>
+            </div>
+
+            {/* Body — scrollable */}
+            <div className="overflow-y-auto p-4 space-y-4">
+              {/* Details grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Amount USD',   val: `$${(selected.amountUSD||0).toFixed(2)}` },
+                  { label: 'Plan',         val: `${selected.plan} · ${selected.planDurationDays}d` },
+                  { label: 'Provider',     val: selected.provider?.replace(/_/g,' ') },
+                  { label: 'Charge ID',    val: selected.chargeId || '—' },
+                  { label: 'IP Address',   val: selected.ipAddress || '—' },
+                  { label: 'Created',      val: selected.createdAt ? new Date(selected.createdAt).toLocaleString() : '—' },
+                  { label: 'Completed',    val: selected.completedAt ? new Date(selected.completedAt).toLocaleString() : '—' },
+                  { label: 'Failed At',    val: selected.failedAt ? new Date(selected.failedAt).toLocaleString() : '—' },
+                ].map(({ label, val }) => (
+                  <div key={label} className="bg-white/3 rounded-lg p-2.5">
+                    <p className="text-[10px] text-gray-600 mb-0.5">{label}</p>
+                    <p className="text-xs text-gray-300 font-mono break-all">{val}</p>
+                  </div>
+                ))}
+              </div>
+
+              {selected.failReason && (
+                <div className="p-3 rounded-lg bg-red-500/8 border border-red-500/20">
+                  <p className="text-xs text-red-400"><span className="font-semibold">Fail reason: </span>{selected.failReason}</p>
+                </div>
+              )}
+
+              {/* Timeline */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Event Timeline</p>
+                {loading.transactions ? (
+                  <div className="flex justify-center py-4"><Loader className="w-4 h-4 animate-spin text-gray-500" /></div>
+                ) : (
+                  <div className="space-y-2">
+                    {(transactionDetail?._id === selected._id ? transactionDetail.events : []).map((ev, i) => (
+                      <div key={i} className="flex gap-3 items-start">
+                        <div className="flex flex-col items-center flex-shrink-0">
+                          <div className={`w-2 h-2 rounded-full mt-1.5 ${STATUS_COLORS[ev.status]?.includes('green') ? 'bg-green-400' : STATUS_COLORS[ev.status]?.includes('red') ? 'bg-red-400' : STATUS_COLORS[ev.status]?.includes('yellow') ? 'bg-yellow-400' : 'bg-gray-500'}`} />
+                          {i < (transactionDetail?.events?.length ?? 0) - 1 && <div className="w-px flex-1 bg-white/8 mt-1" style={{minHeight:'16px'}} />}
+                        </div>
+                        <div className="pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${STATUS_COLORS[ev.status] || 'bg-gray-500/20 text-gray-400'}`}>{ev.status.toUpperCase()}</span>
+                            <span className="text-[10px] text-gray-600">{new Date(ev.timestamp).toLocaleString()}</span>
+                          </div>
+                          {ev.message && <p className="text-xs text-gray-400 mt-0.5">{ev.message}</p>}
+                        </div>
+                      </div>
+                    ))}
+                    {!transactionDetail && <p className="text-xs text-gray-600 text-center py-2">Loading timeline…</p>}
+                  </div>
+                )}
+              </div>
+
+              {selected.checkoutUrl && (
+                <a href={selected.checkoutUrl} target="_blank" rel="noreferrer"
+                  className="block text-center text-xs text-primary-400 hover:text-primary-300 underline">
+                  View payment page ↗
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { key:'overview',      label:'Overview',      icon: BarChart2 },
   { key:'users',         label:'Users',         icon: Users },
-  { key:'subscriptions', label:'Subscriptions', icon: DollarSign },
+  { key:'subscriptions',  label:'Subscriptions',  icon: DollarSign },
+  { key:'transactions',   label:'Transactions',   icon: Receipt },
   { key:'support',       label:'Support',       icon: LifeBuoy },
   { key:'withdrawals',   label:'Withdrawals',   icon: ArrowDownCircle },
   { key:'broadcast',     label:'Broadcast',     icon: Mail },
@@ -1062,6 +1323,7 @@ export default function AdminDashboard() {
           {tab==='overview'      && <OverviewTab stats={stats} loading={loading} rev={rev} ua={ua} pa={pa} />}
           {tab==='users'         && <UsersTab users={users} usersTotal={usersTotal} loading={loading} dispatch={dispatch} actionSuccess={actionSuccess} error={error} />}
           {tab==='subscriptions' && <SubscriptionsTab subscriptions={subscriptions} subsTotal={subsTotal} loading={loading} dispatch={dispatch} rev={rev} />}
+          {tab==='transactions'  && <TransactionsTab dispatch={dispatch} />}
           {tab==='support'       && <SupportTab dispatch={dispatch} />}
           {tab==='withdrawals'   && <WithdrawalsTab dispatch={dispatch} />}
           {tab==='broadcast'     && <BroadcastTab dispatch={dispatch} loading={loading} actionSuccess={actionSuccess} error={error} />}

@@ -227,6 +227,44 @@ export const fetchActiveAnnouncement = createAsyncThunk(
   }
 );
 
+// ── Transaction thunks ────────────────────────────────────────────────────────
+export const fetchAdminTransactions = createAsyncThunk(
+  'admin/transactions/list',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const q = new URLSearchParams(params).toString();
+      const res = await authAPI.get(`/admin/transactions?${q}`);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchTransactionStats = createAsyncThunk(
+  'admin/transactions/stats',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get('/admin/transactions/stats');
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchTransactionDetail = createAsyncThunk(
+  'admin/transactions/detail',
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get(`/admin/transactions/${id}`);
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 // ── Slice ─────────────────────────────────────────────────────────────────────
 const adminSlice = createSlice({
   name: 'admin',
@@ -243,7 +281,11 @@ const adminSlice = createSlice({
     auditLogs:         [],
     auditTotal:        0,
     announcement:      null,
-    loading:           { stats: false, users: false, subs: false, settings: false, action: false, analytics: false, audit: false },
+    transactions:      [],
+    transactionsTotal: 0,
+    transactionStats:  null,
+    transactionDetail: null,
+    loading:           { stats: false, users: false, subs: false, settings: false, action: false, analytics: false, audit: false, transactions: false },
     error:             null,
     actionSuccess:     null,
   },
@@ -347,6 +389,21 @@ const adminSlice = createSlice({
 
     builder
       .addCase(fetchActiveAnnouncement.fulfilled, (state, action) => { state.announcement = action.payload; });
+
+    builder
+      .addCase(fetchAdminTransactions.pending,   (state) => { state.loading.transactions = true; })
+      .addCase(fetchAdminTransactions.fulfilled, (state, action) => {
+        state.loading.transactions = false;
+        state.transactions      = action.payload.data || [];
+        state.transactionsTotal = action.payload.total || 0;
+      })
+      .addCase(fetchAdminTransactions.rejected,  (state) => { state.loading.transactions = false; });
+
+    builder
+      .addCase(fetchTransactionStats.fulfilled, (state, action) => { state.transactionStats = action.payload; });
+
+    builder
+      .addCase(fetchTransactionDetail.fulfilled, (state, action) => { state.transactionDetail = action.payload; });
   },
 });
 

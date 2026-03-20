@@ -199,21 +199,16 @@ const Sidebar = ({ isOpen, onClose }) => {
               <span className="text-sm font-medium text-gray-900 dark:text-white">{activeBots}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Total P&L</span>
-              <div className="text-right">
-                <span className={`text-sm font-medium ${totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                  {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
-                </span>
-                {unrealizedPnL !== 0 && (
-                  <p className="text-[10px] text-gray-500">
-                    <span className="text-gray-600">${realizedPnL.toFixed(2)} realized</span>
-                    {' · '}
-                    <span className={unrealizedPnL >= 0 ? 'text-emerald-500' : 'text-red-400'}>
-                      {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(2)} open
-                    </span>
-                  </p>
-                )}
-              </div>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Realized P&L</span>
+              <span className={`text-sm font-medium ${realizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                {realizedPnL >= 0 ? '+' : ''}${realizedPnL.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Unrealized P&L</span>
+              <span className={`text-sm font-medium ${unrealizedPnL >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500'}`}>
+                {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(2)}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-400">Demo Balance</span>
