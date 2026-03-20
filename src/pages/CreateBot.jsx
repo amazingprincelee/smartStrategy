@@ -537,11 +537,14 @@ const CreateBot = () => {
         </div>
       )}
 
-      {/* Risk */}
+      {/* Daily Safety Limits */}
       <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-red-500" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Risk Management</h3>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Daily Safety Limits</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">These apply to the whole day — separate from the per-trade risk above.</p>
+          </div>
         </div>
         <div className="space-y-4">
           <div>
