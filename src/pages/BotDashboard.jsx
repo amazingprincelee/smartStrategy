@@ -37,8 +37,10 @@ const STATUS_COLORS = {
 
 const BotCard = ({ bot, onStart, onStop, onDelete, loading }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const pnl = bot.stats?.totalPnL ?? 0;
-  const pnlPct = bot.stats?.totalPnLPercent ?? 0;
+  const realizedPnl   = bot.stats?.totalPnL ?? 0;
+  const unrealizedPnl = bot.unrealizedPnL ?? 0;
+  const pnl        = realizedPnl + unrealizedPnl;
+  const pnlPct     = bot.stats?.totalPnLPercent ?? 0;
   const isPositive = pnl >= 0;
   const allocated = bot.capitalAllocation?.totalCapital ?? 0;
   const currency = bot.capitalAllocation?.currency || 'USDT';
@@ -125,6 +127,15 @@ const BotCard = ({ bot, onStart, onStop, onDelete, loading }) => {
               ({isPositive ? '+' : ''}{pnlPct.toFixed(2)}%)
             </span>
           </p>
+          {unrealizedPnl !== 0 && (
+            <p className="text-[10px] text-gray-500 mt-0.5">
+              <span className="text-gray-600">${realizedPnl.toFixed(2)} realized</span>
+              {' · '}
+              <span className={unrealizedPnl >= 0 ? 'text-emerald-500' : 'text-red-400'}>
+                {unrealizedPnl >= 0 ? '+' : ''}${unrealizedPnl.toFixed(2)} open
+              </span>
+            </p>
+          )}
         </div>
         <div className="text-center">
           <p className="text-xs text-gray-400 dark:text-gray-500">Positions</p>
@@ -374,7 +385,9 @@ const BotDashboard = () => {
   // Aggregate stats
   const totalBots = bots.length;
   const runningBots = bots.filter(b => b.status === 'running').length;
-  const totalPnL = bots.reduce((sum, b) => sum + (b.stats?.totalPnL || 0), 0);
+  const totalRealizedPnL   = bots.reduce((sum, b) => sum + (b.stats?.totalPnL || 0), 0);
+  const totalUnrealizedPnL = bots.reduce((sum, b) => sum + (b.unrealizedPnL || 0), 0);
+  const totalPnL           = totalRealizedPnL + totalUnrealizedPnL;
   const totalPositions = bots.reduce((sum, b) => sum + (b.openPositionsCount || 0), 0);
   const totalTrades = bots.reduce((sum, b) => sum + (b.stats?.totalTrades || 0), 0);
   const totalWins = bots.reduce((sum, b) => sum + (b.stats?.winningTrades || 0), 0);
@@ -391,7 +404,7 @@ const BotDashboard = () => {
     {
       label: 'Total P&L',
       value: `${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}`,
-      sub: 'all bots combined',
+      sub: `$${totalRealizedPnL.toFixed(2)} realized · ${totalUnrealizedPnL >= 0 ? '+' : ''}$${totalUnrealizedPnL.toFixed(2)} open`,
       icon: totalPnL >= 0 ? TrendingUp : TrendingDown,
       color: totalPnL >= 0 ? 'text-green-500' : 'text-red-500'
     },

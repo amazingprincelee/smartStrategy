@@ -200,9 +200,20 @@ const Sidebar = ({ isOpen, onClose }) => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-400">Total P&L</span>
-              <span className={`text-sm font-medium ${totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
-              </span>
+              <div className="text-right">
+                <span className={`text-sm font-medium ${totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                  {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+                </span>
+                {unrealizedPnL !== 0 && (
+                  <p className="text-[10px] text-gray-500">
+                    <span className="text-gray-600">${realizedPnL.toFixed(2)} realized</span>
+                    {' · '}
+                    <span className={unrealizedPnL >= 0 ? 'text-emerald-500' : 'text-red-400'}>
+                      {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(2)} open
+                    </span>
+                  </p>
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-400">Demo Balance</span>
