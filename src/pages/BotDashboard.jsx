@@ -92,10 +92,6 @@ const BotCard = ({ bot, onStart, onStop, onDelete, loading }) => {
 
       {/* Exchange / Symbol / Strategy */}
       <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3 flex-wrap">
-        <span className="font-mono font-medium text-gray-700 dark:text-gray-300">
-          {bot.symbol === 'MULTI' ? 'Multi-pair' : bot.symbol}
-        </span>
-        <span className="text-gray-300">·</span>
         <span className="capitalize">{bot.exchange}</span>
         <span className="text-gray-300">·</span>
         <span className="px-1.5 py-0.5 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 rounded-full font-medium">
