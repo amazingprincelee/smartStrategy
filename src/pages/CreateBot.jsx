@@ -9,6 +9,7 @@ import {
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
 import { fetchAccounts, fetchAccountBalance } from '../redux/slices/exchangeAccountSlice';
 import { fetchDemoAccount } from '../redux/slices/demoSlice';
+import ConnectExchangeForm from '../components/exchange/ConnectExchangeForm';
 
 // Steps
 const STEPS = ['Mode & Exchange', 'Configure', 'Review & Launch'];
@@ -88,6 +89,7 @@ const CreateBot = () => {
   const demoVirtualBalance        = useSelector(state => state.demo?.virtualBalance ?? null);
 
   const [step, setStep]           = useState(0);
+  const [showConnectForm, setShowConnectForm] = useState(false);
   // Unique suffix per session so two bots never share the same auto-generated name
   const nameSuffix = useRef(Math.random().toString(36).slice(2, 5).toUpperCase());
   const [fetchedBalance, setFetchedBalance] = useState(null);   // { usdt, total, fetchedAt }
@@ -246,18 +248,34 @@ const CreateBot = () => {
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Select Exchange Account</h3>
           {accounts.length === 0 ? (
-            <div className="flex items-center gap-3 p-4 border border-yellow-200 rounded-lg dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
-              <AlertCircle className="flex-shrink-0 w-5 h-5 text-yellow-600" />
-              <div>
-                <p className="text-sm text-yellow-700 dark:text-yellow-300">No exchange accounts connected.</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-4 border border-yellow-500/30 rounded-xl bg-yellow-500/10">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="flex-shrink-0 w-5 h-5 text-yellow-500" />
+                  <p className="text-sm text-yellow-300">No exchange accounts connected.</p>
+                </div>
                 <button
-                  onClick={() => navigate('/settings')}
-                  className="flex items-center gap-1 mt-1 text-sm text-primary-600 hover:underline"
+                  onClick={() => setShowConnectForm(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/25 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Add exchange in Settings
+                  {showConnectForm ? 'Cancel' : 'Connect Now'}
                 </button>
               </div>
+              {showConnectForm && (
+                <ConnectExchangeForm
+                  compact
+                  onSuccess={(account) => {
+                    setShowConnectForm(false);
+                    dispatch(fetchAccounts());
+                    // Auto-select the newly connected account
+                    if (account?._id) {
+                      update('exchangeAccountId', account._id);
+                      update('exchange', account.exchange);
+                    }
+                  }}
+                />
+              )}
             </div>
           ) : (
             <div className="space-y-2">
