@@ -58,7 +58,7 @@ function FieldHint({ text }) {
 const RISK_LEVERAGE_MAP = { safe: 2, moderate: 5, aggressive: 10 };
 
 const DEFAULTS = {
-  isDemo: true,
+  isDemo: false,
   exchangeAccountId: '',
   exchange: '',
   symbol: 'MULTI',
@@ -208,24 +208,8 @@ const CreateBot = () => {
     <div className="space-y-6">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Choose Trading Mode</h2>
 
-      {/* Demo / Live toggle */}
+      {/* Live / Demo toggle — Live is first and default */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <button
-          onClick={() => update('isDemo', true)}
-          className={`p-5 rounded-xl border-2 text-left transition-colors ${
-            form.isDemo
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-              : 'border-gray-200 dark:border-brandDark-700 hover:border-blue-300'
-          }`}
-        >
-          <FlaskConical className="w-8 h-8 mb-3 text-blue-500" />
-          <p className="font-semibold text-gray-900 dark:text-white">Demo Account</p>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Practice with $10,000 virtual balance. No real money at risk.
-          </p>
-          {form.isDemo && <CheckCircle className="w-5 h-5 mt-3 text-blue-500" />}
-        </button>
-
         <button
           onClick={() => update('isDemo', false)}
           className={`p-5 rounded-xl border-2 text-left transition-colors ${
@@ -240,6 +224,22 @@ const CreateBot = () => {
             Trade with real funds on your connected exchange.
           </p>
           {!form.isDemo && <CheckCircle className="w-5 h-5 mt-3 text-primary-500" />}
+        </button>
+
+        <button
+          onClick={() => update('isDemo', true)}
+          className={`p-5 rounded-xl border-2 text-left transition-colors ${
+            form.isDemo
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+              : 'border-gray-200 dark:border-brandDark-700 hover:border-blue-300'
+          }`}
+        >
+          <FlaskConical className="w-8 h-8 mb-3 text-blue-500" />
+          <p className="font-semibold text-gray-900 dark:text-white">Demo Account</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            Practice with $10,000 virtual balance. No real money at risk.
+          </p>
+          {form.isDemo && <CheckCircle className="w-5 h-5 mt-3 text-blue-500" />}
         </button>
       </div>
 
