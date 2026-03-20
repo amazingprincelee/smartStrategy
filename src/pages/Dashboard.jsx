@@ -24,7 +24,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { fetchPlatformStats, fetchSignals, fetchSignalHistory, analyzeSignal, fetchAvailablePairs } from '../redux/slices/signalSlice';
-import { fetchArbitrageOpportunities } from '../redux/slices/arbitrageslice';
+import { fetchArbitrageOpportunities, fetchTriangularOpportunities } from '../redux/slices/arbitrageslice';
 import { fetchBots } from '../redux/slices/botSlice';
 import QuickExecuteModal from '../components/bots/QuickExecuteModal';
 
@@ -162,7 +162,7 @@ const Dashboard = () => {
   const platformStats = useSelector((s) => s.signals?.stats);
   const spotSignals  = useSelector((s) => s.signals?.spot || []);
   const history      = useSelector((s) => s.signals?.history || []);
-  const { opportunities } = useSelector((s) => s.arbitrage || { opportunities: [] });
+  const { opportunities, triangular } = useSelector((s) => s.arbitrage || { opportunities: [], triangular: { opportunities: [] } });
   const { analysis, analysisLoading, analysisError, availablePairs } = useSelector((s) => s.signals);
   const isPremium = user?.role === 'premium' || user?.role === 'admin';
   const [freeCount, setFreeCount] = useState(getFreeCount);
@@ -172,6 +172,7 @@ const Dashboard = () => {
     dispatch(fetchPlatformStats());
     dispatch(fetchSignals('spot'));
     dispatch(fetchArbitrageOpportunities({ minProfit: 0.1, minVolume: 100, topCoins: 10 }));
+    dispatch(fetchTriangularOpportunities());
     // Always pre-load history so the signal card has something to show
     // even if the live in-memory cache is cold (e.g. right after server restart)
     dispatch(fetchSignalHistory({ marketType: 'spot', limit: 10 }));
@@ -191,6 +192,7 @@ const Dashboard = () => {
     || history.find(s => s.type === 'LONG')
     || null;
   const topArb       = opportunities?.[0] || null;
+  const topTriArb    = triangular?.opportunities?.[0] || null;
 
   /* analyze form */
   const POPULAR_CHIPS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT'];
@@ -745,6 +747,29 @@ const Dashboard = () => {
                     ))}
                   </div>
                 )}
+
+                {/* Trade This button */}
+                <div className="px-4 pb-4 pt-1">
+                  <button
+                    onClick={() => setQuickExecuteSignal({
+                      pair: latestSignal.pair,
+                      type: latestSignal.type,
+                      entry: latestSignal.entry,
+                      stopLoss: latestSignal.stopLoss,
+                      takeProfit: latestSignal.takeProfit,
+                      marketType: latestSignal.marketType,
+                      confidenceScore: latestSignal.confidenceScore,
+                    })}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                      isLong
+                        ? 'bg-green-500 hover:bg-green-400 text-white'
+                        : 'bg-orange-500 hover:bg-orange-400 text-white'
+                    }`}
+                  >
+                    {isLong ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                    Trade This
+                  </button>
+                </div>
               </div>
             );
           })() : (
@@ -770,52 +795,97 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          {topArb ? (
-            <div className="p-4 rounded-xl bg-gray-50 dark:bg-brandDark-900 border border-emerald-500/30">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
-                    {topArb.symbol || topArb.coin}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {topArb.riskLevel ? `${topArb.riskLevel} risk` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400">
-                  <TrendingUp className="w-3 h-3" />
-                  <span className="text-sm font-bold">
-                    {fmt(topArb.netProfitPercent ?? topArb.profitMargin)}%
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 font-medium">
-                  Buy: {topArb.buyExchange}
-                </span>
-                <ArrowRightLeft className="w-3 h-3 text-gray-400" />
-                <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-400 font-medium">
-                  Sell: {topArb.sellExchange}
-                </span>
-              </div>
-              {topArb.expectedProfitUSD != null && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Est. profit: <span className="text-emerald-400 font-medium">${fmt(topArb.expectedProfitUSD)}</span>
-                  {' · '} trade size: ${fmt(topArb.optimalTradeValueUSD, 0)}
-                </p>
-              )}
-              {opportunities.length > 1 && (
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  +{opportunities.length - 1} more opportunities found
-                </p>
-              )}
-            </div>
-          ) : (
+          {!topArb && !topTriArb ? (
             <div className="py-8 text-center">
               <ArrowRightLeft className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
               <p className="text-sm text-gray-500 dark:text-gray-400">Scanning markets…</p>
               <Link to="/arbitrage" className="mt-2 inline-block text-xs text-emerald-400 hover:text-emerald-300">
                 Open Arbitrage →
               </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+
+              {/* ── Cross-Exchange row ── */}
+              {topArb ? (
+                <div className="p-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        CROSS
+                      </span>
+                      <p className="text-sm font-bold text-white">{topArb.symbol || topArb.coin}</p>
+                      {topArb.riskLevel && (
+                        <span className="text-[10px] text-gray-500">{topArb.riskLevel} risk</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400">
+                      <TrendingUp className="w-3 h-3" />
+                      <span className="text-sm font-bold">{fmt(topArb.netProfitPercent ?? topArb.profitMargin)}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">
+                      {topArb.buyExchange}
+                    </span>
+                    <ArrowRightLeft className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                    <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">
+                      {topArb.sellExchange}
+                    </span>
+                    {opportunities.length > 1 && (
+                      <span className="ml-auto text-[10px] text-gray-600">+{opportunities.length - 1} more</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl border border-white/8 bg-white/3 flex items-center gap-2">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/15">CROSS</span>
+                  <p className="text-xs text-gray-600">Scanning cross-exchange markets…</p>
+                </div>
+              )}
+
+              {/* ── Triangular row ── */}
+              {topTriArb ? (
+                <div className="p-3 rounded-xl border border-cyan-500/25 bg-cyan-500/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                        TRI
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-gray-300 font-medium">
+                        {(topTriArb.path || []).map((asset, i) => (
+                          <span key={i} className="flex items-center gap-1">
+                            <span className={i === 0 ? 'text-cyan-300 font-bold' : ''}>{asset}</span>
+                            {i < (topTriArb.path?.length ?? 0) - 1 && (
+                              <ArrowRightLeft className="w-2.5 h-2.5 text-gray-600 rotate-90" />
+                            )}
+                          </span>
+                        ))}
+                        <ArrowRightLeft className="w-2.5 h-2.5 text-gray-600 rotate-90" />
+                        <span className="text-cyan-300 font-bold">{topTriArb.path?.[0]}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/15 text-cyan-400">
+                      <TrendingUp className="w-3 h-3" />
+                      <span className="text-sm font-bold">{Number(topTriArb.netProfitPercent).toFixed(3)}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>Gate.io · 3 legs · 0.3% total fee</span>
+                    {(triangular?.opportunities?.length ?? 0) > 1 && (
+                      <span className="ml-auto text-[10px] text-gray-600">
+                        +{triangular.opportunities.length - 1} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl border border-white/8 bg-white/3 flex items-center gap-2">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-700 border border-cyan-500/15">TRI</span>
+                  <p className="text-xs text-gray-600">Scanning triangular paths…</p>
+                </div>
+              )}
+
             </div>
           )}
         </div>
