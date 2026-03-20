@@ -325,19 +325,19 @@ const CreateBot = () => {
       <div className="p-4 rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 space-y-3">
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-primary-500 flex-shrink-0" />
-          <p className="text-sm font-semibold text-primary-800 dark:text-primary-300">SmartSignal Bot — pairs selected automatically</p>
+          <p className="text-sm font-semibold text-primary-800 dark:text-primary-300">SmartSignal Bot — quality over quantity</p>
         </div>
         <p className="text-xs text-primary-700 dark:text-primary-400 leading-relaxed">
-          Instead of trading one fixed pair, SmartSignal monitors the signal engine every 5 minutes
-          and enters whichever pairs have the highest-confidence setups. Entry price, stop-loss, and
-          take-profit are all set by the engine automatically.
+          The bot scans and scores signals every 5 minutes across multiple indicators — trend alignment,
+          momentum, volume, and confidence. It picks only the single highest-scoring opportunity and
+          waits for it to close before looking again.
         </p>
         <div className="grid grid-cols-2 gap-2 pt-1">
           {[
-            ['Signal scan',     'Every 5 minutes'],
-            ['Min confidence',  '60%+ (configurable)'],
-            ['Max open trades', '3 at once (configurable)'],
-            ['R:R minimum',     '1:2 guaranteed'],
+            ['Signal selection', 'Best scored signal only'],
+            ['Scoring factors',  'MTF · Momentum · Volume'],
+            ['Trades at once',   '1 (focus, not scatter)'],
+            ['R:R minimum',      '1:2 guaranteed'],
           ].map(([k, v]) => (
             <div key={k} className="flex flex-col">
               <span className="text-[10px] font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">{k}</span>
