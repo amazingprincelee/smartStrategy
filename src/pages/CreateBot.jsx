@@ -638,7 +638,6 @@ const CreateBot = () => {
               )}
             </>
           )}
-        </div>
       </div>
 
       {/* Account Balance */}
