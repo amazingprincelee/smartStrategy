@@ -159,12 +159,12 @@ const CreateBot = () => {
     }
   }, [dispatch]);
 
-  // Auto-fetch signals when manual mode is selected on step 1
+  // Auto-fetch signals when reaching step 1
   useEffect(() => {
-    if (form.executionMode === 'manual' && step === 1) {
+    if (step === 1) {
       loadSignalsForPicker();
     }
-  }, [form.executionMode, step]); // eslint-disable-line
+  }, [step]); // eslint-disable-line
 
   // Auto-fetch balance when demo/exchange account changes
   const loadBalance = useCallback(async () => {
@@ -221,11 +221,10 @@ const CreateBot = () => {
       const base = prefill.pair.replace('USDT', '');
       return `${base} ${prefill.signal ?? ''} Trade ${suffix}`.trim();
     }
-    const mode   = form.executionMode === 'auto' ? 'Auto' : 'Manual';
     const market = form.marketType === 'futures' ? 'Futures' : 'Spot';
     const exch   = form.exchange ? ` · ${form.exchange.charAt(0).toUpperCase() + form.exchange.slice(1)}` : '';
-    return `${market} ${mode} Bot${exch} ${suffix}`;
-  }, [prefill, form.executionMode, form.marketType, form.exchange]);
+    return `${market} Manual Bot${exch} ${suffix}`;
+  }, [prefill, form.marketType, form.exchange]);
 
   const update       = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const updateNested = (parent, key, val) => setForm(f => ({ ...f, [parent]: { ...f[parent], [key]: val } }));
@@ -240,8 +239,8 @@ const CreateBot = () => {
     }
     if (step === 1) {
       if ((form.capitalAllocation.totalCapital || 0) < 10) return false;
-      // Manual mode requires a signal to be selected before proceeding
-      if (form.executionMode === 'manual' && !selectedSignal) return false;
+      // Signal must be selected before proceeding
+      if (!selectedSignal) return false;
       return true;
     }
     return true;
@@ -252,8 +251,8 @@ const CreateBot = () => {
     const finalName = form.name.trim() || autoName;
     try {
       const payload = { ...form, name: finalName };
-      // For manual mode with a pre-selected signal, attach it so backend executes immediately
-      if (form.executionMode === 'manual' && selectedSignal) {
+      // Attach pre-selected signal so backend executes immediately on bot start
+      if (selectedSignal) {
         payload.pendingSignal = selectedSignal;
         payload.symbol        = (selectedSignal.pair || selectedSignal.symbol || form.symbol).replace('/', '');
       }
@@ -424,60 +423,24 @@ const CreateBot = () => {
     <div className="space-y-6">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configure Bot</h2>
 
-      {/* Execution Mode — Manual first (left), Auto second (right) */}
-      <div className="p-4 space-y-3 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Execution Mode</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {/* Manual — default, left */}
-          <button
-            type="button"
-            onClick={() => update('executionMode', 'manual')}
-            className={`p-3 rounded-xl border text-left transition-colors ${form.executionMode === 'manual' ? 'border-primary-500 bg-primary-500/10' : 'border-gray-200 dark:border-brandDark-600 hover:bg-gray-100 dark:hover:bg-brandDark-600'}`}
-          >
-            <div className={`text-sm font-semibold mb-1 ${form.executionMode === 'manual' ? 'text-primary-400' : 'text-gray-900 dark:text-white'}`}>
-              👆 Manual
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">You pick your trade now during setup. Bot executes it immediately.</div>
-          </button>
-          {/* Auto — right */}
-          <button
-            type="button"
-            onClick={() => update('executionMode', 'auto')}
-            className={`p-3 rounded-xl border text-left transition-colors ${form.executionMode === 'auto' ? 'border-primary-500 bg-primary-500/10' : 'border-gray-200 dark:border-brandDark-600 hover:bg-gray-100 dark:hover:bg-brandDark-600'}`}
-          >
-            <div className={`text-sm font-semibold mb-1 ${form.executionMode === 'auto' ? 'text-primary-400' : 'text-gray-900 dark:text-white'}`}>
-              ⚡ Auto
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Bot selects and executes the best signal automatically. No action needed.</div>
-          </button>
-        </div>
-      </div>
-
       {/* SmartSignal info panel */}
       <div className="p-4 rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 space-y-3">
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-primary-500 flex-shrink-0" />
           <p className="text-sm font-semibold text-primary-800 dark:text-primary-300">
-            {form.executionMode === 'auto' ? 'Auto mode — hands-off trading' : 'Manual mode — you choose now, bot executes'}
+            SmartSignal Bot — you choose now, bot executes
           </p>
         </div>
         <p className="text-xs text-primary-700 dark:text-primary-400 leading-relaxed">
-          {form.executionMode === 'auto'
-            ? 'The bot scans top pairs every cycle, scores each signal on trend alignment, momentum, volume, and confidence, then picks the single best one and places the trade automatically. You just monitor.'
-            : 'We scan live markets right now and show you the top 3 signals. You pick the one you want — the bot opens that trade immediately when it starts. No waiting to be online.'}
+          We scan live markets right now and show you the top 3 signals. You pick the one you want — the bot opens that trade immediately when it starts. No waiting to be online.
         </p>
         <div className="grid grid-cols-2 gap-2 pt-1">
-          {(form.executionMode === 'auto' ? [
-            ['Signal selection', 'Best scored signal only'],
-            ['Scoring factors',  'MTF · Momentum · Volume'],
-            ['Trades at once',   '1 (focus, not scatter)'],
-            ['R:R minimum',      '1:2 guaranteed'],
-          ] : [
-            ['You decide',       'Choose from top 3 signals'],
-            ['Scoring factors',  'MTF · Momentum · Volume'],
-            ['Execution',        'Immediate on bot start'],
-            ['R:R minimum',      '1:2 guaranteed'],
-          ]).map(([k, v]) => (
+          {[
+            ['You decide',      'Choose from top 3 signals'],
+            ['Scoring factors', 'MTF · Momentum · Volume'],
+            ['Execution',       'Immediate on bot start'],
+            ['R:R minimum',     '1:2 guaranteed'],
+          ].map(([k, v]) => (
             <div key={k} className="flex flex-col">
               <span className="text-[10px] font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">{k}</span>
               <span className="text-xs font-semibold text-primary-900 dark:text-primary-200">{v}</span>
@@ -486,9 +449,8 @@ const CreateBot = () => {
         </div>
       </div>
 
-      {/* ── Signal Picker (Manual mode only) ── */}
-      {form.executionMode === 'manual' && (
-        <div className={`rounded-xl border-2 transition-colors ${
+      {/* ── Signal Picker ── */}
+      <div className={`rounded-xl border-2 transition-colors ${
           selectedSignal
             ? 'border-primary-500/50 bg-primary-500/5'
             : 'border-orange-500/40 bg-orange-500/5'
@@ -677,7 +639,7 @@ const CreateBot = () => {
             </>
           )}
         </div>
-      )}
+      </div>
 
       {/* Account Balance */}
       <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
@@ -897,7 +859,6 @@ const CreateBot = () => {
             ['Mode',           form.isDemo ? 'Demo (Paper Trading)' : 'Live Trading'],
             ['Exchange',       accountLabel ? `${form.exchange} — ${accountLabel}` : form.exchange],
             ['Market',         form.marketType],
-            ['Execution',      form.executionMode === 'auto' ? '⚡ Auto — bot trades on its own' : '👆 Manual — you approve each trade'],
             ['Strategy',       prefill ? 'AI Signal (single pair)' : 'SmartSignal Bot'],
             ['Pair',           selectedSignal
               ? `${(selectedSignal.pair || selectedSignal.symbol || '').replace('/', '')} — ${selectedSignal.type === 'LONG' || selectedSignal.signal === 'LONG' ? '▲ LONG' : '▼ SHORT'}`

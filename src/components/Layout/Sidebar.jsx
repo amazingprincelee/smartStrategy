@@ -4,13 +4,11 @@ import { useSelector } from 'react-redux';
 import {
   LayoutDashboard,
   Bot,
-  PlusCircle,
   Activity,
   BookOpen,
   TrendingUp,
   Flame,
   Wallet,
-  HelpCircle,
   X,
   Crown,
   ShieldCheck,
@@ -23,12 +21,21 @@ const Sidebar = ({ isOpen, onClose }) => {
   const bots = useSelector((state) => state.bots?.list || []);
   const demo = useSelector((state) => state.demo);
   const userRole = useSelector(state => state.auth?.user?.role ?? 'user');
+  const exchangeBalances = useSelector(state => state.exchangeAccounts?.balances || {});
 
   const activeBots    = bots.filter(b => b.status === 'running').length;
   const realizedPnL   = bots.reduce((sum, b) => sum + (b.stats?.totalPnL || 0), 0);
   const unrealizedPnL = bots.reduce((sum, b) => sum + (b.unrealizedPnL || 0), 0);
   const totalPnL      = realizedPnL + unrealizedPnL;
   const demoBalance = demo?.virtualBalance ?? 10000;
+
+  // Sum USDT free balance across all fetched exchange accounts
+  const liveUSDT = Object.values(exchangeBalances).reduce((total, acct) => {
+    if (!acct?.balances) return total;
+    const usdtEntry = acct.balances.find(b => b.currency === 'USDT' || b.asset === 'USDT');
+    return total + (usdtEntry?.free ?? usdtEntry?.available ?? 0);
+  }, 0);
+  const hasLiveBalance = Object.keys(exchangeBalances).length > 0;
 
   const navigation = [
     {
@@ -40,11 +47,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'My Bots',
       href: '/bots',
       icon: Bot,
-    },
-    {
-      name: 'Create Bot',
-      href: '/bots/create',
-      icon: PlusCircle,
     },
     {
       name: 'Account',
@@ -89,11 +91,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Support',
       href: '/support',
       icon: LifeBuoy,
-    },
-    {
-      name: 'Help',
-      href: '/help',
-      icon: HelpCircle,
     },
   ];
 
@@ -210,6 +207,14 @@ const Sidebar = ({ isOpen, onClose }) => {
                 {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(2)}
               </span>
             </div>
+            {hasLiveBalance && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Live Balance</span>
+                <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                  ${liveUSDT.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-400">Demo Balance</span>
               <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
