@@ -8,7 +8,7 @@ import {
 import {
   ArrowLeft, Play, Square, Trash2, TrendingUp, TrendingDown,
   Activity, Loader, AlertCircle, ChevronLeft, ChevronRight,
-  CheckCircle2, XCircle, Clock, RefreshCw, Zap, BarChart3, Shield, X, DollarSign
+  CheckCircle2, XCircle, Clock, RefreshCw, Zap, Shield, X, DollarSign
 } from 'lucide-react';
 import {
   fetchBotDetail, fetchBotTrades, fetchBotPositions, startBot, stopBot, deleteBot
@@ -347,21 +347,10 @@ const BotDetail = () => {
   const navigate = useNavigate();
   const { detail, openPositions, trades, tradesMeta, loading } = useSelector(state => state.bots);
   const [tradePage, setTradePage]         = useState(1);
-  const [pendingSignals, setPendingSignals] = useState([]);
-  const [executingId, setExecutingId]     = useState(null);
   const [selectedPos, setSelectedPos]     = useState(null); // position detail modal
   const [closingId, setClosingId]         = useState(null); // which position is being closed
 
   const bot = detail?.bot;
-  const isManual = bot?.executionMode === 'manual';
-
-  const fetchPending = useCallback(async () => {
-    if (!isManual) return;
-    try {
-      const res = await authAPI.get(`/bots/${id}/pending-signals`);
-      if (res.data.success) setPendingSignals(res.data.data.pendingSignals || []);
-    } catch { /* silent */ }
-  }, [id, isManual]);
 
   useEffect(() => {
     dispatch(fetchBotDetail(id));
@@ -369,31 +358,6 @@ const BotDetail = () => {
     dispatch(fetchBotTrades({ id, page: 1 }));
   }, [dispatch, id]);
 
-  useEffect(() => {
-    fetchPending();
-    const interval = setInterval(fetchPending, 30_000);
-    return () => clearInterval(interval);
-  }, [fetchPending]);
-
-  const handleExecuteSignal = async (signalId) => {
-    setExecutingId(signalId);
-    try {
-      const res = await authAPI.post(`/bots/${id}/execute-signal`, { signalId });
-      if (res.data.success) {
-        toast.success('Trade executed!');
-        setPendingSignals([]);
-        dispatch(fetchBotPositions({ id, status: 'open' }));
-      } else if (res.data.conflict) {
-        toast.warn(res.data.message);
-      } else {
-        toast.error(res.data.message || 'Execution failed');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Execution failed');
-    } finally {
-      setExecutingId(null);
-    }
-  };
 
   useEffect(() => {
     dispatch(fetchBotTrades({ id, page: tradePage }));
@@ -603,73 +567,6 @@ const BotDetail = () => {
         </div>
       )}
 
-      {/* Manual Mode — Pending Signals Panel */}
-      {isManual && (
-        <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-primary-500/30 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Zap className="w-4 h-4 text-primary-400" />
-                Pending Signals — Choose One to Execute
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Bot scored these signals for you. Pick the one you want to trade.
-              </p>
-            </div>
-            <button onClick={fetchPending} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-brandDark-700 transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {pendingSignals.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">
-              No signals available right now. The bot scans every 5 minutes.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {pendingSignals.map((sig, i) => {
-                const isLong = sig.type === 'LONG';
-                return (
-                  <div key={sig.signalId || i} className={`p-3 rounded-xl border ${isLong ? 'border-green-500/25 bg-green-500/5' : 'border-red-500/25 bg-red-500/5'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white text-sm">{sig.pair}</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isLong ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                          {isLong ? '▲' : '▼'} {sig.type}
-                        </span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                          <BarChart3 className="w-3 h-3" />
-                          Score: <span className="text-white font-semibold">{sig.score}</span>/100
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleExecuteSignal(sig.signalId?.toString())}
-                        disabled={!!executingId}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isLong ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30' : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'} disabled:opacity-50`}
-                      >
-                        {executingId === sig.signalId?.toString() ? <Loader className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                        Execute
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs mb-2">
-                      <div><span className="text-gray-500">Entry</span><div className="text-white font-mono">${sig.entry?.toLocaleString()}</div></div>
-                      <div><span className="text-gray-500">Stop Loss</span><div className="text-red-400 font-mono">${sig.stopLoss?.toLocaleString()}</div></div>
-                      <div><span className="text-gray-500">Take Profit</span><div className="text-green-400 font-mono">${sig.takeProfit?.toLocaleString()}</div></div>
-                    </div>
-                    {sig.reasons?.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {sig.reasons.slice(0, 4).map((r, j) => (
-                          <span key={j} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-gray-400">{r}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Open Positions */}
       <div className="bg-white dark:bg-brandDark-800 rounded-xl border border-gray-200 dark:border-brandDark-700 p-4 sm:p-5">
