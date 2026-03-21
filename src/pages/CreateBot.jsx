@@ -4,10 +4,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   ChevronRight, ChevronLeft, Bot, FlaskConical, Zap, Shield, CheckCircle,
-  Loader, AlertCircle, Plus, Info, TrendingUp, TrendingDown, Target, RefreshCw, Wallet
+  Loader, AlertCircle, Plus, Info, TrendingUp, TrendingDown, Target, RefreshCw, Wallet, Activity
 } from 'lucide-react';
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
-import { fetchSignals } from '../redux/slices/signalSlice';
+import { fetchSignals, fetchSignalHistory } from '../redux/slices/signalSlice';
 import { fetchAccounts, fetchAccountBalance } from '../redux/slices/exchangeAccountSlice';
 import { fetchDemoAccount } from '../redux/slices/demoSlice';
 import ConnectExchangeForm from '../components/exchange/ConnectExchangeForm';
@@ -98,8 +98,10 @@ const CreateBot = () => {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError]     = useState(null);
   const [allocPct, setAllocPct]       = useState(20); // % of balance to allocate
-  const [selectedSignal, setSelectedSignal] = useState(null);  // manual mode: signal user picked
+  const [selectedSignal, setSelectedSignal]   = useState(null);
   const [signalsFetching, setSignalsFetching] = useState(false);
+  const [signalSource, setSignalSource]       = useState('live'); // 'live' | 'history'
+  const [pickerSignals, setPickerSignals]     = useState(null);   // null = not fetched yet
 
   const [form, setForm] = useState(() => {
     if (!prefill) return DEFAULTS;
@@ -122,12 +124,40 @@ const CreateBot = () => {
   // Fetch live signals for manual mode signal picker
   const loadSignalsForPicker = useCallback(async () => {
     setSignalsFetching(true);
+    setSignalSource('live');
+    setPickerSignals(null);
+    setSelectedSignal(null);
     try {
-      await dispatch(fetchSignals(form.marketType === 'futures' ? 'futures' : 'spot'));
+      const result = await dispatch(fetchSignals(form.marketType === 'futures' ? 'futures' : 'spot')).unwrap();
+      const sigs = Array.isArray(result) ? result : (result?.signals || result?.data || []);
+      setPickerSignals(sigs.slice(0, 3));
+    } catch {
+      setPickerSignals([]);
     } finally {
       setSignalsFetching(false);
     }
   }, [dispatch, form.marketType]);
+
+  // Fetch best from signal history as fallback
+  const loadHistorySignals = useCallback(async () => {
+    setSignalsFetching(true);
+    setSignalSource('history');
+    setPickerSignals(null);
+    setSelectedSignal(null);
+    try {
+      const result = await dispatch(fetchSignalHistory()).unwrap();
+      const sigs = Array.isArray(result) ? result : (result?.signals || result?.data || []);
+      // Sort by confidenceScore desc, take top 3
+      const top3 = [...sigs]
+        .sort((a, b) => (b.confidenceScore ?? 0) - (a.confidenceScore ?? 0))
+        .slice(0, 3);
+      setPickerSignals(top3);
+    } catch {
+      setPickerSignals([]);
+    } finally {
+      setSignalsFetching(false);
+    }
+  }, [dispatch]);
 
   // Auto-fetch signals when manual mode is selected on step 1
   useEffect(() => {
@@ -208,7 +238,12 @@ const CreateBot = () => {
       if (!form.exchange) return false;
       return true;
     }
-    if (step === 1) return (form.capitalAllocation.totalCapital || 0) >= 10;
+    if (step === 1) {
+      if ((form.capitalAllocation.totalCapital || 0) < 10) return false;
+      // Manual mode requires a signal to be selected before proceeding
+      if (form.executionMode === 'manual' && !selectedSignal) return false;
+      return true;
+    }
     return true;
   };
 
@@ -453,95 +488,190 @@ const CreateBot = () => {
 
       {/* ── Signal Picker (Manual mode only) ── */}
       {form.executionMode === 'manual' && (
-        <div className="p-4 space-y-3 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
+        <div className={`rounded-xl border-2 transition-colors ${
+          selectedSignal
+            ? 'border-primary-500/50 bg-primary-500/5'
+            : 'border-orange-500/40 bg-orange-500/5'
+        } p-4 space-y-3`}>
+
+          {/* Header */}
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-primary-400" />
-              Pick Your Signal
-            </h3>
-            <button
-              type="button"
-              onClick={loadSignalsForPicker}
-              disabled={signalsFetching}
-              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw className={`w-3 h-3 ${signalsFetching ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              <TrendingUp className={`w-4 h-4 ${selectedSignal ? 'text-primary-400' : 'text-orange-400'}`} />
+              <h3 className={`text-sm font-bold ${selectedSignal ? 'text-white' : 'text-orange-300'}`}>
+                {selectedSignal ? 'Signal Selected ✓' : 'Pick Your Signal — Required'}
+              </h3>
+              {signalSource === 'history' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                  from history
+                </span>
+              )}
+            </div>
+            {!signalsFetching && pickerSignals !== null && (
+              <button
+                type="button"
+                onClick={loadSignalsForPicker}
+                className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" /> Rescan
+              </button>
+            )}
           </div>
 
-          {signalsFetching ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
-              <Loader className="w-4 h-4 animate-spin" /> Scanning markets…
+          {/* Not yet fetched / scanning */}
+          {pickerSignals === null || signalsFetching ? (
+            <div className="py-8 flex flex-col items-center gap-3">
+              {/* Animated scanning visual */}
+              <div className="relative w-12 h-12 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-2 border-primary-500/30 animate-ping" />
+                <div className="absolute inset-1 rounded-full border-2 border-primary-500/50 animate-pulse" />
+                <TrendingUp className="w-5 h-5 text-primary-400 relative z-10" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-white">
+                  {signalsFetching ? 'Scanning markets…' : 'Fetching signals…'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Checking MTF alignment, RSI, MACD, and volume across top pairs
+                </p>
+              </div>
+              {/* Animated scanning bars */}
+              <div className="flex items-end gap-1 h-6">
+                {[3,5,4,6,3,5,4,6,3,5].map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 bg-primary-500/40 rounded-full animate-pulse"
+                    style={{ height: `${h * 4}px`, animationDelay: `${i * 80}ms` }}
+                  />
+                ))}
+              </div>
             </div>
-          ) : liveSignals.length === 0 ? (
-            <div className="text-center py-6">
-              <TrendingUp className="w-7 h-7 mx-auto mb-2 text-gray-500" />
-              <p className="text-sm text-gray-500">No signals available right now.</p>
-              <p className="text-xs text-gray-600 mt-1">Try refreshing or switch to Auto mode.</p>
+          ) : pickerSignals.length === 0 ? (
+            /* No signals found */
+            <div className="py-4 space-y-4">
+              <div className="text-center">
+                <AlertCircle className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
+                <p className="text-sm font-semibold text-white">
+                  {signalSource === 'history'
+                    ? 'No historical signals found either.'
+                    : "Couldn't find strong signals right now."}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Markets may be consolidating. Try history or rescan in a few minutes.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {signalSource !== 'history' && (
+                  <button
+                    type="button"
+                    onClick={loadHistorySignals}
+                    className="flex flex-col items-center gap-1 p-3 rounded-xl border border-yellow-500/30 bg-yellow-500/8 hover:bg-yellow-500/15 transition-colors text-center"
+                  >
+                    <span className="text-yellow-400 text-lg">📋</span>
+                    <span className="text-xs font-semibold text-yellow-300">Use Best from History</span>
+                    <span className="text-[10px] text-gray-500">Top 3 past signals by confidence</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={loadSignalsForPicker}
+                  className="flex flex-col items-center gap-1 p-3 rounded-xl border border-primary-500/30 bg-primary-500/8 hover:bg-primary-500/15 transition-colors text-center"
+                >
+                  <RefreshCw className="w-5 h-5 text-primary-400" />
+                  <span className="text-xs font-semibold text-primary-300">Rescan Markets</span>
+                  <span className="text-[10px] text-gray-500">Check for new signals now</span>
+                </button>
+              </div>
             </div>
           ) : (
+            /* Signals found — show selectable cards */
             <>
-              <p className="text-xs text-gray-500">Tap a signal to select it. The bot will execute this trade immediately when it starts.</p>
+              <p className="text-xs text-gray-500">
+                {signalSource === 'history'
+                  ? 'Top 3 signals from history — tap to select. Bot executes on start.'
+                  : 'Live signals — tap one to select. The bot opens this trade immediately.'}
+              </p>
               <div className="space-y-2">
-                {liveSignals.slice(0, 3).map((sig, i) => {
-                  const isLong = sig.type === 'LONG' || sig.signal === 'LONG';
-                  const isSelected = selectedSignal?._id === sig._id || selectedSignal?.pair === sig.pair;
-                  const conf = sig.confidenceScore ?? (sig.confidence ?? 0);
-                  const confPct = Math.round((conf > 1 ? conf : conf * 100));
+                {pickerSignals.map((sig, i) => {
+                  const isLong     = sig.type === 'LONG' || sig.signal === 'LONG';
+                  const isSelected = selectedSignal?._id === sig._id ||
+                    (selectedSignal?.pair === sig.pair && selectedSignal?.type === sig.type);
+                  const conf    = sig.confidenceScore ?? (sig.confidence ?? 0);
+                  const confPct = Math.round(conf > 1 ? conf : conf * 100);
                   return (
                     <button
                       key={sig._id || i}
                       type="button"
                       onClick={() => setSelectedSignal(sig)}
-                      className={`w-full text-left p-3 rounded-xl border transition-all ${
+                      className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
                         isSelected
-                          ? isLong ? 'border-green-500/60 bg-green-500/8' : 'border-red-500/60 bg-red-500/8'
-                          : 'border-gray-200 dark:border-brandDark-600 hover:border-primary-400/40 hover:bg-white/3'
+                          ? isLong
+                            ? 'border-green-500/70 bg-green-500/10 shadow-[0_0_12px_rgba(34,197,94,0.15)]'
+                            : 'border-red-500/70 bg-red-500/10 shadow-[0_0_12px_rgba(239,68,68,0.15)]'
+                          : 'border-white/10 bg-white/3 hover:border-primary-400/40 hover:bg-white/5'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-white">{(sig.pair || sig.symbol || '').replace('/', '')}</span>
+                          <span className="font-bold text-sm text-white">
+                            {(sig.pair || sig.symbol || '').replace('/', '')}
+                          </span>
                           <span className="text-[10px] text-gray-500">{sig.timeframe} · {sig.marketType}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isLong ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            isLong ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                          }`}>
                             {isLong ? '▲ LONG' : '▼ SHORT'}
                           </span>
-                          {isSelected && <CheckCircle className="w-4 h-4 text-primary-400 flex-shrink-0" />}
+                          {isSelected && (
+                            <CheckCircle className={`w-4 h-4 flex-shrink-0 ${isLong ? 'text-green-400' : 'text-red-400'}`} />
+                          )}
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="grid grid-cols-3 gap-2 text-xs mb-2">
                         <div>
-                          <span className="text-gray-500 block">Entry</span>
+                          <span className="text-gray-500 block text-[10px]">Entry</span>
                           <span className="text-white font-mono">${(sig.entry ?? 0).toFixed(2)}</span>
                         </div>
                         <div>
-                          <span className="text-gray-500 block">Stop Loss</span>
+                          <span className="text-gray-500 block text-[10px]">Stop Loss</span>
                           <span className="text-red-400 font-mono">${(sig.stopLoss ?? 0).toFixed(2)}</span>
                         </div>
                         <div>
-                          <span className="text-gray-500 block">Take Profit</span>
+                          <span className="text-gray-500 block text-[10px]">Take Profit</span>
                           <span className="text-green-400 font-mono">${(sig.takeProfit ?? 0).toFixed(2)}</span>
                         </div>
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 h-1 rounded-full bg-gray-700 overflow-hidden">
-                          <div className={`h-full rounded-full ${confPct >= 70 ? 'bg-green-500' : confPct >= 50 ? 'bg-yellow-500' : 'bg-gray-500'}`}
-                            style={{ width: `${confPct}%` }} />
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${confPct >= 70 ? 'bg-green-500' : confPct >= 50 ? 'bg-yellow-500' : 'bg-gray-500'}`}
+                            style={{ width: `${confPct}%` }}
+                          />
                         </div>
                         <span className="text-[10px] text-gray-500 flex-shrink-0">{confPct}% conf</span>
-                        {sig.riskReward && <span className="text-[10px] text-gray-500 flex-shrink-0">R:R {sig.riskReward}</span>}
+                        {sig.riskReward && (
+                          <span className="text-[10px] text-gray-500 flex-shrink-0">R:R {Number(sig.riskReward).toFixed(1)}</span>
+                        )}
                       </div>
                     </button>
                   );
                 })}
               </div>
-              {selectedSignal && (
-                <p className="text-xs text-green-400 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  {(selectedSignal.pair || selectedSignal.symbol || '').replace('/', '')} selected — bot will execute this on start
+
+              {/* Selection confirmation or nudge */}
+              {selectedSignal ? (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-primary-500/10 border border-primary-500/25">
+                  <CheckCircle className="w-3.5 h-3.5 text-primary-400 flex-shrink-0" />
+                  <p className="text-xs text-primary-300">
+                    <span className="font-semibold">{(selectedSignal.pair || selectedSignal.symbol || '').replace('/', '')}</span>
+                    {' '}selected — bot executes this trade immediately on start. You can now proceed.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-orange-400/80 text-center">
+                  ↑ Select a signal above to continue
                 </p>
               )}
             </>
