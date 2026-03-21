@@ -7,6 +7,7 @@ import {
   Loader, AlertCircle, Plus, Info, TrendingUp, TrendingDown, Target, RefreshCw, Wallet
 } from 'lucide-react';
 import { createBot, fetchStrategies } from '../redux/slices/botSlice';
+import { fetchSignals } from '../redux/slices/signalSlice';
 import { fetchAccounts, fetchAccountBalance } from '../redux/slices/exchangeAccountSlice';
 import { fetchDemoAccount } from '../redux/slices/demoSlice';
 import ConnectExchangeForm from '../components/exchange/ConnectExchangeForm';
@@ -64,7 +65,7 @@ const DEFAULTS = {
   symbol: 'MULTI',
   marketType: 'futures',
   strategyId: 'smart_signal',
-  executionMode: 'auto',
+  executionMode: 'manual',
   cooldownMinutes: 30,
   name: '',
   capitalAllocation: { totalCapital: 100, currency: 'USDT', maxOpenPositions: 1 },
@@ -87,6 +88,7 @@ const CreateBot = () => {
   const { loading: botLoading }   = useSelector(state => state.bots);
   const { accounts, balances }    = useSelector(state => state.exchangeAccounts);
   const demoVirtualBalance        = useSelector(state => state.demo?.virtualBalance ?? null);
+  const liveSignals               = useSelector(state => state.signals?.list || []);
 
   const [step, setStep]           = useState(0);
   const [showConnectForm, setShowConnectForm] = useState(false);
@@ -95,7 +97,9 @@ const CreateBot = () => {
   const [fetchedBalance, setFetchedBalance] = useState(null);   // { usdt, total, fetchedAt }
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError]     = useState(null);
-  const [allocPct, setAllocPct]   = useState(20); // % of balance to allocate
+  const [allocPct, setAllocPct]       = useState(20); // % of balance to allocate
+  const [selectedSignal, setSelectedSignal] = useState(null);  // manual mode: signal user picked
+  const [signalsFetching, setSignalsFetching] = useState(false);
 
   const [form, setForm] = useState(() => {
     if (!prefill) return DEFAULTS;
@@ -114,6 +118,23 @@ const CreateBot = () => {
     dispatch(fetchAccounts());
     dispatch(fetchDemoAccount());
   }, [dispatch]);
+
+  // Fetch live signals for manual mode signal picker
+  const loadSignalsForPicker = useCallback(async () => {
+    setSignalsFetching(true);
+    try {
+      await dispatch(fetchSignals(form.marketType === 'futures' ? 'futures' : 'spot'));
+    } finally {
+      setSignalsFetching(false);
+    }
+  }, [dispatch, form.marketType]);
+
+  // Auto-fetch signals when manual mode is selected on step 1
+  useEffect(() => {
+    if (form.executionMode === 'manual' && step === 1) {
+      loadSignalsForPicker();
+    }
+  }, [form.executionMode, step]); // eslint-disable-line
 
   // Auto-fetch balance when demo/exchange account changes
   const loadBalance = useCallback(async () => {
@@ -195,7 +216,13 @@ const CreateBot = () => {
   const handleSubmit = async () => {
     const finalName = form.name.trim() || autoName;
     try {
-      const bot = await dispatch(createBot({ ...form, name: finalName })).unwrap();
+      const payload = { ...form, name: finalName };
+      // For manual mode with a pre-selected signal, attach it so backend executes immediately
+      if (form.executionMode === 'manual' && selectedSignal) {
+        payload.pendingSignal = selectedSignal;
+        payload.symbol        = (selectedSignal.pair || selectedSignal.symbol || form.symbol).replace('/', '');
+      }
+      const bot = await dispatch(createBot(payload)).unwrap();
       toast.success(`"${finalName}" is live and trading!`);
       navigate(`/bots/${bot._id}`);
     } catch (err) {
@@ -362,10 +389,22 @@ const CreateBot = () => {
     <div className="space-y-6">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configure Bot</h2>
 
-      {/* Execution Mode */}
+      {/* Execution Mode — Manual first (left), Auto second (right) */}
       <div className="p-4 space-y-3 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Execution Mode</h3>
         <div className="grid grid-cols-2 gap-3">
+          {/* Manual — default, left */}
+          <button
+            type="button"
+            onClick={() => update('executionMode', 'manual')}
+            className={`p-3 rounded-xl border text-left transition-colors ${form.executionMode === 'manual' ? 'border-primary-500 bg-primary-500/10' : 'border-gray-200 dark:border-brandDark-600 hover:bg-gray-100 dark:hover:bg-brandDark-600'}`}
+          >
+            <div className={`text-sm font-semibold mb-1 ${form.executionMode === 'manual' ? 'text-primary-400' : 'text-gray-900 dark:text-white'}`}>
+              👆 Manual
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">You pick your trade now during setup. Bot executes it immediately.</div>
+          </button>
+          {/* Auto — right */}
           <button
             type="button"
             onClick={() => update('executionMode', 'auto')}
@@ -376,39 +415,34 @@ const CreateBot = () => {
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">Bot selects and executes the best signal automatically. No action needed.</div>
           </button>
-          <button
-            type="button"
-            onClick={() => update('executionMode', 'manual')}
-            className={`p-3 rounded-xl border text-left transition-colors ${form.executionMode === 'manual' ? 'border-primary-500 bg-primary-500/10' : 'border-gray-200 dark:border-brandDark-600 hover:bg-gray-100 dark:hover:bg-brandDark-600'}`}
-          >
-            <div className={`text-sm font-semibold mb-1 ${form.executionMode === 'manual' ? 'text-primary-400' : 'text-gray-900 dark:text-white'}`}>
-              👆 Manual
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Bot shows you the top 3 signals. You pick which one to execute.</div>
-          </button>
         </div>
       </div>
 
-      {/* SmartSignal info panel — dynamic based on execution mode */}
+      {/* SmartSignal info panel */}
       <div className="p-4 rounded-xl border-2 border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 space-y-3">
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-primary-500 flex-shrink-0" />
           <p className="text-sm font-semibold text-primary-800 dark:text-primary-300">
-            {form.executionMode === 'auto' ? 'Auto mode — hands-off trading' : 'Manual mode — you stay in control'}
+            {form.executionMode === 'auto' ? 'Auto mode — hands-off trading' : 'Manual mode — you choose now, bot executes'}
           </p>
         </div>
         <p className="text-xs text-primary-700 dark:text-primary-400 leading-relaxed">
           {form.executionMode === 'auto'
             ? 'The bot scans top pairs every cycle, scores each signal on trend alignment, momentum, volume, and confidence, then picks the single best one and places the trade automatically. You just monitor.'
-            : 'The bot scans and scores signals every cycle but never trades on its own. It surfaces the top 3 ranked opportunities and waits for you to review and approve before any trade executes.'}
+            : 'We scan live markets right now and show you the top 3 signals. You pick the one you want — the bot opens that trade immediately when it starts. No waiting to be online.'}
         </p>
         <div className="grid grid-cols-2 gap-2 pt-1">
-          {[
+          {(form.executionMode === 'auto' ? [
             ['Signal selection', 'Best scored signal only'],
             ['Scoring factors',  'MTF · Momentum · Volume'],
             ['Trades at once',   '1 (focus, not scatter)'],
             ['R:R minimum',      '1:2 guaranteed'],
-          ].map(([k, v]) => (
+          ] : [
+            ['You decide',       'Choose from top 3 signals'],
+            ['Scoring factors',  'MTF · Momentum · Volume'],
+            ['Execution',        'Immediate on bot start'],
+            ['R:R minimum',      '1:2 guaranteed'],
+          ]).map(([k, v]) => (
             <div key={k} className="flex flex-col">
               <span className="text-[10px] font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">{k}</span>
               <span className="text-xs font-semibold text-primary-900 dark:text-primary-200">{v}</span>
@@ -416,6 +450,104 @@ const CreateBot = () => {
           ))}
         </div>
       </div>
+
+      {/* ── Signal Picker (Manual mode only) ── */}
+      {form.executionMode === 'manual' && (
+        <div className="p-4 space-y-3 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+              <TrendingUp className="w-4 h-4 text-primary-400" />
+              Pick Your Signal
+            </h3>
+            <button
+              type="button"
+              onClick={loadSignalsForPicker}
+              disabled={signalsFetching}
+              className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw className={`w-3 h-3 ${signalsFetching ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+
+          {signalsFetching ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
+              <Loader className="w-4 h-4 animate-spin" /> Scanning markets…
+            </div>
+          ) : liveSignals.length === 0 ? (
+            <div className="text-center py-6">
+              <TrendingUp className="w-7 h-7 mx-auto mb-2 text-gray-500" />
+              <p className="text-sm text-gray-500">No signals available right now.</p>
+              <p className="text-xs text-gray-600 mt-1">Try refreshing or switch to Auto mode.</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500">Tap a signal to select it. The bot will execute this trade immediately when it starts.</p>
+              <div className="space-y-2">
+                {liveSignals.slice(0, 3).map((sig, i) => {
+                  const isLong = sig.type === 'LONG' || sig.signal === 'LONG';
+                  const isSelected = selectedSignal?._id === sig._id || selectedSignal?.pair === sig.pair;
+                  const conf = sig.confidenceScore ?? (sig.confidence ?? 0);
+                  const confPct = Math.round((conf > 1 ? conf : conf * 100));
+                  return (
+                    <button
+                      key={sig._id || i}
+                      type="button"
+                      onClick={() => setSelectedSignal(sig)}
+                      className={`w-full text-left p-3 rounded-xl border transition-all ${
+                        isSelected
+                          ? isLong ? 'border-green-500/60 bg-green-500/8' : 'border-red-500/60 bg-red-500/8'
+                          : 'border-gray-200 dark:border-brandDark-600 hover:border-primary-400/40 hover:bg-white/3'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-white">{(sig.pair || sig.symbol || '').replace('/', '')}</span>
+                          <span className="text-[10px] text-gray-500">{sig.timeframe} · {sig.marketType}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isLong ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {isLong ? '▲ LONG' : '▼ SHORT'}
+                          </span>
+                          {isSelected && <CheckCircle className="w-4 h-4 text-primary-400 flex-shrink-0" />}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-500 block">Entry</span>
+                          <span className="text-white font-mono">${(sig.entry ?? 0).toFixed(2)}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block">Stop Loss</span>
+                          <span className="text-red-400 font-mono">${(sig.stopLoss ?? 0).toFixed(2)}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block">Take Profit</span>
+                          <span className="text-green-400 font-mono">${(sig.takeProfit ?? 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 h-1 rounded-full bg-gray-700 overflow-hidden">
+                          <div className={`h-full rounded-full ${confPct >= 70 ? 'bg-green-500' : confPct >= 50 ? 'bg-yellow-500' : 'bg-gray-500'}`}
+                            style={{ width: `${confPct}%` }} />
+                        </div>
+                        <span className="text-[10px] text-gray-500 flex-shrink-0">{confPct}% conf</span>
+                        {sig.riskReward && <span className="text-[10px] text-gray-500 flex-shrink-0">R:R {sig.riskReward}</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedSignal && (
+                <p className="text-xs text-green-400 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  {(selectedSignal.pair || selectedSignal.symbol || '').replace('/', '')} selected — bot will execute this on start
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Account Balance */}
       <div className="p-4 space-y-4 bg-gray-50 dark:bg-brandDark-700 rounded-xl">
@@ -637,7 +769,10 @@ const CreateBot = () => {
             ['Market',         form.marketType],
             ['Execution',      form.executionMode === 'auto' ? '⚡ Auto — bot trades on its own' : '👆 Manual — you approve each trade'],
             ['Strategy',       prefill ? 'AI Signal (single pair)' : 'SmartSignal Bot'],
-            ['Pair',           prefill ? prefill.pair?.replace('USDT', '/USDT') : 'Automatic (best scored signal)'],
+            ['Pair',           selectedSignal
+              ? `${(selectedSignal.pair || selectedSignal.symbol || '').replace('/', '')} — ${selectedSignal.type === 'LONG' || selectedSignal.signal === 'LONG' ? '▲ LONG' : '▼ SHORT'}`
+              : prefill ? prefill.pair?.replace('USDT', '/USDT') : 'Automatic (best scored signal)'],
+            ...(selectedSignal ? [['Signal Entry', `$${(selectedSignal.entry ?? 0).toFixed(2)} · SL $${(selectedSignal.stopLoss ?? 0).toFixed(2)} · TP $${(selectedSignal.takeProfit ?? 0).toFixed(2)}`]] : []),
             ['Balance',        fetchedBalance ? `$${fetchedBalance.usdt?.toFixed(2)} USDT (${fetchedBalance.source})` : '—'],
             ['Bot Allocation', `$${form.capitalAllocation.totalCapital} USDT (${allocPct}% of balance)`],
             ['Max Trades',     1],

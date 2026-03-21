@@ -40,9 +40,9 @@ const BotCard = ({ bot, onStart, onStop, onDelete, loading }) => {
   const realizedPnl   = bot.stats?.totalPnL ?? 0;
   const unrealizedPnl = bot.unrealizedPnL ?? 0;
   const pnl        = realizedPnl + unrealizedPnl;
-  const pnlPct     = bot.stats?.totalPnLPercent ?? 0;
+  const allocated  = bot.capitalAllocation?.totalCapital ?? 0;
+  const pnlPct     = allocated > 0 ? (pnl / allocated) * 100 : 0;
   const isPositive = pnl >= 0;
-  const allocated = bot.capitalAllocation?.totalCapital ?? 0;
   const currency = bot.capitalAllocation?.currency || 'USDT';
   const currentCapital = bot.stats?.currentCapital ?? allocated;
 
@@ -127,7 +127,7 @@ const BotCard = ({ bot, onStart, onStop, onDelete, loading }) => {
               ({isPositive ? '+' : ''}{pnlPct.toFixed(2)}%)
             </span>
           </p>
-          {unrealizedPnl !== 0 && (
+          {(
             <p className="text-[10px] text-gray-500 mt-0.5">
               <span className="text-gray-600">${realizedPnl.toFixed(2)} realized</span>
               {' · '}
