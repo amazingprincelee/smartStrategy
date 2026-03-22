@@ -263,7 +263,7 @@ const Signals = () => {
 
   // Analyze form
   const [azForm, setAzForm] = useState({
-    symbol: 'BTCUSDT', timeframe: '1h', marketType: 'futures',
+    symbol: '', timeframe: '1h', marketType: 'futures',
   });
   const [quickExecuteSignal, setQuickExecuteSignal] = useState(null);
 
