@@ -147,7 +147,7 @@ export default function TriangularArbitrage() {
 
   useEffect(() => {
     dispatch(fetchTriangularOpportunities());
-    const interval = setInterval(() => dispatch(fetchTriangularOpportunities()), 120_000);
+    const interval = setInterval(() => dispatch(fetchTriangularOpportunities()), 600_000);
     return () => clearInterval(interval);
   }, [dispatch]);
 
