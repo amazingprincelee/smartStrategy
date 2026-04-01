@@ -5,7 +5,6 @@ import {
   Bot,
   Activity,
   ArrowRightLeft,
-  Flame,
   ChevronRight,
   TrendingUp,
   TrendingDown,
@@ -134,18 +133,18 @@ const SERVICES = [
     cta: 'Scan Markets',
   },
   {
-    key: 'alpha',
-    title: 'Early Alpha',
-    description: 'Spot new listings, volume spikes, whale accumulation, and trending coins before the crowd.',
-    href: '/alpha',
+    key: 'trade4me',
+    title: 'Trade4Me',
+    description: 'Deposit and earn up to 20% APY. Daily compounding, managed by our team, withdraw anytime after lock.',
+    href: '/trade4me',
     badge: 'New',
     badgeColor: 'bg-orange-500',
     gradient: 'from-orange-500/10 to-red-600/10',
     border: 'border-orange-500/30 hover:border-orange-500/70',
     iconBg: 'bg-orange-500/15',
     iconColor: 'text-orange-400',
-    Icon: Flame,
-    cta: 'View Alpha',
+    Icon: TrendingUp,
+    cta: 'Start Earning',
   },
 ];
 
@@ -296,6 +295,58 @@ const Dashboard = () => {
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* ── Service cards ────────────────────────────────────────── */}
+      <div>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Platform Services
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {SERVICES.map(({ key, title, description, href, badge, badgeColor, gradient, border, iconBg, iconColor, Icon, cta }) => {
+            const isLocked = !href;
+            const card = (
+              <div
+                className={`
+                  relative flex flex-col h-full p-5 rounded-2xl border bg-gradient-to-br
+                  ${gradient} ${border}
+                  transition-all duration-200
+                  ${isLocked ? 'opacity-60 cursor-default' : 'cursor-pointer hover:shadow-lg hover:-translate-y-0.5'}
+                `}
+              >
+                {badge && (
+                  <span className={`absolute top-4 right-4 px-2 py-0.5 text-[10px] font-bold text-white rounded-full ${badgeColor}`}>
+                    {badge}
+                  </span>
+                )}
+                <div className={`w-10 h-10 flex items-center justify-center rounded-xl mb-4 ${iconBg}`}>
+                  <Icon className={`w-5 h-5 ${iconColor}`} />
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">{title}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed flex-1">{description}</p>
+                {cta && (
+                  <div className={`mt-4 flex items-center gap-1 text-xs font-semibold ${iconColor}`}>
+                    {cta}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                )}
+                {isLocked && (
+                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-gray-500">
+                    <Lock className="w-3 h-3" />
+                    Coming Soon
+                  </div>
+                )}
+              </div>
+            );
+            return isLocked ? (
+              <div key={key}>{card}</div>
+            ) : (
+              <Link key={key} to={href} className="block">
+                {card}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Quick Analyze ────────────────────────────────────────── */}
@@ -566,68 +617,6 @@ const Dashboard = () => {
               );
             })()}
           </div>
-        </div>
-      </div>
-
-      {/* ── Service cards ────────────────────────────────────────── */}
-      <div>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-          Platform Services
-        </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {SERVICES.map(({ key, title, description, href, badge, badgeColor, gradient, border, iconBg, iconColor, Icon, cta }) => {
-            const isLocked = !href;
-            const card = (
-              <div
-                className={`
-                  relative flex flex-col h-full p-5 rounded-2xl border bg-gradient-to-br
-                  ${gradient} ${border}
-                  transition-all duration-200
-                  ${isLocked ? 'opacity-60 cursor-default' : 'cursor-pointer hover:shadow-lg hover:-translate-y-0.5'}
-                `}
-              >
-                {/* Badge */}
-                {badge && (
-                  <span className={`absolute top-4 right-4 px-2 py-0.5 text-[10px] font-bold text-white rounded-full ${badgeColor}`}>
-                    {badge}
-                  </span>
-                )}
-
-                {/* Icon */}
-                <div className={`w-10 h-10 flex items-center justify-center rounded-xl mb-4 ${iconBg}`}>
-                  <Icon className={`w-5 h-5 ${iconColor}`} />
-                </div>
-
-                {/* Text */}
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">{title}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed flex-1">{description}</p>
-
-                {/* CTA */}
-                {cta && (
-                  <div className={`mt-4 flex items-center gap-1 text-xs font-semibold ${iconColor}`}>
-                    {cta}
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </div>
-                )}
-
-                {/* Lock overlay icon */}
-                {isLocked && (
-                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-gray-500">
-                    <Lock className="w-3 h-3" />
-                    Coming Soon
-                  </div>
-                )}
-              </div>
-            );
-
-            return isLocked ? (
-              <div key={key}>{card}</div>
-            ) : (
-              <Link key={key} to={href} className="block">
-                {card}
-              </Link>
-            );
-          })}
         </div>
       </div>
 

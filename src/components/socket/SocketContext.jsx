@@ -12,7 +12,6 @@ import {
 import { updateBotRealtime, updatePositionPrice } from '../../redux/slices/botSlice';
 import { addLiveSignal } from '../../redux/slices/signalSlice';
 import { setLiveArbitrageOpportunities, setLiveTriangularOpportunities } from '../../redux/slices/arbitrageslice';
-import { updateAlphaLivePrices } from '../../redux/slices/alphaSlice';
 
 const SocketContext = createContext(null);
 
@@ -145,13 +144,6 @@ export const SocketProvider = ({ children }) => {
         toast.success(content, { ...toastOpts, icon: '📈' });
       } else {
         toast.error(content, { ...toastOpts, icon: '📉' });
-      }
-    });
-
-    // Alpha live price broadcast — server pushes every 30s (replaces per-client HTTP polling)
-    socket.on('alpha:prices', (prices) => {
-      if (prices && typeof prices === 'object') {
-        dispatch(updateAlphaLivePrices(prices));
       }
     });
 

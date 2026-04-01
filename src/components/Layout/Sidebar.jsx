@@ -7,7 +7,6 @@ import {
   Activity,
   BookOpen,
   TrendingUp,
-  Flame,
   Wallet,
   X,
   Crown,
@@ -66,9 +65,9 @@ const Sidebar = ({ isOpen, onClose }) => {
       badge: 'Live'
     },
     {
-      name: 'Early Alpha',
-      href: '/alpha',
-      icon: Flame,
+      name: 'Trade4Me',
+      href: '/trade4me',
+      icon: TrendingUp,
       badge: 'New',
     },
     {

@@ -18,6 +18,10 @@ import {
 } from '../redux/slices/adminSlice';
 import { adminFetchAllTickets, adminFetchTicket, adminReplyTicket } from '../redux/slices/supportSlice';
 import { adminFetchWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal, adminMarkPaid } from '../redux/slices/withdrawalSlice';
+import {
+  fetchAdminInvestmentStats, fetchAdminInvestorList,
+  fetchAdminWithdrawals, adminUpdateWithdrawal,
+} from '../redux/slices/investmentSlice';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const n    = (v) => (v ?? 0).toLocaleString();
@@ -1245,6 +1249,225 @@ function TransactionsTab({ dispatch }) {
   );
 }
 
+// ── Trade4Me Tab ──────────────────────────────────────────────────────────────
+function Trade4MeTab({ dispatch }) {
+  const { adminStats, investorList, investorTotal, adminWithdrawals, adminWithdrawalsTotal } =
+    useSelector(s => s.investment);
+  const [view,      setView]      = useState('investors'); // 'investors' | 'withdrawals'
+  const [wStatus,   setWStatus]   = useState('all');
+  const [iStatus,   setIStatus]   = useState('all');
+  const [noteMap,   setNoteMap]   = useState({});
+  const [actionMsg, setActionMsg] = useState(null);
+
+  useEffect(() => {
+    dispatch(fetchAdminInvestmentStats());
+    dispatch(fetchAdminInvestorList({ status: iStatus === 'all' ? undefined : iStatus }));
+    dispatch(fetchAdminWithdrawals({ status: wStatus === 'all' ? undefined : wStatus }));
+  }, []); // eslint-disable-line
+
+  const loadInvestors    = (s) => dispatch(fetchAdminInvestorList({ status: s === 'all' ? undefined : s }));
+  const loadWithdrawals  = (s) => dispatch(fetchAdminWithdrawals({ status: s === 'all' ? undefined : s }));
+
+  const handleWStatus = async (id, status) => {
+    const note = noteMap[id] || '';
+    const result = await dispatch(adminUpdateWithdrawal({ id, status, adminNote: note }));
+    if (adminUpdateWithdrawal.fulfilled.match(result)) {
+      setActionMsg(`Marked as ${status}`);
+      setTimeout(() => setActionMsg(null), 3000);
+      loadWithdrawals(wStatus);
+    }
+  };
+
+  const TIER_BADGE = {
+    starter: 'bg-cyan-500/20  text-cyan-300',
+    growth:  'bg-blue-500/20  text-blue-300',
+    premium: 'bg-amber-500/20 text-amber-300',
+  };
+  const STATUS_COLOR = {
+    active:          'text-green-400',
+    pending_payment: 'text-yellow-400',
+    withdrawn:       'text-gray-400',
+    completed:       'text-blue-400',
+    pending:         'text-yellow-400',
+    approved:        'text-blue-400',
+    paid:            'text-green-400',
+    rejected:        'text-red-400',
+  };
+
+  return (
+    <div className="space-y-5">
+
+      {/* Stat cards */}
+      {adminStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card icon={DollarSign} label="Total Invested"  value={usd(adminStats.totalInvested)} iconCls="text-green-400" />
+          <Card icon={TrendingUp} label="Earnings Paid"   value={usd(adminStats.totalEarnings)}  iconCls="text-cyan-400" />
+          <Card icon={Users}      label="Active Investors" value={n(adminStats.activeCount)}     iconCls="text-blue-400" />
+          <Card icon={ArrowDownCircle} label="Pending W/D" value={n(adminStats.pendingWithdrawals)} iconCls="text-yellow-400" />
+        </div>
+      )}
+
+      {actionMsg && (
+        <div className="flex items-center gap-2 bg-green-900/30 border border-green-600/40 text-green-300 rounded-xl px-4 py-2 text-sm">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" /> {actionMsg}
+        </div>
+      )}
+
+      {/* View toggle */}
+      <div className="flex gap-2">
+        {[['investors','Investors'], ['withdrawals','Withdrawal Requests']].map(([v,l]) => (
+          <button key={v} onClick={() => setView(v)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              view === v ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+            }`}>
+            {l}
+            {v === 'withdrawals' && adminStats?.pendingWithdrawals > 0 && (
+              <span className="ml-1.5 bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                {adminStats.pendingWithdrawals}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Investors view ── */}
+      {view === 'investors' && (
+        <div className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            {['all','active','pending_payment','withdrawn'].map(s => (
+              <button key={s} onClick={() => { setIStatus(s); loadInvestors(s); }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors capitalize ${
+                  iStatus === s ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}>
+                {s.replace('_',' ')}
+              </button>
+            ))}
+            <button onClick={() => loadInvestors(iStatus)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500">{n(investorTotal)} investor(s)</p>
+          <div className="overflow-x-auto rounded-xl border border-white/10">
+            <table className="w-full text-sm">
+              <thead><tr>
+                <Th>User</Th><Th>Tier</Th><Th>Amount</Th><Th>Earnings</Th><Th>APY</Th><Th>Status</Th><Th>Started</Th>
+              </tr></thead>
+              <tbody>
+                {investorList.map(inv => (
+                  <tr key={inv._id} className="border-t border-white/5 hover:bg-white/3">
+                    <Td>
+                      <p className="font-medium text-gray-200">{inv.userId?.fullName || '—'}</p>
+                      <p className="text-xs text-gray-500">{inv.userId?.email}</p>
+                    </Td>
+                    <Td>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${TIER_BADGE[inv.tier] || 'bg-gray-600/30 text-gray-300'}`}>
+                        {inv.tier}
+                      </span>
+                    </Td>
+                    <Td>{usd(inv.amount)}</Td>
+                    <Td className="text-green-400">{usd(inv.totalEarnings)}</Td>
+                    <Td>{inv.apy}%</Td>
+                    <Td className={STATUS_COLOR[inv.status] || 'text-gray-400'}>{inv.status.replace('_',' ')}</Td>
+                    <Td>{date(inv.startDate)}</Td>
+                  </tr>
+                ))}
+                {investorList.length === 0 && (
+                  <tr><td colSpan={7} className="text-center py-8 text-gray-500 text-sm">No investors found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Withdrawals view ── */}
+      {view === 'withdrawals' && (
+        <div className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            {['all','pending','approved','paid','rejected'].map(s => (
+              <button key={s} onClick={() => { setWStatus(s); loadWithdrawals(s); }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors capitalize ${
+                  wStatus === s ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}>
+                {s}
+              </button>
+            ))}
+            <button onClick={() => loadWithdrawals(wStatus)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500">{n(adminWithdrawalsTotal)} request(s)</p>
+          <div className="space-y-3">
+            {adminWithdrawals.map(w => (
+              <div key={w._id} className="bg-[#1a2235] border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-200">{w.userId?.fullName || w.userId?.email || '—'}</p>
+                    <p className="text-xs text-gray-500">{w.userId?.email}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                      <span className="capitalize">{w.type} withdrawal</span>
+                      <span className="font-bold text-white">{usd(w.amount)}</span>
+                      <span className={STATUS_COLOR[w.status] || 'text-gray-400'}>{w.status}</span>
+                    </div>
+                    {w.investmentId && (
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Tier: {w.investmentId.tier} · Invested: {usd(w.investmentId.amount)}
+                      </p>
+                    )}
+                    {w.walletAddress && (
+                      <p className="text-xs text-gray-500 mt-0.5 font-mono break-all">To: {w.walletAddress}</p>
+                    )}
+                    <p className="text-[10px] text-gray-600 mt-0.5">Requested: {dt(w.requestedAt)}</p>
+                  </div>
+                </div>
+
+                {w.adminNote && (
+                  <p className="text-xs text-gray-400 italic">Note: {w.adminNote}</p>
+                )}
+
+                {w.status === 'pending' && (
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      value={noteMap[w._id] || ''}
+                      onChange={e => setNoteMap(prev => ({ ...prev, [w._id]: e.target.value }))}
+                      placeholder="Admin note (optional)"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => handleWStatus(w._id, 'approved')}
+                        className="flex-1 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors">
+                        Approve
+                      </button>
+                      <button onClick={() => handleWStatus(w._id, 'paid')}
+                        className="flex-1 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-xs font-semibold transition-colors">
+                        Mark Paid
+                      </button>
+                      <button onClick={() => handleWStatus(w._id, 'rejected')}
+                        className="flex-1 py-1.5 rounded-lg bg-red-800 hover:bg-red-700 text-white text-xs font-semibold transition-colors">
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {w.status === 'approved' && (
+                  <button onClick={() => handleWStatus(w._id, 'paid')}
+                    className="w-full py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-xs font-semibold transition-colors">
+                    Mark as Paid
+                  </button>
+                )}
+              </div>
+            ))}
+            {adminWithdrawals.length === 0 && (
+              <p className="text-center py-8 text-gray-500 text-sm">No withdrawal requests</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { key:'overview',      label:'Overview',      icon: BarChart2 },
@@ -1256,6 +1479,7 @@ const TABS = [
   { key:'broadcast',     label:'Broadcast',     icon: Mail },
   { key:'analytics',     label:'Analytics',     icon: Activity },
   { key:'audit',         label:'Audit Log',     icon: Shield },
+  { key:'trade4me',      label:'Trade4Me',      icon: TrendingUp },
   { key:'payment-keys',  label:'Payment Keys',  icon: Key },
   { key:'settings',      label:'Settings',      icon: Settings },
 ];
@@ -1329,6 +1553,7 @@ export default function AdminDashboard() {
           {tab==='broadcast'     && <BroadcastTab dispatch={dispatch} loading={loading} actionSuccess={actionSuccess} error={error} />}
           {tab==='analytics'     && <AnalyticsTab rev={rev} ua={ua} pa={pa} loading={loading} dispatch={dispatch} />}
           {tab==='audit'         && <AuditTab auditLogs={auditLogs} auditTotal={auditTotal} loading={loading} dispatch={dispatch} />}
+          {tab==='trade4me'      && <Trade4MeTab dispatch={dispatch} />}
           {tab==='payment-keys'  && <PaymentKeysTab dispatch={dispatch} />}
           {tab==='settings'      && <SettingsTab settings={settings} loading={loading} dispatch={dispatch} actionSuccess={actionSuccess} error={error} />}
         </div>

@@ -32,7 +32,7 @@ import AuthCallback from './pages/AuthCallback';
 import Support from './pages/Support';
 import Account from './pages/Account';
 import Guide from './pages/Guide';
-import EarlyAlpha from './pages/EarlyAlpha';
+import Trade4Me from './pages/Trade4Me';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 
@@ -105,7 +105,7 @@ function AppInner() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/support" element={<Support />} />
               <Route path="/support/tickets/:id" element={<Support />} />
-              <Route path="/alpha" element={<EarlyAlpha />} />
+              <Route path="/trade4me" element={<Trade4Me />} />
               <Route path="/account" element={<Account />} />
               <Route path="/guide" element={<Guide />} />
             </Route>

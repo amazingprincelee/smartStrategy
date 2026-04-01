@@ -20,7 +20,6 @@ import {
   Search,
   Target,
   Zap,
-  Flame,
   MinusCircle,
   XCircle,
   Info,
@@ -260,7 +259,7 @@ const Home = () => {
     { icon: Activity,     color: 'from-green-500 to-emerald-600', title: 'AI Trading Signals',      desc: 'Real-time LONG/SHORT signals across 30+ pairs — powered by RSI, EMA, MACD, Bollinger Bands, ATR and volume. Exact entry, stop-loss, and take-profit every time.' },
     { icon: Zap,          color: 'from-cyan-500 to-blue-600',    title: 'One-Click Execution',     desc: 'See a signal you like? Hit Trade This and the order is placed instantly on your connected exchange — entry, SL, and TP pre-filled from the signal.' },
     { icon: TrendingUp,   color: 'from-blue-500 to-indigo-600',  title: 'Arbitrage Scanner',       desc: 'Scans price gaps across 8 exchanges in real-time. Transfer status shows whether you can actually move the coin before you commit capital.' },
-    { icon: Flame,        color: 'from-orange-500 to-red-600',   title: 'Early Alpha Signals',     desc: 'Catch moves before they happen — momentum spikes, volume surges, and whale accumulation detected before the crowd notices.' },
+    { icon: TrendingUp,   color: 'from-orange-500 to-red-600',   title: 'Trade4Me Investing',      desc: 'Deposit funds and earn up to 20% APY managed by our team. Daily earnings, 30-day lock on principal, manual withdrawals.' },
     { icon: Bot,          color: 'from-purple-500 to-violet-600', title: 'Automated Bots',         desc: '24/7 trading bots that execute your strategy automatically across 6 proven strategies — DCA, Grid, RSI Reversal, EMA, Scalper, and AI Signal.' },
     { icon: Shield,       color: 'from-red-500 to-rose-600',     title: 'Built-in Risk Engine',    desc: 'ATR-based stop-loss, global drawdown limits, daily loss caps, and liquidation checks built into every signal and bot trade.' },
   ];
@@ -372,7 +371,7 @@ const Home = () => {
           <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
             <StatCard value={stats ? `${stats.totalBots?.toLocaleString() ?? 0}+`  : '–'}    label="Bots Created"         color="text-cyan-500"   loading={statsLoading && !stats} />
             <StatCard value={stats ? `${stats.activeSignals ?? 0}`                 : '–'}    label="Signals Today"        color="text-green-500"  loading={statsLoading && !stats} />
-            <StatCard value={stats ? `${stats.alphaSignals ?? 0}`                  : '–'}    label="Alpha Alerts Today"   color="text-purple-500" loading={statsLoading && !stats} />
+            <StatCard value={stats ? `${stats.activeInvestors ?? 0}`               : '–'}    label="Active Investors"     color="text-purple-500" loading={statsLoading && !stats} />
             <StatCard value={stats ? `${stats.supportedExchanges}+`                : '10+'}  label="Supported Exchanges"  color="text-blue-500"   loading={statsLoading && !stats} />
           </div>
         </div>

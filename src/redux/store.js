@@ -12,7 +12,7 @@ import subscriptionReducer from './slices/subscriptionSlice';
 import adminReducer from './slices/adminSlice';
 import supportReducer from './slices/supportSlice';
 import withdrawalReducer from './slices/withdrawalSlice';
-import alphaReducer from './slices/alphaSlice';
+import investmentReducer from './slices/investmentSlice';
 
 export const store = configureStore({
   reducer: {
@@ -29,7 +29,7 @@ export const store = configureStore({
     admin: adminReducer,
     support: supportReducer,
     withdrawals: withdrawalReducer,
-    alpha: alphaReducer,
+    investment: investmentReducer,
   },
 });
 
