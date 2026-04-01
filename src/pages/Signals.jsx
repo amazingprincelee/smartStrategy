@@ -496,11 +496,7 @@ const Signals = () => {
                         <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8 overflow-hidden">
                           <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${color} flex-shrink-0`} />
                           <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider text-center">{label}</span>
-                          {isPremium ? (
-                            <span className={`text-[10px] sm:text-sm font-bold font-mono leading-tight text-center w-full truncate ${color}`} title={`$${fmt(val, 4)}`}>${fmt(val, 2)}</span>
-                          ) : (
-                            <span className="text-[10px] sm:text-sm font-bold text-gray-600 blur-[5px] select-none">••••••</span>
-                          )}
+                          <span className={`text-[10px] sm:text-sm font-bold font-mono leading-tight text-center w-full truncate ${color}`} title={`$${fmt(val, 4)}`}>${fmt(val, 2)}</span>
                         </div>
                       ))}
                     </div>
@@ -1595,11 +1591,7 @@ const Signals = () => {
                         <div key={label} className="flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl bg-white/4 border border-white/8 overflow-hidden">
                           <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${color} flex-shrink-0`} />
                           <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider text-center">{label}</span>
-                          {isPremium ? (
-                            <span className={`text-[10px] sm:text-sm font-bold font-mono leading-tight text-center w-full truncate ${color}`} title={`$${fmt(val, 4)}`}>${fmt(val, 2)}</span>
-                          ) : (
-                            <span className="text-[10px] sm:text-sm font-bold text-gray-600 blur-[5px] select-none">••••••</span>
-                          )}
+                          <span className={`text-[10px] sm:text-sm font-bold font-mono leading-tight text-center w-full truncate ${color}`} title={`$${fmt(val, 4)}`}>${fmt(val, 2)}</span>
                         </div>
                       ))}
                     </div>

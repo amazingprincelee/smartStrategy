@@ -197,6 +197,11 @@ const Home = () => {
   const isAuth    = !!token;
   const isPremium = isAuth && (user?.role === 'premium' || user?.role === 'admin');
 
+  // Redirect authenticated users straight to the dashboard
+  useEffect(() => {
+    if (isAuth) navigate('/dashboard', { replace: true });
+  }, [isAuth, navigate]);
+
   const { spot, futures, stats, loading, statsLoading, analysis, analysisLoading, analysisError, availablePairs } = useSelector(s => s.signals);
   const [activeTab, setActiveTab] = useState('spot');
   const [lastRefresh, setLastRefresh] = useState(null);

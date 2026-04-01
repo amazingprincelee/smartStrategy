@@ -151,7 +151,7 @@ export default function TriangularArbitrage() {
     return () => clearInterval(interval);
   }, [dispatch]);
 
-  const { opportunities = [], loading, lastScan, isScanning, gated } = triangular;
+  const { opportunities = [], loading, lastScan, isScanning, gated, error } = triangular;
 
   return (
     <div className="space-y-4">
@@ -194,6 +194,14 @@ export default function TriangularArbitrage() {
           <p className="text-xs text-yellow-300">
             Showing {opportunities.length} of all opportunities. Upgrade to Premium for full pair details and prices.
           </p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <div className="flex items-center gap-3 p-3 rounded-xl border border-red-500/25 bg-red-500/8">
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <p className="text-xs text-red-300">{error}</p>
         </div>
       )}
 
