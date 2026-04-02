@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Users, DollarSign, Activity, Settings, LifeBuoy,
   BarChart2, Shield, Mail, CheckCircle, XCircle,
   AlertTriangle, Trash2, Gift, TrendingUp, Send,
   Megaphone, Eye, EyeOff, Loader, ArrowDownCircle, Clock, Key,
-  Receipt, ChevronRight, RefreshCw,
+  Receipt, ChevronRight, RefreshCw, Copy, Wallet, Layers,
 } from 'lucide-react';
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminSubscriptions,
@@ -1249,131 +1249,297 @@ function TransactionsTab({ dispatch }) {
   );
 }
 
-// ── Trade4Me Tab ──────────────────────────────────────────────────────────────
+// ── Trade4Me Admin Tab ────────────────────────────────────────────────────────
+const TIER_BADGE = {
+  starter: { bg: 'bg-cyan-500/15  text-cyan-300  border-cyan-500/20',  dot: 'bg-cyan-400'  },
+  growth:  { bg: 'bg-blue-500/15  text-blue-300  border-blue-500/20',  dot: 'bg-blue-400'  },
+  premium: { bg: 'bg-amber-500/15 text-amber-300 border-amber-500/20', dot: 'bg-amber-400' },
+};
+const INV_STATUS = {
+  active:          { label: 'Active',          cls: 'bg-green-500/15  text-green-300  border-green-500/20'  },
+  pending_payment: { label: 'Pending Payment', cls: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/20' },
+  withdrawn:       { label: 'Withdrawn',       cls: 'bg-gray-500/15   text-gray-400   border-gray-500/20'   },
+  completed:       { label: 'Completed',       cls: 'bg-blue-500/15   text-blue-300   border-blue-500/20'   },
+};
+const WD_STATUS = {
+  pending:  { label: 'Pending',  cls: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/20', dot: 'bg-yellow-400' },
+  approved: { label: 'Approved', cls: 'bg-blue-500/15   text-blue-300   border-blue-500/20',   dot: 'bg-blue-400'  },
+  paid:     { label: 'Paid',     cls: 'bg-green-500/15  text-green-300  border-green-500/20',   dot: 'bg-green-400' },
+  rejected: { label: 'Rejected', cls: 'bg-red-500/15    text-red-300    border-red-500/20',     dot: 'bg-red-400'   },
+};
+
+function TierPill({ tier }) {
+  const m = TIER_BADGE[tier] || { bg: 'bg-gray-500/15 text-gray-400 border-gray-500/20', dot: 'bg-gray-400' };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase border ${m.bg}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
+      {tier}
+    </span>
+  );
+}
+function StatusPill({ status, map }) {
+  const m = map[status] || { label: status, cls: 'bg-gray-500/15 text-gray-400 border-gray-500/20' };
+  return <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${m.cls} capitalize`}>{m.label}</span>;
+}
+
 function Trade4MeTab({ dispatch }) {
   const { adminStats, investorList, investorTotal, adminWithdrawals, adminWithdrawalsTotal } =
     useSelector(s => s.investment);
-  const [view,      setView]      = useState('investors'); // 'investors' | 'withdrawals'
+
+  const [view,      setView]      = useState('overview');
   const [wStatus,   setWStatus]   = useState('all');
   const [iStatus,   setIStatus]   = useState('all');
   const [noteMap,   setNoteMap]   = useState({});
-  const [actionMsg, setActionMsg] = useState(null);
+  const [toast,     setToast]     = useState(null);
+  const [copied,    setCopied]    = useState(null);
+  const [expanded,  setExpanded]  = useState(null); // expanded investor _id
 
-  useEffect(() => {
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const reload = () => {
     dispatch(fetchAdminInvestmentStats());
     dispatch(fetchAdminInvestorList({ status: iStatus === 'all' ? undefined : iStatus }));
     dispatch(fetchAdminWithdrawals({ status: wStatus === 'all' ? undefined : wStatus }));
-  }, []); // eslint-disable-line
+  };
 
-  const loadInvestors    = (s) => dispatch(fetchAdminInvestorList({ status: s === 'all' ? undefined : s }));
-  const loadWithdrawals  = (s) => dispatch(fetchAdminWithdrawals({ status: s === 'all' ? undefined : s }));
+  useEffect(() => { reload(); }, []); // eslint-disable-line
 
-  const handleWStatus = async (id, status) => {
+  const loadInvestors   = (s) => dispatch(fetchAdminInvestorList({ status: s === 'all' ? undefined : s }));
+  const loadWithdrawals = (s) => dispatch(fetchAdminWithdrawals({ status: s === 'all' ? undefined : s }));
+
+  const handleWAction = async (id, status) => {
     const note = noteMap[id] || '';
     const result = await dispatch(adminUpdateWithdrawal({ id, status, adminNote: note }));
     if (adminUpdateWithdrawal.fulfilled.match(result)) {
-      setActionMsg(`Marked as ${status}`);
-      setTimeout(() => setActionMsg(null), 3000);
+      showToast(`Withdrawal ${status}`);
       loadWithdrawals(wStatus);
+      dispatch(fetchAdminInvestmentStats());
+    } else {
+      showToast('Action failed', 'error');
     }
   };
 
-  const TIER_BADGE = {
-    starter: 'bg-cyan-500/20  text-cyan-300',
-    growth:  'bg-blue-500/20  text-blue-300',
-    premium: 'bg-amber-500/20 text-amber-300',
+  const copyToClipboard = (text, id) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
+    });
   };
-  const STATUS_COLOR = {
-    active:          'text-green-400',
-    pending_payment: 'text-yellow-400',
-    withdrawn:       'text-gray-400',
-    completed:       'text-blue-400',
-    pending:         'text-yellow-400',
-    approved:        'text-blue-400',
-    paid:            'text-green-400',
-    rejected:        'text-red-400',
-  };
+
+  const s = adminStats;
+  const totalBalance = (s?.totalInvested ?? 0) + (s?.totalEarnings ?? 0);
+
+  const VIEWS = [
+    { key: 'overview',    label: 'Overview',    icon: BarChart2        },
+    { key: 'investors',   label: 'Investors',   icon: Users,   count: investorTotal },
+    { key: 'withdrawals', label: 'Withdrawals', icon: ArrowDownCircle, count: s?.pendingWithdrawals, countColor: 'bg-yellow-500' },
+  ];
 
   return (
     <div className="space-y-5">
 
-      {/* Stat cards */}
-      {adminStats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card icon={DollarSign} label="Total Invested"  value={usd(adminStats.totalInvested)} iconCls="text-green-400" />
-          <Card icon={TrendingUp} label="Earnings Paid"   value={usd(adminStats.totalEarnings)}  iconCls="text-cyan-400" />
-          <Card icon={Users}      label="Active Investors" value={n(adminStats.activeCount)}     iconCls="text-blue-400" />
-          <Card icon={ArrowDownCircle} label="Pending W/D" value={n(adminStats.pendingWithdrawals)} iconCls="text-yellow-400" />
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-cyan-500/15">
+            <TrendingUp className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white">Trade4Me Management</h2>
+            <p className="text-xs text-gray-500">Monitor investors, process withdrawals, track earnings</p>
+          </div>
+        </div>
+        <button onClick={reload} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-white/4 hover:bg-white/8 text-xs text-gray-400 hover:text-white transition-all">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium ${
+          toast.type === 'error'
+            ? 'bg-red-900/30 border-red-600/30 text-red-300'
+            : 'bg-green-900/30 border-green-600/30 text-green-300'
+        }`}>
+          {toast.type === 'error' ? <XCircle className="w-4 h-4 flex-shrink-0" /> : <CheckCircle className="w-4 h-4 flex-shrink-0" />}
+          {toast.msg}
         </div>
       )}
 
-      {actionMsg && (
-        <div className="flex items-center gap-2 bg-green-900/30 border border-green-600/40 text-green-300 rounded-xl px-4 py-2 text-sm">
-          <CheckCircle className="w-4 h-4 flex-shrink-0" /> {actionMsg}
-        </div>
-      )}
-
-      {/* View toggle */}
-      <div className="flex gap-2">
-        {[['investors','Investors'], ['withdrawals','Withdrawal Requests']].map(([v,l]) => (
-          <button key={v} onClick={() => setView(v)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              view === v ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+      {/* ── Sub-nav ── */}
+      <div className="flex gap-1 border-b border-white/8 pb-0 overflow-x-auto">
+        {VIEWS.map(({ key, label, icon: Icon, count, countColor }) => (
+          <button key={key} onClick={() => setView(key)}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors relative ${
+              view === key
+                ? 'text-white bg-[#1a2235] border-b-2 border-cyan-500'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}>
-            {l}
-            {v === 'withdrawals' && adminStats?.pendingWithdrawals > 0 && (
-              <span className="ml-1.5 bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                {adminStats.pendingWithdrawals}
-              </span>
+            <Icon className="w-4 h-4" />
+            {label}
+            {count > 0 && (
+              <span className={`text-white text-[10px] px-1.5 py-0.5 rounded-full ml-0.5 ${countColor || 'bg-blue-600'}`}>{count}</span>
             )}
           </button>
         ))}
       </div>
 
-      {/* ── Investors view ── */}
+      {/* ════════════════════════ OVERVIEW ════════════════════════ */}
+      {view === 'overview' && (
+        <div className="space-y-5">
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card icon={DollarSign}      label="Total Invested"       value={usd(s?.totalInvested)}       iconCls="text-green-400"  />
+            <Card icon={TrendingUp}      label="Total Earnings Accrued" value={usd(s?.totalEarnings)}    iconCls="text-cyan-400"   />
+            <Card icon={Users}           label="Active Investors"     value={n(s?.activeCount)}           iconCls="text-blue-400"   />
+            <Card icon={ArrowDownCircle} label="Pending Withdrawals"  value={n(s?.pendingWithdrawals)}    iconCls="text-yellow-400" />
+          </div>
+
+          {/* Total balance + pending payments */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-[#1a2235] border border-white/10 rounded-2xl p-4 space-y-1">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Total Managed Balance</p>
+              <p className="text-2xl font-black text-white">{usd(totalBalance)}</p>
+              <p className="text-xs text-gray-500">Principal + accrued earnings</p>
+            </div>
+            <div className="bg-[#1a2235] border border-white/10 rounded-2xl p-4 space-y-1">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Pending Activations</p>
+              <p className="text-2xl font-black text-yellow-400">{n(s?.pendingPayments)}</p>
+              <p className="text-xs text-gray-500">Investments awaiting payment confirmation</p>
+            </div>
+          </div>
+
+          {/* Tier breakdown */}
+          {s?.tierBreakdown?.length > 0 && (
+            <div className="bg-[#1a2235] border border-white/10 rounded-2xl p-4 space-y-3">
+              <p className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-gray-500" /> Breakdown by Tier
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {s.tierBreakdown.map(t => (
+                  <div key={t._id} className={`rounded-xl border p-3 ${TIER_BADGE[t._id]?.bg || 'bg-white/5 border-white/10 text-gray-300'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <TierPill tier={t._id} />
+                      <span className="text-xs text-gray-400">{t.count} investor{t.count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <p className="text-lg font-bold text-white mt-1">{usd(t.total)}</p>
+                    <p className="text-[10px] text-gray-500">Total invested</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════ INVESTORS ════════════════════════ */}
       {view === 'investors' && (
         <div className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            {['all','active','pending_payment','withdrawn'].map(s => (
+          {/* Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 font-medium">Filter:</span>
+            {['all','active','pending_payment','withdrawn','completed'].map(s => (
               <button key={s} onClick={() => { setIStatus(s); loadInvestors(s); }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors capitalize ${
-                  iStatus === s ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  iStatus === s ? 'bg-white/15 text-white border border-white/15' : 'bg-white/4 text-gray-400 hover:bg-white/8 border border-white/8'
                 }`}>
-                {s.replace('_',' ')}
+                {s.replace(/_/g,' ')}
               </button>
             ))}
-            <button onClick={() => loadInvestors(iStatus)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors">
+            <button onClick={() => loadInvestors(iStatus)} className="ml-auto p-1.5 rounded-lg bg-white/4 hover:bg-white/10 text-gray-400 border border-white/8 transition-colors">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <p className="text-xs text-gray-500">{n(investorTotal)} investor(s)</p>
-          <div className="overflow-x-auto rounded-xl border border-white/10">
+          <p className="text-xs text-gray-500">{n(investorTotal)} investor(s) found</p>
+
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 lg:hidden">
+            {investorList.map(inv => (
+              <div key={inv._id} className="bg-[#1a2235] border border-white/10 rounded-2xl overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/3 transition-colors"
+                  onClick={() => setExpanded(expanded === inv._id ? null : inv._id)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-gray-300">
+                        {(inv.userId?.fullName || inv.userId?.email || '?')[0].toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-100 truncate">{inv.userId?.fullName || inv.userId?.email || '—'}</p>
+                      <p className="text-xs text-gray-500 truncate">{inv.userId?.email}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <p className="text-sm font-bold text-white">{usd(inv.amount)}</p>
+                    <TierPill tier={inv.tier} />
+                  </div>
+                </div>
+                {expanded === inv._id && (
+                  <div className="border-t border-white/8 px-4 pb-4 pt-3 space-y-3">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      {[
+                        { l: 'Invested',  v: usd(inv.amount),        c: 'text-white'     },
+                        { l: 'Earnings',  v: usd(inv.totalEarnings), c: 'text-green-400' },
+                        { l: 'APY',       v: `${inv.apy}%`,          c: 'text-cyan-400'  },
+                      ].map(({ l, v, c }) => (
+                        <div key={l} className="bg-black/20 rounded-lg p-2">
+                          <p className="text-[9px] text-gray-500 uppercase">{l}</p>
+                          <p className={`text-sm font-bold ${c}`}>{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <StatusPill status={inv.status} map={INV_STATUS} />
+                      <span className="text-gray-500">{inv.startDate ? `Started ${date(inv.startDate)}` : 'Not started'}</span>
+                    </div>
+                    {inv.maturityDate && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> Matures {date(inv.maturityDate)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            {investorList.length === 0 && (
+              <div className="text-center py-12 text-gray-500 text-sm">No investors found</div>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden lg:block overflow-x-auto rounded-2xl border border-white/10">
             <table className="w-full text-sm">
-              <thead><tr>
-                <Th>User</Th><Th>Tier</Th><Th>Amount</Th><Th>Earnings</Th><Th>APY</Th><Th>Status</Th><Th>Started</Th>
-              </tr></thead>
+              <thead>
+                <tr className="bg-white/4 border-b border-white/8">
+                  <Th>Investor</Th><Th>Tier</Th><Th>Invested</Th><Th>Earnings</Th>
+                  <Th>Balance</Th><Th>APY</Th><Th>Status</Th><Th>Started</Th><Th>Matures</Th>
+                </tr>
+              </thead>
               <tbody>
                 {investorList.map(inv => (
-                  <tr key={inv._id} className="border-t border-white/5 hover:bg-white/3">
+                  <tr key={inv._id} className="border-t border-white/5 hover:bg-white/3 transition-colors">
                     <Td>
-                      <p className="font-medium text-gray-200">{inv.userId?.fullName || '—'}</p>
+                      <p className="font-semibold text-gray-200">{inv.userId?.fullName || '—'}</p>
                       <p className="text-xs text-gray-500">{inv.userId?.email}</p>
                     </Td>
-                    <Td>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${TIER_BADGE[inv.tier] || 'bg-gray-600/30 text-gray-300'}`}>
-                        {inv.tier}
-                      </span>
-                    </Td>
-                    <Td>{usd(inv.amount)}</Td>
-                    <Td className="text-green-400">{usd(inv.totalEarnings)}</Td>
-                    <Td>{inv.apy}%</Td>
-                    <Td className={STATUS_COLOR[inv.status] || 'text-gray-400'}>{inv.status.replace('_',' ')}</Td>
-                    <Td>{date(inv.startDate)}</Td>
+                    <Td><TierPill tier={inv.tier} /></Td>
+                    <Td><span className="font-semibold text-white tabular-nums">{usd(inv.amount)}</span></Td>
+                    <Td><span className="font-semibold text-green-400 tabular-nums">{usd(inv.totalEarnings)}</span></Td>
+                    <Td><span className="font-bold text-white tabular-nums">{usd((inv.amount || 0) + (inv.totalEarnings || 0))}</span></Td>
+                    <Td><span className="text-cyan-400 font-bold">{inv.apy}%</span></Td>
+                    <Td><StatusPill status={inv.status} map={INV_STATUS} /></Td>
+                    <Td>{inv.startDate ? date(inv.startDate) : <span className="text-gray-600">—</span>}</Td>
+                    <Td>{inv.maturityDate ? date(inv.maturityDate) : <span className="text-gray-600">—</span>}</Td>
                   </tr>
                 ))}
                 {investorList.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-8 text-gray-500 text-sm">No investors found</td></tr>
+                  <tr><td colSpan={9} className="text-center py-12 text-gray-500 text-sm">No investors found</td></tr>
                 )}
               </tbody>
             </table>
@@ -1381,85 +1547,142 @@ function Trade4MeTab({ dispatch }) {
         </div>
       )}
 
-      {/* ── Withdrawals view ── */}
+      {/* ════════════════════════ WITHDRAWALS ════════════════════════ */}
       {view === 'withdrawals' && (
         <div className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
+          {/* Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 font-medium">Filter:</span>
             {['all','pending','approved','paid','rejected'].map(s => (
               <button key={s} onClick={() => { setWStatus(s); loadWithdrawals(s); }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors capitalize ${
-                  wStatus === s ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  wStatus === s ? 'bg-white/15 text-white border border-white/15' : 'bg-white/4 text-gray-400 hover:bg-white/8 border border-white/8'
                 }`}>
                 {s}
+                {s === 'pending' && s?.pendingWithdrawals > 0 && (
+                  <span className="ml-1 bg-yellow-500 text-white text-[9px] px-1 rounded-full">{s?.pendingWithdrawals}</span>
+                )}
               </button>
             ))}
-            <button onClick={() => loadWithdrawals(wStatus)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-colors">
+            <button onClick={() => loadWithdrawals(wStatus)} className="ml-auto p-1.5 rounded-lg bg-white/4 hover:bg-white/10 text-gray-400 border border-white/8 transition-colors">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
 
           <p className="text-xs text-gray-500">{n(adminWithdrawalsTotal)} request(s)</p>
+
           <div className="space-y-3">
-            {adminWithdrawals.map(w => (
-              <div key={w._id} className="bg-[#1a2235] border border-white/10 rounded-xl p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-200">{w.userId?.fullName || w.userId?.email || '—'}</p>
-                    <p className="text-xs text-gray-500">{w.userId?.email}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                      <span className="capitalize">{w.type} withdrawal</span>
-                      <span className="font-bold text-white">{usd(w.amount)}</span>
-                      <span className={STATUS_COLOR[w.status] || 'text-gray-400'}>{w.status}</span>
+            {adminWithdrawals.map(w => {
+              const wm = WD_STATUS[w.status] || WD_STATUS.pending;
+              return (
+                <div key={w._id} className="bg-[#1a2235] border border-white/10 rounded-2xl overflow-hidden">
+                  {/* Card header */}
+                  <div className="flex items-start justify-between gap-4 p-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-sm font-bold text-gray-300">
+                          {(w.userId?.fullName || w.userId?.email || '?')[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-100">{w.userId?.fullName || w.userId?.email || '—'}</p>
+                        <p className="text-xs text-gray-500">{w.userId?.email}</p>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <StatusPill status={w.status} map={WD_STATUS} />
+                          <span className="text-xs text-gray-400 capitalize">{w.type} withdrawal</span>
+                          {w.investmentId && <TierPill tier={w.investmentId.tier} />}
+                        </div>
+                      </div>
                     </div>
-                    {w.investmentId && (
-                      <p className="text-xs text-gray-600 mt-0.5">
-                        Tier: {w.investmentId.tier} · Invested: {usd(w.investmentId.amount)}
-                      </p>
-                    )}
-                    {w.walletAddress && (
-                      <p className="text-xs text-gray-500 mt-0.5 font-mono break-all">To: {w.walletAddress}</p>
-                    )}
-                    <p className="text-[10px] text-gray-600 mt-0.5">Requested: {dt(w.requestedAt)}</p>
+                    {/* Amount */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-lg font-black text-white tabular-nums">{usd(w.amount)}</p>
+                      <p className="text-[10px] text-gray-500">{dt(w.requestedAt)}</p>
+                    </div>
                   </div>
+
+                  {/* Investment context */}
+                  {w.investmentId && (
+                    <div className="mx-4 mb-3 grid grid-cols-3 gap-2 text-center">
+                      {[
+                        { l: 'Invested', v: usd(w.investmentId.amount)        },
+                        { l: 'Earnings', v: usd(w.investmentId.totalEarnings)  },
+                        { l: 'APY',      v: `${w.investmentId.apy}%`           },
+                      ].map(({ l, v }) => (
+                        <div key={l} className="bg-black/20 rounded-xl p-2 border border-white/5">
+                          <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">{l}</p>
+                          <p className="text-xs font-bold text-gray-200">{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Wallet address */}
+                  {w.walletAddress && (
+                    <div className="mx-4 mb-3 flex items-center gap-2 p-3 rounded-xl bg-black/20 border border-white/8">
+                      <Wallet className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+                      <p className="text-xs text-gray-400 font-mono truncate flex-1">{w.walletAddress}</p>
+                      <button
+                        onClick={() => copyToClipboard(w.walletAddress, w._id)}
+                        className="flex-shrink-0 p-1 rounded-lg hover:bg-white/10 text-gray-500 hover:text-gray-200 transition-colors"
+                        title="Copy address"
+                      >
+                        {copied === w._id
+                          ? <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                          : <Copy className="w-3.5 h-3.5" />
+                        }
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Admin note display */}
+                  {w.adminNote && (
+                    <div className="mx-4 mb-3 px-3 py-2 rounded-xl bg-blue-500/8 border border-blue-500/15">
+                      <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider mb-0.5">Admin Note</p>
+                      <p className="text-xs text-gray-300">{w.adminNote}</p>
+                    </div>
+                  )}
+                  {w.processedAt && (
+                    <p className="mx-4 mb-3 text-[10px] text-gray-600">Processed: {dt(w.processedAt)}</p>
+                  )}
+
+                  {/* Action area */}
+                  {(w.status === 'pending' || w.status === 'approved') && (
+                    <div className="border-t border-white/8 p-4 space-y-3">
+                      <Input
+                        value={noteMap[w._id] || ''}
+                        onChange={e => setNoteMap(prev => ({ ...prev, [w._id]: e.target.value }))}
+                        placeholder="Admin note — e.g. 'Sent on TRC20 network, txid: …'"
+                      />
+                      <div className="flex gap-2 flex-wrap">
+                        {w.status === 'pending' && (
+                          <button onClick={() => handleWAction(w._id, 'approved')}
+                            className="flex-1 min-w-[80px] py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors">
+                            Approve
+                          </button>
+                        )}
+                        <button onClick={() => handleWAction(w._id, 'paid')}
+                          className="flex-1 min-w-[80px] py-2 rounded-xl bg-green-700 hover:bg-green-600 text-white text-xs font-bold transition-colors">
+                          Mark as Paid
+                        </button>
+                        {w.status === 'pending' && (
+                          <button onClick={() => handleWAction(w._id, 'rejected')}
+                            className="flex-1 min-w-[80px] py-2 rounded-xl bg-red-800/70 hover:bg-red-700 text-white text-xs font-bold transition-colors">
+                            Reject
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {w.adminNote && (
-                  <p className="text-xs text-gray-400 italic">Note: {w.adminNote}</p>
-                )}
-
-                {w.status === 'pending' && (
-                  <div className="flex flex-col gap-2">
-                    <Input
-                      value={noteMap[w._id] || ''}
-                      onChange={e => setNoteMap(prev => ({ ...prev, [w._id]: e.target.value }))}
-                      placeholder="Admin note (optional)"
-                    />
-                    <div className="flex gap-2">
-                      <button onClick={() => handleWStatus(w._id, 'approved')}
-                        className="flex-1 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors">
-                        Approve
-                      </button>
-                      <button onClick={() => handleWStatus(w._id, 'paid')}
-                        className="flex-1 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-xs font-semibold transition-colors">
-                        Mark Paid
-                      </button>
-                      <button onClick={() => handleWStatus(w._id, 'rejected')}
-                        className="flex-1 py-1.5 rounded-lg bg-red-800 hover:bg-red-700 text-white text-xs font-semibold transition-colors">
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {w.status === 'approved' && (
-                  <button onClick={() => handleWStatus(w._id, 'paid')}
-                    className="w-full py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-xs font-semibold transition-colors">
-                    Mark as Paid
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
             {adminWithdrawals.length === 0 && (
-              <p className="text-center py-8 text-gray-500 text-sm">No withdrawal requests</p>
+              <div className="text-center py-16 space-y-2">
+                <ArrowDownCircle className="w-8 h-8 text-gray-700 mx-auto" />
+                <p className="text-gray-500 text-sm">No withdrawal requests</p>
+                <p className="text-gray-600 text-xs">Requests will appear here when users submit them</p>
+              </div>
             )}
           </div>
         </div>
@@ -1472,14 +1695,14 @@ function Trade4MeTab({ dispatch }) {
 const TABS = [
   { key:'overview',      label:'Overview',      icon: BarChart2 },
   { key:'users',         label:'Users',         icon: Users },
-  { key:'subscriptions',  label:'Subscriptions',  icon: DollarSign },
-  { key:'transactions',   label:'Transactions',   icon: Receipt },
+  { key:'trade4me',      label:'Trade4Me',      icon: TrendingUp },
+  { key:'subscriptions', label:'Subscriptions', icon: DollarSign },
+  { key:'transactions',  label:'Transactions',  icon: Receipt },
   { key:'support',       label:'Support',       icon: LifeBuoy },
   { key:'withdrawals',   label:'Withdrawals',   icon: ArrowDownCircle },
   { key:'broadcast',     label:'Broadcast',     icon: Mail },
   { key:'analytics',     label:'Analytics',     icon: Activity },
   { key:'audit',         label:'Audit Log',     icon: Shield },
-  { key:'trade4me',      label:'Trade4Me',      icon: TrendingUp },
   { key:'payment-keys',  label:'Payment Keys',  icon: Key },
   { key:'settings',      label:'Settings',      icon: Settings },
 ];
@@ -1494,6 +1717,7 @@ export default function AdminDashboard() {
   } = useSelector(s => s.admin);
   const { unreadCount  } = useSelector(s => s.support);
   const { pendingCount } = useSelector(s => s.withdrawals);
+  const t4mPending = useSelector(s => s.investment?.adminStats?.pendingWithdrawals ?? 0);
 
   useEffect(() => {
     dispatch(fetchAdminStats());
@@ -1538,6 +1762,7 @@ export default function AdminDashboard() {
               {label}
               {key==='support'     && unreadCount  > 0 && <span className="bg-red-500    text-white text-[10px] px-1.5 py-0.5 rounded-full ml-0.5">{unreadCount}</span>}
               {key==='withdrawals' && pendingCount > 0  && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-0.5">{pendingCount}</span>}
+              {key==='trade4me'    && t4mPending   > 0  && <span className="bg-cyan-500   text-white text-[10px] px-1.5 py-0.5 rounded-full ml-0.5">{t4mPending}</span>}
             </button>
           ))}
         </div>
