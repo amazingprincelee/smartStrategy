@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import {
   TrendingUp, DollarSign, Clock, Lock, CheckCircle,
-  ArrowDownCircle, RefreshCw, AlertCircle, Info,
+  ArrowDownCircle, RefreshCw, AlertCircle,
   Sparkles, ShieldCheck, Zap, ChevronUp,
 } from 'lucide-react';
 import {
@@ -464,28 +464,108 @@ function InvestmentCard({ inv, dispatch, loading }) {
   );
 }
 
-// ── How it works strip ────────────────────────────────────────────────────────
+// ── How it works — step flow ──────────────────────────────────────────────────
 function HowItWorks() {
   const steps = [
-    { icon: DollarSign, title: 'Deposit',  desc: 'Choose a tier and pay via crypto' },
-    { icon: TrendingUp, title: 'Earn',     desc: 'Daily compounding based on your APY' },
-    { icon: ShieldCheck,title: '30-day lock', desc: 'Principal locked, earnings withdrawable anytime' },
-    { icon: ArrowDownCircle, title: 'Withdraw', desc: 'Request payout — processed within 48h' },
+    {
+      icon:  DollarSign,
+      title: 'Deposit',
+      desc:  'Choose a tier and send crypto via NOWPayments. Any amount above the minimum qualifies.',
+      color: 'text-cyan-400',
+      ring:  'ring-cyan-500/40',
+      bg:    'bg-cyan-500/15',
+      line:  'from-cyan-500/40 to-blue-500/40',
+    },
+    {
+      icon:  TrendingUp,
+      title: 'Earn Daily',
+      desc:  'Your balance compounds every day. Earnings are credited automatically — no action needed.',
+      color: 'text-blue-400',
+      ring:  'ring-blue-500/40',
+      bg:    'bg-blue-500/15',
+      line:  'from-blue-500/40 to-indigo-500/40',
+    },
+    {
+      icon:  ShieldCheck,
+      title: '30-Day Lock',
+      desc:  'Principal is locked for 30 days. Your earnings are yours to withdraw anytime during this period.',
+      color: 'text-indigo-400',
+      ring:  'ring-indigo-500/40',
+      bg:    'bg-indigo-500/15',
+      line:  'from-indigo-500/40 to-purple-500/40',
+    },
+    {
+      icon:  ArrowDownCircle,
+      title: 'Withdraw',
+      desc:  'Request a payout after the lock. Our team processes withdrawals manually within 24–48 hours.',
+      color: 'text-purple-400',
+      ring:  'ring-purple-500/40',
+      bg:    'bg-purple-500/15',
+      line:  null,
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {steps.map(({ icon: Icon, title, desc }, i) => (
-        <div key={title} className="relative flex flex-col items-center text-center p-3 rounded-2xl bg-white/3 border border-white/8">
-          <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center mb-2">
-            <Icon className="w-4 h-4 text-gray-300" />
+    <div className="relative">
+      {/* ── Mobile: vertical timeline ── */}
+      <div className="flex flex-col gap-0 sm:hidden">
+        {steps.map(({ icon: Icon, title, desc, color, ring, bg, line }, i) => (
+          <div key={title} className="flex gap-4">
+            {/* Left: circle + vertical line */}
+            <div className="flex flex-col items-center flex-shrink-0">
+              <div className={`w-10 h-10 rounded-full ${bg} ring-2 ${ring} flex items-center justify-center z-10`}>
+                <Icon className={`w-4 h-4 ${color}`} />
+              </div>
+              {line && (
+                <div className={`w-0.5 flex-1 min-h-[2.5rem] bg-gradient-to-b ${line} my-1`} />
+              )}
+            </div>
+            {/* Right: text */}
+            <div className={`pb-6 ${i === steps.length - 1 ? 'pb-0' : ''}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-[10px] font-black uppercase tracking-widest ${color}`}>
+                  Step {i + 1}
+                </span>
+              </div>
+              <p className="text-sm font-bold text-white leading-snug">{title}</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{desc}</p>
+            </div>
           </div>
-          <p className="text-xs font-semibold text-gray-200 mb-0.5">{title}</p>
-          <p className="text-[10px] text-gray-500 leading-relaxed">{desc}</p>
-          {/* Step number */}
-          <span className="absolute top-2 left-2 text-[9px] font-bold text-gray-600">{i + 1}</span>
-        </div>
-      ))}
+        ))}
+      </div>
+
+      {/* ── Desktop: horizontal flow ── */}
+      <div className="hidden sm:flex items-start gap-0">
+        {steps.map(({ icon: Icon, title, desc, color, ring, bg, line }, i) => (
+          <div key={title} className="flex-1 flex items-start gap-0">
+            {/* Step block */}
+            <div className="flex-1 flex flex-col items-center text-center px-3">
+              {/* Circle with connector line */}
+              <div className="relative flex items-center justify-center w-full mb-4">
+                {/* Left connector */}
+                {i > 0 && (
+                  <div className={`absolute right-1/2 top-1/2 -translate-y-1/2 h-0.5 w-1/2 bg-gradient-to-r ${steps[i-1].line}`} />
+                )}
+                {/* Right connector */}
+                {line && (
+                  <div className={`absolute left-1/2 top-1/2 -translate-y-1/2 h-0.5 w-1/2 bg-gradient-to-r ${line}`} />
+                )}
+                {/* Circle */}
+                <div className={`relative z-10 w-12 h-12 rounded-full ${bg} ring-2 ${ring} flex items-center justify-center shadow-lg`}>
+                  <Icon className={`w-5 h-5 ${color}`} />
+                </div>
+                {/* Step number */}
+                <span className={`absolute -top-2 -right-1 z-20 w-4 h-4 rounded-full bg-[#0f172a] border border-white/10
+                                  flex items-center justify-center text-[9px] font-black ${color}`}>
+                  {i + 1}
+                </span>
+              </div>
+              <p className="text-sm font-bold text-white mb-1">{title}</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed max-w-[140px]">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -620,10 +700,11 @@ export default function Trade4Me() {
 
       <div className="space-y-8">
         {/* ── How it works ── */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-gray-500" />
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-500">How It Works</h2>
+            <div className="h-px flex-1 bg-white/6" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-gray-600">How It Works</span>
+            <div className="h-px flex-1 bg-white/6" />
           </div>
           <HowItWorks />
         </div>
