@@ -1,8 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const authHeader = gs => ({ headers: { Authorization: `Bearer ${gs().auth.token}` } });
+import { authAPI } from '../../services/api';
 
 // ── Public thunks ──────────────────────────────────────────────────────────────
 
@@ -10,7 +7,7 @@ export const fetchTradeCalls = createAsyncThunk(
   'tradeCalls/fetchAll',
   async ({ status, limit = 20, page = 1 } = {}, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/trade-calls`, { params: { status, limit, page } });
+      const { data } = await authAPI.get('/trade-calls', { params: { status, limit, page } });
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -22,7 +19,7 @@ export const fetchTradeCallStats = createAsyncThunk(
   'tradeCalls/fetchStats',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/trade-calls/stats`);
+      const { data } = await authAPI.get('/trade-calls/stats');
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -34,9 +31,9 @@ export const fetchTradeCallStats = createAsyncThunk(
 
 export const adminCreateTradeCall = createAsyncThunk(
   'tradeCalls/create',
-  async (payload, { getState, rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      const { data } = await axios.post(`${API}/trade-calls`, payload, authHeader(getState));
+      const { data } = await authAPI.post('/trade-calls', payload);
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -46,9 +43,9 @@ export const adminCreateTradeCall = createAsyncThunk(
 
 export const adminUpdateTradeCall = createAsyncThunk(
   'tradeCalls/update',
-  async ({ id, ...payload }, { getState, rejectWithValue }) => {
+  async ({ id, ...payload }, { rejectWithValue }) => {
     try {
-      const { data } = await axios.put(`${API}/trade-calls/${id}`, payload, authHeader(getState));
+      const { data } = await authAPI.put(`/trade-calls/${id}`, payload);
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -58,9 +55,9 @@ export const adminUpdateTradeCall = createAsyncThunk(
 
 export const adminDeleteTradeCall = createAsyncThunk(
   'tradeCalls/delete',
-  async (id, { getState, rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      await axios.delete(`${API}/trade-calls/${id}`, authHeader(getState));
+      await authAPI.delete(`/trade-calls/${id}`);
       return id;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);

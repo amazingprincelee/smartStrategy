@@ -1,13 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { authAPI } from '../../services/api';
 
 export const fetchCEXListings = createAsyncThunk(
   'listings/fetchCEX',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/listings/cex`);
+      const { data } = await authAPI.get('/listings/cex');
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -19,7 +17,7 @@ export const fetchDEXListings = createAsyncThunk(
   'listings/fetchDEX',
   async (network = 'all', { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/listings/dex`, { params: { network } });
+      const { data } = await authAPI.get('/listings/dex', { params: { network } });
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -31,7 +29,7 @@ export const fetchCoinDetail = createAsyncThunk(
   'listings/fetchCoinDetail',
   async (id, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/listings/coin/${id}`);
+      const { data } = await authAPI.get(`/listings/coin/${id}`);
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -43,7 +41,7 @@ export const fetchCoinNews = createAsyncThunk(
   'listings/fetchCoinNews',
   async (symbol, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/listings/news/${symbol}`);
+      const { data } = await authAPI.get(`/listings/news/${symbol}`);
       return data.data;
     } catch (err) {
       return rejectWithValue([]);

@@ -1,14 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const authHeader = getState => ({ headers: { Authorization: `Bearer ${getState().auth.token}` } });
+import { authAPI } from '../../services/api';
 
 export const fetchAlphaSignals = createAsyncThunk(
   'alpha/fetchSignals',
-  async (_, { getState, rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`${API}/alpha/signals`, authHeader(getState));
+      const { data } = await authAPI.get('/alpha/signals');
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
