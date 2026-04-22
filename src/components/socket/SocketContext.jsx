@@ -12,6 +12,7 @@ import {
 import { updateBotRealtime, updatePositionPrice } from '../../redux/slices/botSlice';
 import { addLiveSignal } from '../../redux/slices/signalSlice';
 import { setLiveArbitrageOpportunities, setLiveTriangularOpportunities } from '../../redux/slices/arbitrageslice';
+import { updateLivePrices, resolveTradeCall } from '../../redux/slices/tradeCallSlice';
 
 const SocketContext = createContext(null);
 
@@ -112,6 +113,26 @@ export const SocketProvider = ({ children }) => {
     socket.on('reconnect_error',   (e) => console.error('❌ Reconnection error:', e.message));
     socket.on('reconnect_failed',  ()  => console.error('❌ Reconnection failed'));
     socket.on('error',             (e) => console.error('❌ Socket error:', e));
+
+    // ── Trade Calls — public events (live prices + auto-resolution) ────────
+    socket.on('tradecall:prices', (prices) => {
+      dispatch(updateLivePrices(prices));
+    });
+
+    socket.on('tradecall:resolved', (data) => {
+      dispatch(resolveTradeCall(data));
+      const icon   = data.status === 'win' ? '🏆' : data.status === 'tp1_hit' ? '🎯' : '🛑';
+      const msg    = data.status === 'win'     ? `${data.pair} hit target — WIN!`
+                   : data.status === 'tp1_hit' ? `${data.pair} hit TP1 🎯`
+                   : `${data.pair} hit stop loss`;
+      if (data.status === 'win') {
+        toast.success(`${icon} Trade Call: ${msg}`, { autoClose: 8000, toastId: `tc-${data._id}`, onClick: () => navigate('/trade-calls'), style: { cursor: 'pointer' } });
+      } else if (data.status === 'tp1_hit') {
+        toast.info(`${icon} Trade Call: ${msg}`, { autoClose: 6000, toastId: `tc-${data._id}`, onClick: () => navigate('/trade-calls'), style: { cursor: 'pointer' } });
+      } else if (data.status === 'loss') {
+        toast.error(`${icon} Trade Call: ${msg}`, { autoClose: 8000, toastId: `tc-${data._id}`, onClick: () => navigate('/trade-calls'), style: { cursor: 'pointer' } });
+      }
+    });
 
     // ── Public signal events — always active (anonymous + authenticated) ────
     socket.on('new-signal', (signal) => {

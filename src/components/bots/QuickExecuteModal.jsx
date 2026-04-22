@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { X, Zap, Bot, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader, Wallet } from 'lucide-react';
+import { X, Zap, Bot, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader, Wallet, Pencil, Check, RefreshCw } from 'lucide-react';
 import { authAPI } from '../../services/api';
 import { fetchBots } from '../../redux/slices/botSlice';
 import { fetchDemoAccount } from '../../redux/slices/demoSlice';
@@ -18,6 +18,7 @@ export default function QuickExecuteModal({ signal, onClose }) {
   const dispatch  = useDispatch();
   const bots               = useSelector(s => s.bots?.list || []);
   const demoVirtualBalance = useSelector(s => s.demo?.virtualBalance ?? null);
+  const liveAccounts       = useSelector(s => s.exchangeAccounts?.accounts || []);
 
   useEffect(() => {
     dispatch(fetchBots());
@@ -29,10 +30,18 @@ export default function QuickExecuteModal({ signal, onClose }) {
   const [selectedExchange, setSelectedExchange]   = useState('');
   const [riskPreset, setRiskPreset]       = useState('moderate');
   const [loading, setLoading]             = useState(false);
+  const [resetingBalance, setResetingBalance] = useState(false);
   const [conflict, setConflict]           = useState(null);
   const [confirmConflict, setConfirmConflict] = useState(false);
 
+  // Editable signal params
+  const [editEntry,  setEditEntry]  = useState(signal?.entry     ?? '');
+  const [editSL,     setEditSL]     = useState(signal?.stopLoss  ?? '');
+  const [editTP,     setEditTP]     = useState(signal?.takeProfit ?? '');
+  const [editingParams, setEditingParams] = useState(false);
+
   const activeBots = (bots || []).filter(b => b.status === 'running' || b.status === 'paused');
+  const hasLiveAccounts = liveAccounts.length > 0;
 
 
   const maxLoss = () => {
@@ -41,23 +50,43 @@ export default function QuickExecuteModal({ signal, onClose }) {
     return bal > 0 ? `$${(bal * pct / 100).toFixed(2)}` : '—';
   };
 
-  const handleExecute = async (forceConflict = false) => {
+  const handleResetBalance = async () => {
+    setResetingBalance(true);
+    try {
+      await authAPI.post('/demo/reset');
+      dispatch(fetchDemoAccount());
+      toast.success('Demo balance reset to $10,000');
+    } catch {
+      toast.error('Failed to reset balance');
+    } finally {
+      setResetingBalance(false);
+    }
+  };
+
+  const effectiveSignal = {
+    ...signal,
+    entry:       parseFloat(editEntry)  || signal?.entry,
+    stopLoss:    parseFloat(editSL)     || signal?.stopLoss,
+    takeProfit:  parseFloat(editTP)     || signal?.takeProfit,
+  };
+
+  const handleExecute = async (forceConflict = false, isLiveTrade = false) => {
     if (mode === 'existing' && !selectedBotId) {
       toast.error('Please select a bot');
       return;
     }
-    if (mode === 'new') {
+    if (mode === 'new' && !isLiveTrade) {
       if (!selectedExchange) { toast.error('Please select an exchange'); return; }
     }
 
     setLoading(true);
     try {
       const payload = {
-        signalData: signal,
+        signalData: effectiveSignal,
         riskPreset,
         ...(mode === 'existing'
           ? { botId: selectedBotId }
-          : { isDemo: true, exchange: selectedExchange, accountBalance: demoVirtualBalance }),
+          : { isDemo: !isLiveTrade, exchange: selectedExchange, accountBalance: demoVirtualBalance }),
       };
 
       const res = await authAPI.post('/bots/quick-execute', payload);
@@ -104,16 +133,64 @@ export default function QuickExecuteModal({ signal, onClose }) {
         <div className={`mx-5 mt-4 p-3 rounded-xl border ${isLong ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
           <div className="flex items-center justify-between mb-2">
             <span className="font-bold text-white">{signal?.pair}</span>
-            <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${isLong ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-              {isLong ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              {signal?.type}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${isLong ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {isLong ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                {signal?.type}
+              </span>
+              <button
+                onClick={() => setEditingParams(p => !p)}
+                className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                title={editingParams ? 'Done editing' : 'Edit entry / SL / TP'}
+              >
+                {editingParams ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Pencil className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-2 text-xs">
-            <div><span className="text-gray-500">Entry</span><div className="text-white font-medium">${signal?.entry?.toLocaleString()}</div></div>
-            <div><span className="text-gray-500">SL</span><div className="text-red-400 font-medium">${signal?.stopLoss?.toLocaleString()}</div></div>
-            <div><span className="text-gray-500">TP</span><div className="text-green-400 font-medium">${signal?.takeProfit?.toLocaleString()}</div></div>
+            <div>
+              <span className="text-gray-500">Entry</span>
+              {editingParams ? (
+                <input
+                  type="number"
+                  value={editEntry}
+                  onChange={e => setEditEntry(e.target.value)}
+                  className="w-full mt-0.5 px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-white focus:outline-none focus:border-primary-400"
+                />
+              ) : (
+                <div className="text-white font-medium">${(parseFloat(editEntry) || signal?.entry)?.toLocaleString()}</div>
+              )}
+            </div>
+            <div>
+              <span className="text-gray-500">SL</span>
+              {editingParams ? (
+                <input
+                  type="number"
+                  value={editSL}
+                  onChange={e => setEditSL(e.target.value)}
+                  className="w-full mt-0.5 px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-red-300 focus:outline-none focus:border-red-400"
+                />
+              ) : (
+                <div className="text-red-400 font-medium">${(parseFloat(editSL) || signal?.stopLoss)?.toLocaleString()}</div>
+              )}
+            </div>
+            <div>
+              <span className="text-gray-500">TP</span>
+              {editingParams ? (
+                <input
+                  type="number"
+                  value={editTP}
+                  onChange={e => setEditTP(e.target.value)}
+                  className="w-full mt-0.5 px-2 py-1 text-xs bg-black/30 border border-white/20 rounded text-green-300 focus:outline-none focus:border-green-400"
+                />
+              ) : (
+                <div className="text-green-400 font-medium">${(parseFloat(editTP) || signal?.takeProfit)?.toLocaleString()}</div>
+              )}
+            </div>
           </div>
+          {editingParams && (
+            <p className="mt-2 text-[10px] text-gray-500">Editing these values overrides the signal defaults for this trade only.</p>
+          )}
         </div>
 
         {/* Conflict warning */}
@@ -172,7 +249,18 @@ export default function QuickExecuteModal({ signal, onClose }) {
                     <span className="text-xs font-normal text-gray-400 ml-1">USDT</span>
                   </p>
                 </div>
-                <span className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Demo</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleResetBalance}
+                    disabled={resetingBalance}
+                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-brandDark-500 text-gray-400 hover:text-white hover:border-gray-400 transition-colors disabled:opacity-50"
+                    title="Reset demo balance to $10,000"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${resetingBalance ? 'animate-spin' : ''}`} />
+                    Reset
+                  </button>
+                  <span className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Demo</span>
+                </div>
               </div>
             </div>
           )}
@@ -247,18 +335,36 @@ export default function QuickExecuteModal({ signal, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 pb-5 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-brandDark-600 text-sm text-gray-300 hover:bg-brandDark-700 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={() => handleExecute(false)}
-            disabled={loading || (mode === 'new' && !selectedExchange) || (mode === 'existing' && !selectedBotId)}
-            className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-            {loading ? 'Executing...' : 'Execute Trade'}
-          </button>
+        <div className="px-5 pb-5 space-y-2">
+          {/* Trade This Now — live exchange (shown when user has connected accounts) */}
+          {hasLiveAccounts && mode === 'new' && (
+            <button
+              onClick={() => handleExecute(false, true)}
+              disabled={loading}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-green-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? <Loader className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+              {loading ? 'Executing...' : 'Trade This Now — Live'}
+            </button>
+          )}
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-brandDark-600 text-sm text-gray-300 hover:bg-brandDark-700 transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={() => handleExecute(false)}
+              disabled={loading || (mode === 'new' && !selectedExchange) || (mode === 'existing' && !selectedBotId)}
+              className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              {loading ? 'Executing...' : 'Execute Demo Trade'}
+            </button>
+          </div>
+          {!hasLiveAccounts && (
+            <p className="text-center text-[10px] text-gray-600">
+              Want to trade live? <button onClick={() => { navigate('/account'); onClose(); }} className="text-cyan-500 hover:underline">Connect an exchange</button>
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -13,6 +13,9 @@ import adminReducer from './slices/adminSlice';
 import supportReducer from './slices/supportSlice';
 import withdrawalReducer from './slices/withdrawalSlice';
 import investmentReducer from './slices/investmentSlice';
+import alphaReducer from './slices/alphaSlice';
+import listingsReducer from './slices/newListingsSlice';
+import tradeCallReducer from './slices/tradeCallSlice';
 
 export const store = configureStore({
   reducer: {
@@ -30,6 +33,9 @@ export const store = configureStore({
     support: supportReducer,
     withdrawals: withdrawalReducer,
     investment: investmentReducer,
+    alpha:      alphaReducer,
+    listings:   listingsReducer,
+    tradeCalls: tradeCallReducer,
   },
 });
 

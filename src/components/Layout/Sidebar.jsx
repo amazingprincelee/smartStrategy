@@ -12,6 +12,10 @@ import {
   Crown,
   ShieldCheck,
   LifeBuoy,
+  Sparkles,
+  Zap,
+  PiggyBank,
+  Radio,
 } from 'lucide-react';
 import SmartStrategyIcon from '../Logo/SmartStrategyIcon';
 
@@ -67,8 +71,24 @@ const Sidebar = ({ isOpen, onClose }) => {
     {
       name: 'Trade4Me',
       href: '/trade4me',
-      icon: TrendingUp,
+      icon: PiggyBank,
       badge: 'New',
+    },
+    {
+      name: 'Trade Calls',
+      href: '/trade-calls',
+      icon: Radio,
+      badge: 'Live',
+    },
+    {
+      name: 'New Listings',
+      href: '/new-listings',
+      icon: Sparkles,
+    },
+    {
+      name: 'Early Alpha',
+      href: '/early-alpha',
+      icon: Zap,
     },
     {
       name: 'Pricing',

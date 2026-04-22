@@ -33,6 +33,9 @@ import Support from './pages/Support';
 import Account from './pages/Account';
 import Guide from './pages/Guide';
 import Trade4Me from './pages/Trade4Me';
+import NewListings from './pages/NewListings';
+import EarlyAlpha from './pages/EarlyAlpha';
+import TradeCalls from './pages/TradeCalls';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 
@@ -106,6 +109,9 @@ function AppInner() {
               <Route path="/support" element={<Support />} />
               <Route path="/support/tickets/:id" element={<Support />} />
               <Route path="/trade4me" element={<Trade4Me />} />
+              <Route path="/new-listings" element={<NewListings />} />
+              <Route path="/early-alpha" element={<EarlyAlpha />} />
+              <Route path="/trade-calls" element={<TradeCalls />} />
               <Route path="/account" element={<Account />} />
               <Route path="/guide" element={<Guide />} />
             </Route>

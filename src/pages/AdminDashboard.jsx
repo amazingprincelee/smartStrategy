@@ -6,6 +6,7 @@ import {
   AlertTriangle, Trash2, Gift, TrendingUp, Send,
   Megaphone, Eye, EyeOff, Loader, ArrowDownCircle, Clock, Key,
   Receipt, ChevronRight, RefreshCw, Copy, Wallet, Layers,
+  Radio, Target, ShieldAlert, Trophy, Plus, Pencil, Check,
 } from 'lucide-react';
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminSubscriptions,
@@ -20,8 +21,14 @@ import { adminFetchAllTickets, adminFetchTicket, adminReplyTicket } from '../red
 import { adminFetchWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal, adminMarkPaid } from '../redux/slices/withdrawalSlice';
 import {
   fetchAdminInvestmentStats, fetchAdminInvestorList,
-  fetchAdminWithdrawals, adminUpdateWithdrawal,
+  fetchAdminWithdrawals, adminUpdateWithdrawal, triggerManualAccrual,
+  clearInvestmentMessages,
 } from '../redux/slices/investmentSlice';
+import {
+  fetchTradeCalls, fetchTradeCallStats,
+  adminCreateTradeCall, adminUpdateTradeCall, adminDeleteTradeCall,
+} from '../redux/slices/tradeCallSlice';
+import TradeCallCard from '../components/TradeCalls/TradeCallCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const n    = (v) => (v ?? 0).toLocaleString();
@@ -1282,9 +1289,300 @@ function StatusPill({ status, map }) {
   return <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${m.cls} capitalize`}>{m.label}</span>;
 }
 
+// ── Trade Calls Admin Tab ──────────────────────────────────────────────────────
+
+const EMPTY_FORM = { pair: '', direction: 'long', entryPrice: '', stopLoss: '', tp1: '', tp2: '', notes: '' };
+
+function TradeCallsAdminTab({ dispatch }) {
+  const { calls, stats, loading, error, success } = useSelector(s => s.tradeCalls);
+  const [view,   setView]   = useState('active');   // active | history | post
+  const [form,   setForm]   = useState(EMPTY_FORM);
+  const [editId, setEditId] = useState(null);
+  const [toast,  setToast]  = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  useEffect(() => {
+    dispatch(fetchTradeCallStats());
+    dispatch(fetchTradeCalls({ limit: 50 }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (success) showToast(success);
+  }, [success]);
+
+  const sf = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.pair || !form.entryPrice || !form.stopLoss || !form.tp1) {
+      showToast('Fill in pair, entry, stop loss and TP1', 'error');
+      return;
+    }
+    if (editId) {
+      const r = await dispatch(adminUpdateTradeCall({ id: editId, ...form }));
+      if (adminUpdateTradeCall.fulfilled.match(r)) { setEditId(null); setForm(EMPTY_FORM); setView('active'); }
+    } else {
+      const r = await dispatch(adminCreateTradeCall(form));
+      if (adminCreateTradeCall.fulfilled.match(r)) { setForm(EMPTY_FORM); setView('active'); }
+    }
+  };
+
+  const startEdit = (call) => {
+    setForm({
+      pair: call.pair, direction: call.direction,
+      entryPrice: call.entryPrice, stopLoss: call.stopLoss,
+      tp1: call.tp1, tp2: call.tp2 || '', notes: call.notes || '',
+    });
+    setEditId(call._id);
+    setView('post');
+  };
+
+  const handleResolve = async (id, status) => {
+    if (!window.confirm(`Mark this call as ${status}?`)) return;
+    const r = await dispatch(adminUpdateTradeCall({ id, status }));
+    if (adminUpdateTradeCall.fulfilled.match(r)) showToast(`Marked as ${status}`);
+    else showToast('Action failed', 'error');
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this trade call?')) return;
+    const r = await dispatch(adminDeleteTradeCall(id));
+    if (adminDeleteTradeCall.fulfilled.match(r)) showToast('Deleted');
+  };
+
+  const activeCalls  = calls.filter(c => ['open', 'tp1_hit'].includes(c.status));
+  const historyCalls = calls.filter(c => ['win', 'loss', 'cancelled'].includes(c.status));
+
+  const VIEWS = [
+    { key: 'active',  label: 'Active Calls', count: activeCalls.length },
+    { key: 'history', label: 'History',       count: historyCalls.length },
+    { key: 'post',    label: editId ? 'Edit Call' : 'Post New Call', icon: Plus },
+  ];
+
+  return (
+    <div className="space-y-5">
+
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-yellow-500/15">
+            <Radio className="w-5 h-5 text-yellow-400" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white">Trade Calls</h2>
+            <p className="text-xs text-gray-500">Post and manage analyst trade calls</p>
+          </div>
+        </div>
+        <button onClick={() => { dispatch(fetchTradeCallStats()); dispatch(fetchTradeCalls({ limit: 50 })); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-white/4 hover:bg-white/8 text-xs text-gray-400 hover:text-white transition-all">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium ${
+          toast.type === 'error' ? 'bg-red-900/30 border-red-600/30 text-red-300' : 'bg-green-900/30 border-green-600/30 text-green-300'
+        }`}>
+          {toast.type === 'error' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Stats row */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Win Rate',    value: `${stats.winRate}%`,      color: stats.winRate >= 70 ? 'text-emerald-400' : 'text-yellow-400' },
+            { label: '30-Day Rate', value: `${stats.recentWinRate}%`, color: 'text-cyan-400' },
+            { label: 'Total Wins',  value: stats.wins,               color: 'text-emerald-400' },
+            { label: 'Total Losses',value: stats.losses,             color: 'text-red-400' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="rounded-xl border border-white/8 bg-[#111827] p-3 text-center">
+              <p className={`text-xl font-bold ${color}`}>{value}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sub-nav */}
+      <div className="flex gap-1 border-b border-white/8 overflow-x-auto">
+        {VIEWS.map(({ key, label, count, icon: Icon }) => (
+          <button key={key} onClick={() => { setView(key); if (key !== 'post') { setEditId(null); setForm(EMPTY_FORM); } }}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${
+              view === key ? 'text-white bg-[#1a2235] border-b-2 border-yellow-500' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}>
+            {Icon && <Icon className="w-3.5 h-3.5" />}
+            {label}
+            {count > 0 && <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{count}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* ── POST FORM ── */}
+      {view === 'post' && (
+        <div className="rounded-2xl border border-white/8 bg-[#111827] p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-white">{editId ? 'Edit Trade Call' : 'Post New Trade Call'}</h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Pair (e.g. BTCUSDT)</label>
+              <input value={form.pair} onChange={e => sf('pair', e.target.value.toUpperCase())}
+                placeholder="BTCUSDT" className="w-full bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-yellow-500" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Direction</label>
+              <div className="flex gap-2">
+                {['long', 'short'].map(d => (
+                  <button key={d} onClick={() => sf('direction', d)}
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
+                      form.direction === d
+                        ? d === 'long' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-red-500/20 border-red-500/50 text-red-400'
+                        : 'border-white/10 text-gray-400 hover:text-white'
+                    }`}>
+                    {d === 'long' ? '▲ LONG' : '▼ SHORT'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {[
+              { key: 'entryPrice', label: 'Entry Price ($)' },
+              { key: 'stopLoss',   label: 'Stop Loss ($)' },
+              { key: 'tp1',        label: 'TP1 — Take Profit 1 ($)' },
+              { key: 'tp2',        label: 'TP2 — Take Profit 2 (optional)' },
+            ].map(({ key, label }) => (
+              <div key={key}>
+                <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                <input type="number" value={form[key]} onChange={e => sf(key, e.target.value)}
+                  className="w-full bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-yellow-500" />
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Analysis Notes</label>
+            <textarea value={form.notes} onChange={e => sf('notes', e.target.value)} rows={3}
+              placeholder="Briefly explain the reasoning behind this call..."
+              className="w-full bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-yellow-500 resize-none" />
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            {editId && (
+              <button onClick={() => { setEditId(null); setForm(EMPTY_FORM); setView('active'); }}
+                className="px-4 py-2 rounded-lg border border-white/10 text-sm text-gray-400 hover:text-white transition-colors">
+                Cancel
+              </button>
+            )}
+            <button onClick={handleSubmit} disabled={loading}
+              className="flex items-center gap-2 px-6 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white text-sm font-semibold transition-colors disabled:opacity-50">
+              {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
+              {editId ? 'Update Call' : 'Post Trade Call'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── ACTIVE CALLS ── */}
+      {view === 'active' && (
+        <div className="space-y-3">
+          {activeCalls.length === 0 ? (
+            <div className="text-center py-16 text-gray-500">
+              <Radio className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No active trade calls</p>
+              <button onClick={() => setView('post')} className="mt-3 text-xs text-yellow-400 hover:underline">Post your first call →</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {activeCalls.map(call => (
+                <div key={call._id} className="relative group">
+                  <TradeCallCard call={call} />
+                  {/* Admin action overlay */}
+                  <div className="absolute top-2 right-2 hidden group-hover:flex gap-1 z-10">
+                    <button onClick={() => startEdit(call)} title="Edit"
+                      className="p-1.5 rounded-lg bg-gray-800/90 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleResolve(call._id, 'win')} title="Mark Win"
+                      className="p-1.5 rounded-lg bg-emerald-900/90 hover:bg-emerald-800 text-emerald-400 transition-colors">
+                      <Trophy className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleResolve(call._id, 'loss')} title="Mark Loss"
+                      className="p-1.5 rounded-lg bg-red-900/90 hover:bg-red-800 text-red-400 transition-colors">
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(call._id)} title="Delete"
+                      className="p-1.5 rounded-lg bg-gray-800/90 hover:bg-red-900 text-gray-400 hover:text-red-400 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── HISTORY ── */}
+      {view === 'history' && (
+        <div className="rounded-2xl border border-white/8 bg-[#111827] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="border-b border-white/8">
+              <tr className="text-xs text-gray-500 uppercase">
+                <th className="px-4 py-3 text-left">Pair</th>
+                <th className="px-4 py-3 text-left">Direction</th>
+                <th className="px-4 py-3 text-right">Entry</th>
+                <th className="px-4 py-3 text-right">TP1</th>
+                <th className="px-4 py-3 text-right">SL</th>
+                <th className="px-4 py-3 text-right">Close Price</th>
+                <th className="px-4 py-3 text-center">Result</th>
+                <th className="px-4 py-3 text-right">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyCalls.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">No history yet</td></tr>
+              ) : historyCalls.map(call => (
+                <tr key={call._id} className="border-b border-white/5 hover:bg-white/3">
+                  <td className="px-4 py-3 font-semibold text-white">{call.pair}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold ${call.direction === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {call.direction.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-300">${Number(call.entryPrice).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right text-emerald-400">${Number(call.tp1).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right text-red-400">${Number(call.stopLoss).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right text-gray-300">{call.closingPrice ? `$${Number(call.closingPrice).toLocaleString()}` : '—'}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
+                      call.status === 'win'  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                      call.status === 'loss' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                                              'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                    }`}>
+                      {call.status.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-500 text-xs">
+                    {call.closedAt ? new Date(call.closedAt).toLocaleDateString() : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Trade4MeTab({ dispatch }) {
-  const { adminStats, investorList, investorTotal, adminWithdrawals, adminWithdrawalsTotal } =
+  const { adminStats, investorList, investorTotal, adminWithdrawals, adminWithdrawalsTotal, loading: invLoading, error: invError, success: invSuccess } =
     useSelector(s => s.investment);
+  const adminSettings = useSelector(s => s.admin.settings);
 
   const [view,      setView]      = useState('overview');
   const [wStatus,   setWStatus]   = useState('all');
@@ -1292,7 +1590,74 @@ function Trade4MeTab({ dispatch }) {
   const [noteMap,   setNoteMap]   = useState({});
   const [toast,     setToast]     = useState(null);
   const [copied,    setCopied]    = useState(null);
-  const [expanded,  setExpanded]  = useState(null); // expanded investor _id
+  const [expanded,  setExpanded]  = useState(null);
+
+  // ── Settings form state ──────────────────────────────────────────
+  const [sfSaving,  setSfSaving]  = useState(false);
+  const [sfForm,    setSfForm]    = useState(null); // null = not yet loaded
+
+  // Sync form when admin settings arrive
+  useEffect(() => {
+    if (adminSettings?.trade4me && !sfForm) {
+      const t = adminSettings.trade4me;
+      setSfForm({
+        starter_apy:       t.tiers?.starter?.apy       ?? 15,
+        starter_min:       t.tiers?.starter?.minAmount ?? 30,
+        starter_enabled:   t.tiers?.starter?.enabled   ?? true,
+        growth_apy:        t.tiers?.growth?.apy        ?? 18,
+        growth_min:        t.tiers?.growth?.minAmount  ?? 500,
+        growth_enabled:    t.tiers?.growth?.enabled    ?? true,
+        premium_apy:       t.tiers?.premium?.apy       ?? 20,
+        premium_min:       t.tiers?.premium?.minAmount ?? 2000,
+        premium_enabled:   t.tiers?.premium?.enabled   ?? true,
+        lockDays:          t.lockDays             ?? 30,
+        acceptingInvestments: t.acceptingInvestments ?? true,
+      });
+    }
+  }, [adminSettings, sfForm]);
+
+  // Default form before settings load
+  const sf = sfForm ?? {
+    starter_apy: 15, starter_min: 30,   starter_enabled: true,
+    growth_apy:  18, growth_min:  500,  growth_enabled:  true,
+    premium_apy: 20, premium_min: 2000, premium_enabled: true,
+    lockDays: 30, acceptingInvestments: true,
+  };
+
+  const setSf = (key, val) => setSfForm(prev => ({ ...(prev ?? sf), [key]: val }));
+
+  const handleSaveSettings = async () => {
+    setSfSaving(true);
+    const payload = {
+      trade4me: {
+        tiers: {
+          starter: { apy: Number(sf.starter_apy), minAmount: Number(sf.starter_min), enabled: sf.starter_enabled },
+          growth:  { apy: Number(sf.growth_apy),  minAmount: Number(sf.growth_min),  enabled: sf.growth_enabled  },
+          premium: { apy: Number(sf.premium_apy), minAmount: Number(sf.premium_min), enabled: sf.premium_enabled },
+        },
+        lockDays: Number(sf.lockDays),
+        acceptingInvestments: sf.acceptingInvestments,
+      },
+    };
+    const result = await dispatch(updateAdminSettings(payload));
+    setSfSaving(false);
+    if (updateAdminSettings.fulfilled.match(result)) {
+      showToast('Settings saved successfully');
+      dispatch(fetchAdminSettings());
+    } else {
+      showToast('Failed to save settings', 'error');
+    }
+  };
+
+  const handleAccrueEarnings = async () => {
+    if (!window.confirm('Manually trigger today\'s earnings accrual for all active investments?')) return;
+    const result = await dispatch(triggerManualAccrual());
+    if (triggerManualAccrual.fulfilled.match(result)) {
+      showToast(`Accrual complete — ${result.payload.updated} investments updated`);
+    } else {
+      showToast('Accrual failed', 'error');
+    }
+  };
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -1336,6 +1701,7 @@ function Trade4MeTab({ dispatch }) {
     { key: 'overview',    label: 'Overview',    icon: BarChart2        },
     { key: 'investors',   label: 'Investors',   icon: Users,   count: investorTotal },
     { key: 'withdrawals', label: 'Withdrawals', icon: ArrowDownCircle, count: s?.pendingWithdrawals, countColor: 'bg-yellow-500' },
+    { key: 'settings',    label: 'Settings',    icon: Settings },
   ];
 
   return (
@@ -1687,6 +2053,136 @@ function Trade4MeTab({ dispatch }) {
           </div>
         </div>
       )}
+
+      {/* ════════════════════════ SETTINGS ════════════════════════ */}
+      {view === 'settings' && (
+        <div className="space-y-6">
+
+          {/* ── Tier Configuration ── */}
+          <div className="rounded-2xl border border-white/8 bg-[#111827] overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/8 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-semibold text-white">Investment Tier Configuration</h3>
+            </div>
+            <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { key: 'starter', label: 'Starter', color: 'text-cyan-400',   border: 'border-cyan-500/30' },
+                { key: 'growth',  label: 'Growth',  color: 'text-violet-400', border: 'border-violet-500/30' },
+                { key: 'premium', label: 'Premium', color: 'text-amber-400',  border: 'border-amber-500/30' },
+              ].map(({ key, label, color, border }) => (
+                <div key={key} className={`rounded-xl border ${border} bg-white/3 p-4 space-y-3`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-bold ${color}`}>{label}</span>
+                    {/* Enabled toggle */}
+                    <button
+                      onClick={() => setSf(`${key}_enabled`, !sf[`${key}_enabled`])}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${sf[`${key}_enabled`] ? 'bg-cyan-500' : 'bg-gray-600'}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${sf[`${key}_enabled`] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">APY %</label>
+                    <input
+                      type="number" min="0" max="100" step="0.1"
+                      value={sf[`${key}_apy`]}
+                      onChange={e => setSf(`${key}_apy`, e.target.value)}
+                      className="w-full bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Minimum Amount ($)</label>
+                    <input
+                      type="number" min="0" step="1"
+                      value={sf[`${key}_min`]}
+                      onChange={e => setSf(`${key}_min`, e.target.value)}
+                      className="w-full bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Global Settings ── */}
+          <div className="rounded-2xl border border-white/8 bg-[#111827] overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/8 flex items-center gap-2">
+              <Settings className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-semibold text-white">Global Settings</h3>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-white/3 border border-white/8">
+                <div>
+                  <p className="text-sm font-medium text-white">Accept New Investments</p>
+                  <p className="text-xs text-gray-500 mt-0.5">When off, no new investment applications are accepted</p>
+                </div>
+                <button
+                  onClick={() => setSf('acceptingInvestments', !sf.acceptingInvestments)}
+                  className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${sf.acceptingInvestments ? 'bg-emerald-500' : 'bg-gray-600'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sf.acceptingInvestments ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white/3 border border-white/8">
+                <label className="text-sm font-medium text-white block mb-1">
+                  Lock Period (days)
+                </label>
+                <p className="text-xs text-gray-500 mb-3">How long the principal is locked before withdrawal is allowed</p>
+                <input
+                  type="number" min="0" max="365"
+                  value={sf.lockDays}
+                  onChange={e => setSf('lockDays', e.target.value)}
+                  className="w-32 bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Save button ── */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveSettings}
+              disabled={sfSaving}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {sfSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
+              {sfSaving ? 'Saving…' : 'Save Settings'}
+            </button>
+          </div>
+
+          {/* ── Manual Operations ── */}
+          <div className="rounded-2xl border border-white/8 bg-[#111827] overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/8 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-yellow-400" />
+              <h3 className="text-sm font-semibold text-white">Manual Operations</h3>
+            </div>
+            <div className="p-5">
+              <div className="flex items-start justify-between p-4 rounded-xl bg-white/3 border border-yellow-500/20">
+                <div>
+                  <p className="text-sm font-medium text-white">Trigger Earnings Accrual</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Manually runs the daily earnings calculation for all active investments.
+                    The automatic cron runs at 01:00 UTC daily — only use this if it missed.
+                  </p>
+                </div>
+                <button
+                  onClick={handleAccrueEarnings}
+                  disabled={invLoading}
+                  className="flex-shrink-0 ml-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/30 text-yellow-400 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {invLoading
+                    ? <Loader className="w-4 h-4 animate-spin" />
+                    : <Activity className="w-4 h-4" />
+                  }
+                  Run Now
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
@@ -1696,6 +2192,7 @@ const TABS = [
   { key:'overview',      label:'Overview',      icon: BarChart2 },
   { key:'users',         label:'Users',         icon: Users },
   { key:'trade4me',      label:'Trade4Me',      icon: TrendingUp },
+  { key:'trade-calls',   label:'Trade Calls',   icon: Radio },
   { key:'subscriptions', label:'Subscriptions', icon: DollarSign },
   { key:'transactions',  label:'Transactions',  icon: Receipt },
   { key:'support',       label:'Support',       icon: LifeBuoy },
@@ -1779,6 +2276,7 @@ export default function AdminDashboard() {
           {tab==='analytics'     && <AnalyticsTab rev={rev} ua={ua} pa={pa} loading={loading} dispatch={dispatch} />}
           {tab==='audit'         && <AuditTab auditLogs={auditLogs} auditTotal={auditTotal} loading={loading} dispatch={dispatch} />}
           {tab==='trade4me'      && <Trade4MeTab dispatch={dispatch} />}
+          {tab==='trade-calls'   && <TradeCallsAdminTab dispatch={dispatch} />}
           {tab==='payment-keys'  && <PaymentKeysTab dispatch={dispatch} />}
           {tab==='settings'      && <SettingsTab settings={settings} loading={loading} dispatch={dispatch} actionSuccess={actionSuccess} error={error} />}
         </div>

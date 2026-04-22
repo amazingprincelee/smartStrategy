@@ -23,8 +23,11 @@ import {
   MinusCircle,
   XCircle,
   Info,
+  Radio,
+  Trophy,
 } from 'lucide-react';
 import { fetchSignals, fetchPlatformStats, analyzeSignal, clearAnalysis, fetchAvailablePairs } from '../redux/slices/signalSlice';
+import { fetchTradeCalls, fetchTradeCallStats } from '../redux/slices/tradeCallSlice';
 import SmartStrategyIcon from '../components/Logo/SmartStrategyIcon';
 
 /* ─── helpers ──────────────────────────────────────────────────────────── */
@@ -202,6 +205,8 @@ const Home = () => {
   }, [isAuth, navigate]);
 
   const { spot, futures, stats, loading, statsLoading, analysis, analysisLoading, analysisError, availablePairs } = useSelector(s => s.signals);
+  const { calls: tradeCalls, stats: tradeCallStats, loading: tradeCallsLoading } = useSelector(s => s.tradeCalls);
+  const recentCalls = tradeCalls.slice(0, 6);
   const [activeTab, setActiveTab] = useState('spot');
   const [lastRefresh, setLastRefresh] = useState(null);
 
@@ -217,6 +222,11 @@ const Home = () => {
     setAzForm(f => ({ ...f, symbol: pair }));
     setAzQuery('');
   };
+
+  useEffect(() => {
+    dispatch(fetchTradeCalls({ limit: 6 }));
+    dispatch(fetchTradeCallStats());
+  }, [dispatch]);
 
   useEffect(() => {
     dispatch(fetchSignals('spot'));
@@ -457,6 +467,162 @@ const Home = () => {
         </div>
       </section>
 
+
+      {/* ── TRADE CALLS ──────────────────────────────────────────────── */}
+      <section className="relative py-16 overflow-hidden sm:py-20 bg-brandDark-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-brandDark-900 via-brandDark-800 to-brandDark-900" />
+        <div className="absolute top-0 rounded-full pointer-events-none left-1/4 w-96 h-96 bg-cyan-500/5 blur-3xl" />
+        <div className="absolute bottom-0 rounded-full pointer-events-none right-1/4 w-96 h-96 bg-green-500/5 blur-3xl" />
+
+        <div className="container relative px-4 mx-auto sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-12 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 mb-4 text-xs font-semibold border rounded-full text-cyan-400 bg-cyan-500/10 border-cyan-500/20">
+              <Radio className="w-3.5 h-3.5" />
+              Expert Trade Calls — Updated Daily
+            </div>
+            <h2 className="text-3xl font-bold text-white sm:text-4xl">Our Track Record Speaks for Itself</h2>
+            <p className="max-w-xl mx-auto mt-4 text-gray-400">
+              Every call is posted before the move — with exact entry, stop-loss, and take-profit.
+              The market decides the outcome. We show you the full scorecard.
+            </p>
+          </div>
+
+          {/* Win Rate Stats */}
+          {tradeCallStats && (
+            <div className="flex flex-wrap justify-center gap-10 mb-12">
+              <div className="text-center">
+                <div className={`text-5xl sm:text-6xl font-extrabold mb-1 ${
+                  (tradeCallStats.winRate || 0) >= 60 ? 'text-green-400' :
+                  (tradeCallStats.winRate || 0) >= 40 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {tradeCallStats.winRate || 0}%
+                </div>
+                <div className="text-sm text-gray-400">Overall Win Rate</div>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl sm:text-6xl font-extrabold mb-1 text-cyan-400">{tradeCallStats.recentWinRate || 0}%</div>
+                <div className="text-sm text-gray-400">30-Day Win Rate</div>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl sm:text-6xl font-extrabold mb-1 text-emerald-400">{tradeCallStats.wins || 0}</div>
+                <div className="text-sm text-gray-400">Winning Calls</div>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl sm:text-6xl font-extrabold mb-1 text-gray-300">{(tradeCallStats.wins || 0) + (tradeCallStats.losses || 0)}</div>
+                <div className="text-sm text-gray-400">Total Calls</div>
+              </div>
+            </div>
+          )}
+
+          {/* Recent calls table */}
+          <div className="max-w-4xl mx-auto">
+            <div className="overflow-hidden border rounded-2xl border-brandDark-700 bg-brandDark-800">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-brandDark-700 bg-brandDark-900/50">
+                <span className="text-sm font-semibold text-white">Recent Trade Calls</span>
+                <span className="flex items-center gap-1.5 text-xs text-green-400">
+                  <span className="inline-flex w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" />
+                  Live tracking
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-xs uppercase border-b border-brandDark-700 text-gray-500">
+                      <th className="px-5 py-3 font-medium text-left">Pair</th>
+                      <th className="px-4 py-3 font-medium text-left">Direction</th>
+                      <th className="px-4 py-3 font-medium text-right">Entry</th>
+                      <th className="hidden px-4 py-3 font-medium text-right sm:table-cell">TP1</th>
+                      <th className="hidden px-4 py-3 font-medium text-right sm:table-cell">SL</th>
+                      <th className="px-4 py-3 font-medium text-center">Result</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brandDark-700">
+                    {tradeCallsLoading ? (
+                      Array(5).fill(0).map((_, i) => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="px-5 py-3.5"><div className="h-4 rounded w-20 bg-brandDark-600" /></td>
+                          <td className="px-4 py-3.5"><div className="h-5 rounded-full w-14 bg-brandDark-600" /></td>
+                          <td className="px-4 py-3.5 text-right"><div className="h-4 ml-auto rounded w-16 bg-brandDark-600" /></td>
+                          <td className="hidden px-4 py-3.5 text-right sm:table-cell"><div className="h-4 ml-auto rounded w-16 bg-brandDark-600" /></td>
+                          <td className="hidden px-4 py-3.5 text-right sm:table-cell"><div className="h-4 ml-auto rounded w-16 bg-brandDark-600" /></td>
+                          <td className="px-4 py-3.5 text-center"><div className="mx-auto rounded-full h-5 w-16 bg-brandDark-600" /></td>
+                        </tr>
+                      ))
+                    ) : recentCalls.length > 0 ? recentCalls.map(call => (
+                      <tr key={call._id} className="transition-colors hover:bg-brandDark-700/30">
+                        <td className="px-5 py-3.5">
+                          <span className="text-sm font-bold text-white">{call.pair}</span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${
+                            call.direction === 'long'
+                              ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                              : 'bg-red-500/20 text-red-400 border-red-500/30'
+                          }`}>
+                            {call.direction === 'long' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {call.direction?.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <span className="text-sm text-gray-300">${call.entryPrice?.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                        </td>
+                        <td className="hidden px-4 py-3.5 text-right sm:table-cell">
+                          <span className="text-sm text-green-400">${call.tp1?.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                        </td>
+                        <td className="hidden px-4 py-3.5 text-right sm:table-cell">
+                          <span className="text-sm text-red-400">${call.stopLoss?.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          {call.status === 'open' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                              <span className="inline-flex w-1 h-1 bg-blue-400 rounded-full animate-ping" />
+                              Open
+                            </span>
+                          ) : call.status === 'tp1_hit' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                              TP1 Hit
+                            </span>
+                          ) : call.status === 'win' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                              <Trophy className="w-3 h-3" /> Win
+                            </span>
+                          ) : call.status === 'loss' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                              ✗ Loss
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-500">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-10 text-sm text-center text-gray-500">
+                          No trade calls yet — check back soon
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="mt-8 text-center">
+              <p className="mb-4 text-sm text-gray-500">Full history + live price tracking available after sign-up</p>
+              <button
+                onClick={handleGetStarted}
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-green-500 text-white font-semibold text-base shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:scale-105 transition-all duration-200"
+              >
+                <Radio className="w-4 h-4" />
+                View All Trade Calls
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────── */}
       <section className="py-16 bg-white sm:py-20 dark:bg-brandDark-900">

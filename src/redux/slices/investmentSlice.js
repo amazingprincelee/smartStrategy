@@ -49,6 +49,18 @@ export const requestWithdrawal = createAsyncThunk(
   },
 );
 
+export const triggerManualAccrual = createAsyncThunk(
+  'investment/triggerManualAccrual',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await axios.post(`${API}/investment/admin/accrue-earnings`, {}, authHeader(getState));
+      return data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  },
+);
+
 // ── Admin thunks ──────────────────────────────────────────────────────────────
 
 export const fetchAdminInvestmentStats = createAsyncThunk(
@@ -124,6 +136,8 @@ const investmentSlice = createSlice({
     investorTotal: 0,
     adminWithdrawals: [],
     adminWithdrawalsTotal: 0,
+    // Admin misc
+    accrualResult: null,
     // UI
     loading:   false,
     error:     null,
@@ -184,6 +198,14 @@ const investmentSlice = createSlice({
         const idx = state.adminWithdrawals.findIndex(w => w._id === updated._id);
         if (idx !== -1) state.adminWithdrawals[idx] = updated;
         state.success = `Withdrawal marked as ${updated.status}`;
+      })
+      // manual accrual
+      .addCase(triggerManualAccrual.pending,   (state) => { state.loading = true; state.error = null; })
+      .addCase(triggerManualAccrual.rejected,  (state, action) => { state.loading = false; state.error = action.payload; })
+      .addCase(triggerManualAccrual.fulfilled, (state, action) => {
+        state.loading       = false;
+        state.accrualResult = action.payload;
+        state.success       = `Earnings accrued for ${action.payload.updated} investments`;
       });
   },
 });
