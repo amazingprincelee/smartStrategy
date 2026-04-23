@@ -30,6 +30,18 @@ import {
 } from '../redux/slices/tradeCallSlice';
 import TradeCallCard from '../components/TradeCalls/TradeCallCard';
 
+// ── Supported trading pairs (shared with analysis module) ─────────────────────
+const TRADE_PAIRS = [
+  'BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','ADAUSDT','LTCUSDT','DOGEUSDT',
+  'AVAXUSDT','DOTUSDT','ATOMUSDT','NEARUSDT','LINKUSDT','UNIUSDT','AAVEUSDT','MATICUSDT',
+  'ARBUSDT','OPUSDT','APTUSDT','SUIUSDT','INJUSDT','STXUSDT','ICPUSDT','FILUSDT',
+  'PEPEUSDT','SHIBUSDT','FLOKIUSDT','BONKUSDT','WIFUSDT','MEMEUSDT',
+  'FETUSDT','RNDRUSDT','WLDUSDT','AGIXUSDT','OCEANUSDT',
+  'AXSUSDT','SANDUSDT','MANAUSDT','GALAUSDT','APEUSDT','GMTUSDT',
+  'RUNEUSDT','THETAUSDT','EGLDUSDT','VETUSDT','HBARUSDT','ALGOUSDT',
+  'TONUSDT','JUPUSDT','FTMUSDT','XTZUSDT','ZRXUSDT',
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const n    = (v) => (v ?? 0).toLocaleString();
 const usd  = (v) => `$${(v ?? 0).toFixed(2)}`;
@@ -1295,10 +1307,16 @@ const EMPTY_FORM = { pair: '', direction: 'long', entryPrice: '', stopLoss: '', 
 
 function TradeCallsAdminTab({ dispatch }) {
   const { calls, stats, loading, error, success } = useSelector(s => s.tradeCalls);
-  const [view,   setView]   = useState('active');   // active | history | post
-  const [form,   setForm]   = useState(EMPTY_FORM);
-  const [editId, setEditId] = useState(null);
-  const [toast,  setToast]  = useState(null);
+  const [view,      setView]      = useState('active');
+  const [form,      setForm]      = useState(EMPTY_FORM);
+  const [editId,    setEditId]    = useState(null);
+  const [toast,     setToast]     = useState(null);
+  const [pairQuery, setPairQuery] = useState('');
+  const [pairOpen,  setPairOpen]  = useState(false);
+
+  const filteredPairs = pairQuery.length === 0
+    ? TRADE_PAIRS
+    : TRADE_PAIRS.filter(p => p.includes(pairQuery.toUpperCase()));
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -1336,6 +1354,7 @@ function TradeCallsAdminTab({ dispatch }) {
       entryPrice: call.entryPrice, stopLoss: call.stopLoss,
       tp1: call.tp1, tp2: call.tp2 || '', notes: call.notes || '',
     });
+    setPairQuery('');
     setEditId(call._id);
     setView('post');
   };
@@ -1429,10 +1448,43 @@ function TradeCallsAdminTab({ dispatch }) {
           <h3 className="text-sm font-semibold text-white">{editId ? 'Edit Trade Call' : 'Post New Trade Call'}</h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            <div className="relative">
               <label className="text-xs text-gray-500 mb-1 block">Pair (e.g. BTCUSDT)</label>
-              <input value={form.pair} onChange={e => sf('pair', e.target.value.toUpperCase())}
-                placeholder="BTCUSDT" className="w-full bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-yellow-500" />
+              <input
+                value={pairQuery || form.pair}
+                onChange={e => {
+                  const v = e.target.value.toUpperCase();
+                  setPairQuery(v);
+                  sf('pair', v);
+                  setPairOpen(true);
+                }}
+                onFocus={() => setPairOpen(true)}
+                onBlur={() => setTimeout(() => setPairOpen(false), 150)}
+                placeholder="Search or type a pair…"
+                autoComplete="off"
+                className="w-full bg-[#1a2235] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-yellow-500"
+              />
+              {pairOpen && filteredPairs.length > 0 && (
+                <ul className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-white/10 bg-[#0f1729] shadow-xl">
+                  {filteredPairs.map(pair => (
+                    <li
+                      key={pair}
+                      onMouseDown={() => {
+                        sf('pair', pair);
+                        setPairQuery('');
+                        setPairOpen(false);
+                      }}
+                      className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                        form.pair === pair
+                          ? 'bg-yellow-500/20 text-yellow-400'
+                          : 'text-gray-300 hover:bg-white/8 hover:text-white'
+                      }`}
+                    >
+                      {pair}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Direction</label>

@@ -450,8 +450,8 @@ export default function NewListings() {
     p.name?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const cexSort = useSort(filteredCEX, 'market_cap', 'desc');
-  const dexSort = useSort(filteredDEX, 'volume24h',  'desc');
+  const cexSort = useSort(filteredCEX, 'listedAt', 'desc');
+  const dexSort = useSort(filteredDEX, 'createdAt', 'desc');
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -559,7 +559,7 @@ export default function NewListings() {
                     <SortTh label="24h %"     colKey="price_change_percentage_24h"     current={cexSort.col} dir={cexSort.dir} onSort={cexSort.toggle} className="text-right" />
                     <SortTh label="Volume"    colKey="total_volume" current={cexSort.col} dir={cexSort.dir} onSort={cexSort.toggle} className="hidden sm:table-cell text-right" />
                     <SortTh label="Mkt Cap"   colKey="market_cap"   current={cexSort.col} dir={cexSort.dir} onSort={cexSort.toggle} className="hidden md:table-cell text-right" />
-                    <th className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-gray-500 text-right">Listed</th>
+                    <SortTh label="Listed" colKey="listedAt" current={cexSort.col} dir={cexSort.dir} onSort={cexSort.toggle} className="hidden lg:table-cell text-right" />
                   </tr>
                 </thead>
                 <tbody>
@@ -584,7 +584,7 @@ export default function NewListings() {
                     <SortTh label="24h %"     colKey="change24h"   current={dexSort.col} dir={dexSort.dir} onSort={dexSort.toggle} className="text-right" />
                     <SortTh label="Volume"    colKey="volume24h"   current={dexSort.col} dir={dexSort.dir} onSort={dexSort.toggle} className="hidden sm:table-cell text-right" />
                     <SortTh label="Liquidity" colKey="liquidityUSD" current={dexSort.col} dir={dexSort.dir} onSort={dexSort.toggle} className="hidden md:table-cell text-right" />
-                    <th className="hidden lg:table-cell px-4 py-3 text-xs font-semibold text-gray-500 text-right">Created</th>
+                    <SortTh label="Created" colKey="createdAt" current={dexSort.col} dir={dexSort.dir} onSort={dexSort.toggle} className="hidden lg:table-cell text-right" />
                   </tr>
                 </thead>
                 <tbody>

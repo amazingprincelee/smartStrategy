@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchDemoAccount } from '../../redux/slices/demoSlice';
 import {
   LayoutDashboard,
   Bot,
@@ -21,8 +22,13 @@ import SmartStrategyIcon from '../Logo/SmartStrategyIcon';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const dispatch = useDispatch();
   const bots = useSelector((state) => state.bots?.list || []);
   const demo = useSelector((state) => state.demo);
+
+  useEffect(() => {
+    dispatch(fetchDemoAccount());
+  }, [dispatch]);
   const userRole = useSelector(state => state.auth?.user?.role ?? 'user');
   const exchangeBalances = useSelector(state => state.exchangeAccounts?.balances || {});
 

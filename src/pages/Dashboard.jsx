@@ -21,9 +21,12 @@ import {
   MinusCircle,
   Info,
   Lock,
+  Radio,
+  ShieldAlert,
 } from 'lucide-react';
 import { fetchPlatformStats, fetchSignals, fetchSignalHistory, analyzeSignal, fetchAvailablePairs } from '../redux/slices/signalSlice';
 import { fetchArbitrageOpportunities, fetchTriangularOpportunities } from '../redux/slices/arbitrageslice';
+import { fetchTradeCalls } from '../redux/slices/tradeCallSlice';
 import { fetchBots } from '../redux/slices/botSlice';
 import QuickExecuteModal from '../components/bots/QuickExecuteModal';
 
@@ -163,6 +166,7 @@ const Dashboard = () => {
   const history      = useSelector((s) => s.signals?.history || []);
   const { opportunities, triangular } = useSelector((s) => s.arbitrage || { opportunities: [], triangular: { opportunities: [] } });
   const { analysis, analysisLoading, analysisError, availablePairs } = useSelector((s) => s.signals);
+  const tradeCalls = useSelector((s) => s.tradeCalls?.calls || []);
   const isPremium = user?.role === 'premium' || user?.role === 'admin';
   const [freeCount, setFreeCount] = useState(getFreeCount);
 
@@ -172,10 +176,9 @@ const Dashboard = () => {
     dispatch(fetchSignals('spot'));
     dispatch(fetchArbitrageOpportunities({ minProfit: 0.1, minVolume: 100, topCoins: 10 }));
     dispatch(fetchTriangularOpportunities());
-    // Always pre-load history so the signal card has something to show
-    // even if the live in-memory cache is cold (e.g. right after server restart)
     dispatch(fetchSignalHistory({ marketType: 'spot', limit: 10 }));
     dispatch(fetchAvailablePairs('spot'));
+    dispatch(fetchTradeCalls({ status: 'open', limit: 10 }));
   }, [dispatch]);
 
   /* derived */
@@ -190,6 +193,7 @@ const Dashboard = () => {
     || spotSignals[0]
     || history.find(s => s.type === 'LONG')
     || null;
+  const latestCall   = tradeCalls.find(c => c.status === 'open' || c.status === 'tp1_hit') || null;
   const topArb       = opportunities?.[0] || null;
   const topTriArb    = triangular?.opportunities?.[0] || null;
 
@@ -619,6 +623,134 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Latest Analyst Call Hero ─────────────────────────────── */}
+      {latestCall ? (() => {
+        const isLong = latestCall.direction === 'long';
+        const pct = (a, b) => (a && b) ? ((b - a) / a * 100).toFixed(2) : null;
+        const tp1Pct = pct(latestCall.entryPrice, latestCall.tp1);
+        const tp2Pct = pct(latestCall.entryPrice, latestCall.tp2);
+        const slPct  = pct(latestCall.entryPrice, latestCall.stopLoss);
+        return (
+          <div className="relative rounded-2xl overflow-hidden border border-amber-500/40 shadow-2xl shadow-amber-500/8">
+            {/* Glowing top accent bar */}
+            <div className="h-[3px] w-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600" />
+
+            {/* Card header */}
+            <div className="flex items-center justify-between px-5 py-3 bg-amber-500/8 border-b border-amber-500/15">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <Radio className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <span className="text-sm font-bold text-white">Latest Analyst Call</span>
+                <span className="relative flex h-2 w-2 ml-0.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </span>
+                <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                  ANALYST · HIGH CONVICTION
+                </span>
+              </div>
+              <Link to="/trade-calls" className="flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors">
+                All calls <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {/* Body */}
+            <div className={`bg-gradient-to-br ${isLong ? 'from-green-950/25 via-gray-900/95 to-gray-900' : 'from-red-950/25 via-gray-900/95 to-gray-900'} p-5`}>
+              <div className="grid lg:grid-cols-5 gap-5 items-start">
+
+                {/* Left: identity + notes */}
+                <div className="lg:col-span-2 flex flex-col gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span className="text-2xl font-black text-white tracking-tight leading-none">
+                        {latestCall.pair.replace('USDT', '')}
+                        <span className="text-gray-500 text-base font-normal">/USDT</span>
+                      </span>
+                      <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                        isLong
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                          : 'bg-red-500/20 text-red-400 border-red-500/40'
+                      }`}>
+                        {isLong ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        {latestCall.direction.toUpperCase()}
+                      </span>
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-blue-500/15 text-blue-400 border-blue-500/30">
+                        <Clock className="w-3 h-3" />
+                        {latestCall.status === 'tp1_hit' ? 'TP1 Hit' : 'Active'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-500">
+                      Posted {timeAgo(latestCall.openedAt)}
+                    </p>
+                  </div>
+
+                  {latestCall.notes && (
+                    <p className="text-sm text-gray-300 leading-relaxed line-clamp-4 border-l-2 border-amber-500/40 pl-3">
+                      {latestCall.notes}
+                    </p>
+                  )}
+
+                  {latestCall.riskReward && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>R/R <span className="text-white font-semibold">1:{latestCall.riskReward}</span></span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: price levels + CTA */}
+                <div className="lg:col-span-3 flex flex-col gap-3">
+                  {/* Price grid */}
+                  <div className={`grid gap-2 ${latestCall.tp2 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+                    {[
+                      { label: 'Entry',     val: latestCall.entryPrice, color: 'text-white',         border: 'border-white/10 bg-white/4',            pct: null },
+                      { label: 'TP1',       val: latestCall.tp1,        color: 'text-emerald-400',   border: 'border-emerald-500/20 bg-emerald-500/8', pct: tp1Pct },
+                      ...(latestCall.tp2 ? [{ label: 'TP2', val: latestCall.tp2, color: 'text-blue-400', border: 'border-blue-500/20 bg-blue-500/8', pct: tp2Pct }] : []),
+                      { label: 'Stop Loss', val: latestCall.stopLoss,   color: 'text-red-400',       border: 'border-red-500/20 bg-red-500/8',         pct: slPct  },
+                    ].map(({ label, val, color, border, pct: p }) => (
+                      <div key={label} className={`p-3 rounded-xl border text-center ${border}`}>
+                        <p className="text-[10px] text-gray-500 mb-1">{label}</p>
+                        <p className={`text-sm font-bold font-mono truncate ${color}`}>${fmt(val)}</p>
+                        {p != null && (
+                          <p className={`text-[10px] mt-0.5 font-medium ${parseFloat(p) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {parseFloat(p) > 0 ? '+' : ''}{p}%
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CTA */}
+                  <button
+                    onClick={() => setQuickExecuteSignal({
+                      pair:        latestCall.pair,
+                      type:        latestCall.direction.toUpperCase(),
+                      entry:       latestCall.entryPrice,
+                      stopLoss:    latestCall.stopLoss,
+                      takeProfit:  latestCall.tp1,
+                    })}
+                    className={`w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${
+                      isLong
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-green-500/20'
+                        : 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white shadow-red-500/20'
+                    }`}
+                  >
+                    {isLong ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                    Trade This Analyst Call
+                  </button>
+
+                  <p className="text-[10px] text-gray-700 text-center -mt-1 flex items-center justify-center gap-1">
+                    <ShieldAlert className="w-3 h-3" />
+                    Analyst opinion only. Manage your own risk.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
 
       {/* ── Bottom row: Recent signal + Top arb ─────────────────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

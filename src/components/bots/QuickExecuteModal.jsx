@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { X, Zap, Bot, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader, Wallet, Pencil, Check, RefreshCw } from 'lucide-react';
+import { X, Zap, AlertTriangle, Shield, TrendingUp, TrendingDown, Loader, Wallet, Pencil, Check, RefreshCw } from 'lucide-react';
 import { authAPI } from '../../services/api';
-import { fetchBots } from '../../redux/slices/botSlice';
 import { fetchDemoAccount } from '../../redux/slices/demoSlice';
 
 const RISK_PRESETS = [
@@ -16,17 +15,13 @@ const RISK_PRESETS = [
 export default function QuickExecuteModal({ signal, onClose }) {
   const navigate  = useNavigate();
   const dispatch  = useDispatch();
-  const bots               = useSelector(s => s.bots?.list || []);
   const demoVirtualBalance = useSelector(s => s.demo?.virtualBalance ?? null);
   const liveAccounts       = useSelector(s => s.exchangeAccounts?.accounts || []);
 
   useEffect(() => {
-    dispatch(fetchBots());
     dispatch(fetchDemoAccount());
   }, [dispatch]);
 
-  const [mode, setMode]                   = useState('new');
-  const [selectedBotId, setSelectedBotId] = useState('');
   const [selectedExchange, setSelectedExchange]   = useState('');
   const [riskPreset, setRiskPreset]       = useState('moderate');
   const [loading, setLoading]             = useState(false);
@@ -40,7 +35,6 @@ export default function QuickExecuteModal({ signal, onClose }) {
   const [editTP,     setEditTP]     = useState(signal?.takeProfit ?? '');
   const [editingParams, setEditingParams] = useState(false);
 
-  const activeBots = (bots || []).filter(b => b.status === 'running' || b.status === 'paused');
   const hasLiveAccounts = liveAccounts.length > 0;
 
 
@@ -71,12 +65,9 @@ export default function QuickExecuteModal({ signal, onClose }) {
   };
 
   const handleExecute = async (forceConflict = false, isLiveTrade = false) => {
-    if (mode === 'existing' && !selectedBotId) {
-      toast.error('Please select a bot');
+    if (!isLiveTrade && !selectedExchange) {
+      toast.error('Please select an exchange');
       return;
-    }
-    if (mode === 'new' && !isLiveTrade) {
-      if (!selectedExchange) { toast.error('Please select an exchange'); return; }
     }
 
     setLoading(true);
@@ -84,9 +75,9 @@ export default function QuickExecuteModal({ signal, onClose }) {
       const payload = {
         signalData: effectiveSignal,
         riskPreset,
-        ...(mode === 'existing'
-          ? { botId: selectedBotId }
-          : { isDemo: !isLiveTrade, exchange: selectedExchange, accountBalance: demoVirtualBalance }),
+        isDemo: !isLiveTrade,
+        exchange: selectedExchange,
+        accountBalance: demoVirtualBalance,
       };
 
       const res = await authAPI.post('/bots/quick-execute', payload);
@@ -212,97 +203,66 @@ export default function QuickExecuteModal({ signal, onClose }) {
 
         <div className="px-5 py-4 space-y-4">
 
-          {/* New bot — exchange picker + demo balance */}
-          {mode === 'new' && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Exchange</label>
-                <select
-                  value={selectedExchange}
-                  onChange={e => setSelectedExchange(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-brandDark-800 border border-brandDark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
-                >
-                  <option value="">Select exchange...</option>
-                  {[
-                    { id: 'binance', name: 'Binance' },
-                    { id: 'bybit',   name: 'Bybit' },
-                    { id: 'okx',     name: 'OKX' },
-                    { id: 'kucoin',  name: 'KuCoin' },
-                    { id: 'bitget',  name: 'Bitget' },
-                    { id: 'gate',    name: 'Gate.io' },
-                    { id: 'mexc',    name: 'MEXC' },
-                    { id: 'huobi',   name: 'HTX (Huobi)' },
-                  ].map(ex => (
-                    <option key={ex.id} value={ex.id}>{ex.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Demo balance info */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-brandDark-800 border border-brandDark-600">
-                <div>
-                  <p className="text-xs text-gray-400 flex items-center gap-1 mb-0.5">
-                    <Wallet className="w-3 h-3" /> Demo Balance
-                  </p>
-                  <p className="text-lg font-bold text-white">
-                    ${(demoVirtualBalance ?? 10000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-xs font-normal text-gray-400 ml-1">USDT</span>
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleResetBalance}
-                    disabled={resetingBalance}
-                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-brandDark-500 text-gray-400 hover:text-white hover:border-gray-400 transition-colors disabled:opacity-50"
-                    title="Reset demo balance to $10,000"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${resetingBalance ? 'animate-spin' : ''}`} />
-                    Reset
-                  </button>
-                  <span className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Demo</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Existing bot selector */}
-          {mode === 'existing' && (
+          {/* Exchange picker + demo balance */}
+          <div className="space-y-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Select Bot</label>
-              {activeBots.length === 0 ? (
-                <p className="text-xs text-gray-500 py-2">No active bots found. Create a new one instead.</p>
-              ) : (
-                <select
-                  value={selectedBotId}
-                  onChange={e => setSelectedBotId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-brandDark-800 border border-brandDark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
-                >
-                  <option value="">Choose a bot...</option>
-                  {activeBots.map(b => (
-                    <option key={b._id} value={b._id}>{b.name} ({b.exchange})</option>
-                  ))}
-                </select>
-              )}
+              <label className="block text-xs text-gray-400 mb-1.5">Exchange</label>
+              <select
+                value={selectedExchange}
+                onChange={e => setSelectedExchange(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-brandDark-800 border border-brandDark-600 rounded-xl text-white focus:outline-none focus:border-primary-500"
+              >
+                <option value="">Select exchange...</option>
+                {[
+                  { id: 'binance', name: 'Binance' },
+                  { id: 'bybit',   name: 'Bybit' },
+                  { id: 'okx',     name: 'OKX' },
+                  { id: 'kucoin',  name: 'KuCoin' },
+                  { id: 'bitget',  name: 'Bitget' },
+                  { id: 'gate',    name: 'Gate.io' },
+                  { id: 'mexc',    name: 'MEXC' },
+                  { id: 'huobi',   name: 'HTX (Huobi)' },
+                ].map(ex => (
+                  <option key={ex.id} value={ex.id}>{ex.name}</option>
+                ))}
+              </select>
             </div>
-          )}
 
-          {/* Use existing bot — secondary option */}
-          {activeBots.length > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-brandDark-700" />
-              <span className="text-xs text-gray-600">or</span>
-              <div className="flex-1 h-px bg-brandDark-700" />
+            {/* Demo balance info */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-brandDark-800 border border-brandDark-600">
+              <div>
+                <p className="text-xs text-gray-400 flex items-center gap-1 mb-0.5">
+                  <Wallet className="w-3 h-3" /> Demo Balance
+                </p>
+                <p className="text-lg font-bold text-white">
+                  ${(demoVirtualBalance ?? 10000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className="text-xs font-normal text-gray-400 ml-1">USDT</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleResetBalance}
+                  disabled={resetingBalance}
+                  className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-brandDark-500 text-gray-400 hover:text-white hover:border-gray-400 transition-colors disabled:opacity-50"
+                  title="Reset demo balance to $10,000"
+                >
+                  <RefreshCw className={`w-3 h-3 ${resetingBalance ? 'animate-spin' : ''}`} />
+                  Reset
+                </button>
+                <span className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Demo</span>
+              </div>
             </div>
-          )}
-          {activeBots.length > 0 && (
-            <button
-              onClick={() => setMode(m => m === 'existing' ? 'new' : 'existing')}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-brandDark-600 text-xs text-gray-400 hover:text-white hover:border-brandDark-500 hover:bg-brandDark-700 transition-colors"
-            >
-              <Bot className="w-3.5 h-3.5" />
-              {mode === 'new' ? 'Apply to an existing bot' : 'Create a new bot instead'}
-            </button>
-          )}
+
+            {/* Connect exchange prompt — only when no live accounts */}
+            {!hasLiveAccounts && (
+              <p className="text-center text-[10px] text-gray-500">
+                Want to trade live?{' '}
+                <button onClick={() => { navigate('/account'); onClose(); }} className="text-cyan-500 hover:underline">
+                  Connect an exchange
+                </button>
+              </p>
+            )}
+          </div>
 
           {/* Risk preset */}
           <div>
@@ -336,8 +296,8 @@ export default function QuickExecuteModal({ signal, onClose }) {
 
         {/* Footer */}
         <div className="px-5 pb-5 space-y-2">
-          {/* Trade This Now — live exchange (shown when user has connected accounts) */}
-          {hasLiveAccounts && mode === 'new' && (
+          {/* Live trade — default primary when exchange is connected */}
+          {hasLiveAccounts && (
             <button
               onClick={() => handleExecute(false, true)}
               disabled={loading}
@@ -353,18 +313,13 @@ export default function QuickExecuteModal({ signal, onClose }) {
             </button>
             <button
               onClick={() => handleExecute(false)}
-              disabled={loading || (mode === 'new' && !selectedExchange) || (mode === 'existing' && !selectedBotId)}
+              disabled={loading || !selectedExchange}
               className="flex-1 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
               {loading ? 'Executing...' : 'Execute Demo Trade'}
             </button>
           </div>
-          {!hasLiveAccounts && (
-            <p className="text-center text-[10px] text-gray-600">
-              Want to trade live? <button onClick={() => { navigate('/account'); onClose(); }} className="text-cyan-500 hover:underline">Connect an exchange</button>
-            </p>
-          )}
         </div>
       </div>
     </div>
