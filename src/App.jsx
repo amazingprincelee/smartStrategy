@@ -38,6 +38,7 @@ import EarlyAlpha from './pages/EarlyAlpha';
 import TradeCalls from './pages/TradeCalls';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import ActivateTrial from './pages/ActivateTrial';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -92,6 +93,7 @@ function AppInner() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/activate-trial" element={<ActivateTrial />} />
 
           {/* Protected Routes */}
           <Route element={<Layout />}>

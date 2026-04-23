@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import QuickExecuteModal from '../components/bots/QuickExecuteModal';
+import { isPremiumOrTrial, getTrialInfo } from '../utils/premiumUtils';
 import {
   runBacktest,
   clearBacktestResult,
@@ -242,7 +243,9 @@ const Signals = () => {
     useSelector(state => state.signals);
 
   const role      = useSelector(state => state.auth?.user?.role ?? state.auth?.role ?? 'user');
-  const isPremium = isPremiumUser(role);
+  const authUser  = useSelector(state => state.auth?.user);
+  const isPremium = isPremiumOrTrial(authUser) || isPremiumUser(role);
+  const trialInfo = getTrialInfo(authUser);
 
   const [activeTab, setActiveTab] = useState('history');
   const [showAll, setShowAll]     = useState(false);
@@ -343,15 +346,62 @@ const Signals = () => {
       </div>
 
       {/* ════════════ ANALYZE (always visible at top) ════════════ */}
+
+      {/* Premium gate banner */}
+      {!isPremium && (
+        <div className="mb-4 px-4 py-3.5 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Crown className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-300">
+                {trialInfo.isTrial && !trialInfo.isExpired
+                  ? `Trial active — ${trialInfo.daysLeft}d ${trialInfo.hoursLeft}h remaining`
+                  : 'Quick Pair Analysis is a Premium Feature'}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {trialInfo.isTrial && !trialInfo.isExpired
+                  ? 'Enjoy full access to AI-powered pair analysis during your 3-day trial.'
+                  : 'Upgrade to unlock AI-powered signal analysis, custom pair scanning, and more.'}
+              </p>
+            </div>
+          </div>
+          {(!trialInfo.isTrial || trialInfo.isExpired) && (
+            <Link
+              to="/pricing"
+              className="flex-shrink-0 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-colors"
+            >
+              Upgrade to Premium
+            </Link>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 
           {/* ── Form ── */}
           <div className="lg:col-span-1">
-            <form onSubmit={handleAnalyze} className="p-5 rounded-xl bg-white/3 border border-white/8 space-y-4">
+            <form onSubmit={handleAnalyze} className={`p-5 rounded-xl bg-white/3 border border-white/8 space-y-4 relative${!isPremium ? ' pointer-events-none opacity-40 select-none' : ''}`}>
+              {!isPremium && (
+                <div className="absolute inset-0 z-10 rounded-xl flex items-center justify-center bg-black/10">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brandDark-800/90 border border-amber-500/30 text-amber-400 text-xs font-semibold">
+                    <Lock className="w-3.5 h-3.5" />
+                    Premium feature
+                  </div>
+                </div>
+              )}
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Search className="w-4 h-4 text-cyan-400" />
-                Analyze a Pair
+                Quick Pair Analysis
+                <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  <Crown className="w-2.5 h-2.5" /> PREMIUM
+                </span>
               </h3>
+              {trialInfo.isTrial && !trialInfo.isExpired && (
+                <p className="text-[11px] text-amber-400/80 -mt-2 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Trial: {trialInfo.daysLeft}d {trialInfo.hoursLeft}h left
+                </p>
+              )}
               <p className="text-xs text-gray-500 -mt-2">
                 Select a USDT pair and click Analyze. The engine will compute RSI, EMA, MACD, Bollinger Bands and ATR to determine the current trend.
               </p>
@@ -454,8 +504,18 @@ const Signals = () => {
           </div>
 
           {/* ── Results ── */}
-          <div className="lg:col-span-2">
-            {!analysis && !analysisLoading && (
+          <div className={`lg:col-span-2${!isPremium ? ' pointer-events-none' : ''}`}>
+            {!isPremium && !analysis && !analysisLoading && (
+              <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                <Crown className="w-12 h-12 text-amber-500/40 mb-3" />
+                <p className="text-gray-400 font-medium">Analysis results are premium-only</p>
+                <p className="text-gray-600 text-sm mt-1">Upgrade to run unlimited AI-powered pair scans.</p>
+                <Link to="/pricing" className="mt-4 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-colors pointer-events-auto">
+                  Upgrade to Premium
+                </Link>
+              </div>
+            )}
+            {isPremium && !analysis && !analysisLoading && (
               <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                 <Search className="w-12 h-12 text-gray-600 mb-3" />
                 <p className="text-gray-400 font-medium">Select a pair and click Analyze</p>

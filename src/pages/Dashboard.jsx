@@ -29,6 +29,7 @@ import { fetchArbitrageOpportunities, fetchTriangularOpportunities } from '../re
 import { fetchTradeCalls } from '../redux/slices/tradeCallSlice';
 import { fetchBots } from '../redux/slices/botSlice';
 import QuickExecuteModal from '../components/bots/QuickExecuteModal';
+import { isPremiumOrTrial, getTrialInfo } from '../utils/premiumUtils';
 
 /* ─── free-tier daily signal counter (resets at midnight) ───── */
 const AZ_KEY = 'az_count'; // { date: 'YYYY-MM-DD', count: n }
@@ -167,7 +168,8 @@ const Dashboard = () => {
   const { opportunities, triangular } = useSelector((s) => s.arbitrage || { opportunities: [], triangular: { opportunities: [] } });
   const { analysis, analysisLoading, analysisError, availablePairs } = useSelector((s) => s.signals);
   const tradeCalls = useSelector((s) => s.tradeCalls?.calls || []);
-  const isPremium = user?.role === 'premium' || user?.role === 'admin';
+  const isPremium  = isPremiumOrTrial(user);
+  const trialInfo  = getTrialInfo(user);
   const [freeCount, setFreeCount] = useState(getFreeCount);
 
   useEffect(() => {
@@ -362,19 +364,53 @@ const Dashboard = () => {
               <Search className="w-4 h-4 text-cyan-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Quick Pair Analysis</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                Quick Pair Analysis
+                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  PREMIUM
+                </span>
+              </h3>
               <p className="text-[10px] text-gray-500">RSI · EMA · MACD · Bollinger · ATR · Volume</p>
             </div>
           </div>
-          <Link to="/signals?tab=analyze" className="flex items-center gap-1 text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors">
-            Full analysis <ArrowUpRight className="w-3 h-3" />
-          </Link>
+          <div className="flex items-center gap-3">
+            {trialInfo.isTrial && !trialInfo.isExpired && (
+              <span className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border border-amber-500/30 bg-amber-500/10 text-amber-400">
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="absolute inline-flex w-full h-full rounded-full bg-amber-400 opacity-60 animate-ping" />
+                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-amber-500" />
+                </span>
+                {trialInfo.daysLeft > 0 ? `${trialInfo.daysLeft}d trial left` : `${trialInfo.hoursLeft}h trial left`}
+              </span>
+            )}
+            <Link to="/signals?tab=analyze" className="flex items-center gap-1 text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors">
+              Full analysis <ArrowUpRight className="w-3 h-3" />
+            </Link>
+          </div>
         </div>
+
+        {/* Expired trial gate */}
+        {!isPremium && (
+          <div className="mx-5 mt-4 mb-2 flex items-start gap-3 p-4 rounded-xl border border-amber-500/30 bg-amber-500/8">
+            <Lock className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-300">
+                {trialInfo.isTrial && trialInfo.isExpired ? 'Your 3-day free trial has ended' : 'Premium feature'}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Upgrade to run unlimited pair analysis with full entry, SL, and TP signals.
+              </p>
+            </div>
+            <Link to="/pricing" className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-gray-900 text-xs font-bold transition-colors">
+              Upgrade
+            </Link>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-5">
 
           {/* ── Form ── */}
-          <form onSubmit={handleAnalyze} className="lg:col-span-2 p-5 border-b lg:border-b-0 lg:border-r border-white/6 flex flex-col gap-3">
+          <form onSubmit={handleAnalyze} className={`lg:col-span-2 p-5 border-b lg:border-b-0 lg:border-r border-white/6 flex flex-col gap-3 ${!isPremium ? 'pointer-events-none opacity-40 select-none' : ''}`}>
             {/* Pair input */}
             <div>
               <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Pair</label>

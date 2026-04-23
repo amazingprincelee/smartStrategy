@@ -11,7 +11,7 @@ import {
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminSubscriptions,
   fetchAdminSettings, updateAdminSettings, adminActivateUser,
-  adminGrantTrial, adminUpdateUser, adminDeleteUser,
+  adminGrantTrial, adminSearchUsers, adminUpdateUser, adminDeleteUser,
   fetchRevenueAnalytics, fetchUserAnalytics, fetchPlatformAnalytics,
   fetchAuditLogs, sendTargetedEmail, updateAnnouncement,
   clearAdminAction, fetchPaymentKeyStatus, savePaymentKeys,
@@ -2239,6 +2239,376 @@ function Trade4MeTab({ dispatch }) {
   );
 }
 
+// ── Trial Grants Tab ──────────────────────────────────────────────────────────
+function TrialGrantsTab({ dispatch }) {
+  const { trialSearchResults, loading, actionSuccess, error } = useSelector(s => s.admin);
+
+  const [mode, setMode]           = useState('individual'); // 'individual' | 'bulk'
+  const [days, setDays]           = useState(7);
+  const [customDays, setCustomDays] = useState('');
+  const [note, setNote]           = useState('');
+  const [searchQ, setSearchQ]     = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [selected, setSelected]   = useState([]); // [{ _id, email, fullName }]
+  const [confirming, setConfirming] = useState(false);
+  const [bulkCount, setBulkCount] = useState(null);
+  const [result, setResult]       = useState(null);
+
+  const PRESETS = [3, 7, 14, 30];
+  const effectiveDays = days === 'custom' ? parseInt(customDays) || 0 : days;
+
+  // Debounced user search
+  useEffect(() => {
+    if (!searchQ.trim() || searchQ.length < 2) return;
+    const t = setTimeout(() => dispatch(adminSearchUsers(searchQ)), 350);
+    return () => clearTimeout(t);
+  }, [searchQ, dispatch]);
+
+  // Fetch estimated bulk count when switching to bulk mode
+  useEffect(() => {
+    if (mode !== 'bulk') return;
+    dispatch(adminSearchUsers('')).then(action => {
+      // We use a rough estimate from the total users count in stats
+    });
+  }, [mode, dispatch]);
+
+  function addUser(u) {
+    if (!selected.find(s => s._id === u._id)) setSelected(prev => [...prev, u]);
+    setSearchQ('');
+    setSearchOpen(false);
+  }
+
+  function removeUser(id) {
+    setSelected(prev => prev.filter(u => u._id !== id));
+  }
+
+  async function handleGrant() {
+    const payload = mode === 'bulk'
+      ? { all: true, days: effectiveDays, note: note || undefined }
+      : { userIds: selected.map(u => u._id), days: effectiveDays, note: note || undefined };
+
+    const res = await dispatch(adminGrantTrial(payload));
+    if (adminGrantTrial.fulfilled.match(res)) {
+      setResult(res.payload);
+      setSelected([]);
+      setNote('');
+      setConfirming(false);
+    }
+  }
+
+  const canGrant = effectiveDays >= 1 && (mode === 'bulk' || selected.length > 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Gift className="w-5 h-5 text-amber-400" />
+            Trial Grants
+          </h2>
+          <p className="text-sm text-gray-400 mt-1">Send free premium trial invitations via email — users claim with one click.</p>
+        </div>
+      </div>
+
+      {/* Success result card */}
+      {result && (
+        <div className="p-4 rounded-xl border border-green-500/30 bg-green-500/8 flex items-start gap-3">
+          <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-green-300">{result.message}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Emails sent: <strong className="text-white">{result.sent}</strong> &nbsp;·&nbsp;
+              Failed: <strong className="text-white">{result.failed}</strong> &nbsp;·&nbsp;
+              Trial length: <strong className="text-amber-300">{result.trialDays} days</strong> &nbsp;·&nbsp;
+              Claim window: <strong className="text-white">7 days</strong>
+            </p>
+          </div>
+          <button onClick={() => setResult(null)} className="ml-auto text-gray-500 hover:text-white text-lg leading-none">×</button>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && !result && (
+        <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/8 text-sm text-red-300 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        {/* ── Left: config panel ── */}
+        <div className="lg:col-span-3 space-y-5">
+
+          {/* Mode selector */}
+          <div className="p-5 rounded-xl bg-[#161b22] border border-white/8 space-y-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Grant mode</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key:'individual', label:'Specific Users', icon: Users, desc:'Search & pick accounts' },
+                { key:'bulk',       label:'All Free Users', icon: Megaphone, desc:'Every non-premium account' },
+              ].map(({ key, label, icon: Icon, desc }) => (
+                <button
+                  key={key}
+                  onClick={() => { setMode(key); setResult(null); dispatch(clearAdminAction()); }}
+                  className={`flex flex-col items-start gap-1.5 p-4 rounded-xl border text-left transition-all ${
+                    mode === key
+                      ? 'border-amber-500/50 bg-amber-500/10'
+                      : 'border-white/8 bg-white/3 hover:border-white/15'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${mode === key ? 'bg-amber-500/20' : 'bg-white/5'}`}>
+                    <Icon className={`w-4 h-4 ${mode === key ? 'text-amber-400' : 'text-gray-400'}`} />
+                  </div>
+                  <p className={`text-sm font-semibold ${mode === key ? 'text-amber-300' : 'text-white'}`}>{label}</p>
+                  <p className="text-xs text-gray-500">{desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* User search (individual mode) */}
+          {mode === 'individual' && (
+            <div className="p-5 rounded-xl bg-[#161b22] border border-white/8 space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Search & select users</p>
+
+              {/* Selected chips */}
+              {selected.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selected.map(u => (
+                    <div key={u._id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-xs text-amber-300">
+                      <span className="font-medium">{u.fullName || u.email.split('@')[0]}</span>
+                      <span className="text-amber-500/60">·</span>
+                      <span className="text-amber-400/70">{u.email}</span>
+                      <button onClick={() => removeUser(u._id)} className="ml-1 text-amber-500/60 hover:text-amber-300 leading-none">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Search input */}
+              <div className="relative">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0d1117] border border-white/10 focus-within:border-amber-500/40">
+                  {loading.trialSearch
+                    ? <Loader className="w-4 h-4 text-gray-500 animate-spin flex-shrink-0" />
+                    : <Users className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                  }
+                  <input
+                    value={searchQ}
+                    onChange={e => { setSearchQ(e.target.value); setSearchOpen(true); }}
+                    onFocus={() => setSearchOpen(true)}
+                    onBlur={() => setTimeout(() => setSearchOpen(false), 180)}
+                    placeholder="Search by email or name…"
+                    className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
+                  />
+                </div>
+                {searchOpen && trialSearchResults.length > 0 && (
+                  <ul className="absolute z-20 left-0 right-0 mt-1 rounded-xl bg-[#161b22] border border-white/10 shadow-2xl overflow-hidden max-h-52 overflow-y-auto">
+                    {trialSearchResults.map(u => (
+                      <li key={u._id}>
+                        <button
+                          onMouseDown={() => addUser(u)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-xs font-bold text-amber-400 flex-shrink-0">
+                            {(u.fullName || u.email)[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm text-white font-medium truncate">{u.fullName || '—'}</p>
+                            <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                          </div>
+                          <span className={`ml-auto flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full ${SBADGE[u.role] || SBADGE.user}`}>
+                            {u.role}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {searchOpen && searchQ.length >= 2 && !loading.trialSearch && trialSearchResults.length === 0 && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl bg-[#161b22] border border-white/10 px-4 py-3 text-sm text-gray-500 text-center">
+                    No users found
+                  </div>
+                )}
+              </div>
+              {selected.length === 0 && (
+                <p className="text-xs text-gray-600">Start typing to search — select one or more accounts.</p>
+              )}
+            </div>
+          )}
+
+          {/* Bulk mode info */}
+          {mode === 'bulk' && (
+            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 flex items-start gap-3">
+              <Megaphone className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-300">All free accounts will receive an invitation</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Every user without an active premium or trial subscription will get a claim email. Already-premium and admin accounts are automatically excluded.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Trial duration */}
+          <div className="p-5 rounded-xl bg-[#161b22] border border-white/8 space-y-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Trial duration</p>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map(d => (
+                <button
+                  key={d}
+                  onClick={() => { setDays(d); setCustomDays(''); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    days === d
+                      ? 'bg-amber-500 text-black'
+                      : 'bg-white/5 border border-white/10 text-gray-300 hover:border-amber-500/40 hover:text-amber-300'
+                  }`}
+                >
+                  {d} days
+                </button>
+              ))}
+              <button
+                onClick={() => setDays('custom')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  days === 'custom'
+                    ? 'bg-amber-500 text-black'
+                    : 'bg-white/5 border border-white/10 text-gray-300 hover:border-amber-500/40 hover:text-amber-300'
+                }`}
+              >
+                Custom
+              </button>
+            </div>
+            {days === 'custom' && (
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={customDays}
+                onChange={e => setCustomDays(e.target.value)}
+                placeholder="Enter days (1–365)"
+                className="w-full px-3 py-2 rounded-lg bg-[#0d1117] border border-white/10 text-sm text-white focus:outline-none focus:border-amber-500/40"
+                style={{ colorScheme: 'dark' }}
+              />
+            )}
+          </div>
+
+          {/* Optional personal note */}
+          <div className="p-5 rounded-xl bg-[#161b22] border border-white/8 space-y-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Personal message <span className="normal-case font-normal text-gray-600">(optional)</span></p>
+            <textarea
+              rows={3}
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              maxLength={280}
+              placeholder="e.g. We noticed you've been exploring the platform — here's a gift on us."
+              className="w-full px-3 py-2 rounded-lg bg-[#0d1117] border border-white/10 text-sm text-white placeholder-gray-600 resize-none focus:outline-none focus:border-amber-500/40"
+              style={{ colorScheme: 'dark' }}
+            />
+            <p className="text-[10px] text-gray-600 text-right">{note.length}/280</p>
+          </div>
+
+          {/* Send button */}
+          {!confirming ? (
+            <button
+              onClick={() => setConfirming(true)}
+              disabled={!canGrant || loading.action}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+            >
+              <Gift className="w-4 h-4" />
+              {mode === 'bulk'
+                ? `Send Trial to All Free Users — ${effectiveDays || '?'} days`
+                : `Send Trial to ${selected.length || 0} User${selected.length !== 1 ? 's' : ''} — ${effectiveDays || '?'} days`
+              }
+            </button>
+          ) : (
+            <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/8 space-y-3">
+              <p className="text-sm font-semibold text-amber-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {mode === 'bulk'
+                  ? `This will email ALL free accounts a ${effectiveDays}-day trial invitation. Confirm?`
+                  : `Send a ${effectiveDays}-day trial invitation to ${selected.length} user${selected.length !== 1 ? 's' : ''}?`
+                }
+              </p>
+              <p className="text-xs text-gray-400">
+                Users receive a branded email with a claim link valid for <strong className="text-white">7 days</strong>.
+                The trial only activates when they click — no charge to anyone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGrant}
+                  disabled={loading.action}
+                  className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-sm font-bold transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  {loading.action ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Sending…</> : <><Send className="w-3.5 h-3.5" /> Confirm & Send</>}
+                </button>
+                <button
+                  onClick={() => setConfirming(false)}
+                  className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-sm hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Right: info panel ── */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* How it works */}
+          <div className="p-5 rounded-xl bg-[#161b22] border border-white/8">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">How it works</p>
+            <ol className="space-y-4">
+              {[
+                { n:'1', title:'Admin grants trial', desc:'Select users or all free accounts, choose duration, add an optional note and hit Send.' },
+                { n:'2', title:'Email is dispatched', desc:'Each user receives a branded email with a personalised claim button — valid for 7 days.' },
+                { n:'3', title:'User activates', desc:'One click on the button in their email starts the trial immediately. No account needed if already logged in.' },
+                { n:'4', title:'Premium unlocked', desc:'Trial starts the moment they click. They get full access for the granted duration.' },
+              ].map(({ n: num, title, desc }) => (
+                <li key={num} className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-400 flex-shrink-0 mt-0.5">
+                    {num}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {/* Preview summary */}
+          <div className="p-5 rounded-xl bg-[#161b22] border border-white/8 space-y-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Grant summary</p>
+            <div className="space-y-2">
+              {[
+                ['Mode',       mode === 'bulk' ? 'All free accounts' : `${selected.length} selected user${selected.length !== 1 ? 's' : ''}`],
+                ['Duration',   effectiveDays >= 1 ? `${effectiveDays} days` : '—'],
+                ['Claim window', '7 days from receipt'],
+                ['Note',       note ? `"${note.slice(0, 48)}${note.length > 48 ? '…' : ''}"` : 'None'],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between items-start gap-2">
+                  <span className="text-xs text-gray-500">{label}</span>
+                  <span className="text-xs text-white text-right font-medium max-w-[60%]">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Amber callout */}
+          <div className="p-4 rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/8 to-orange-500/4">
+            <p className="text-xs font-semibold text-amber-400 mb-1">Claim-on-click design</p>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Trials are <strong className="text-white">not activated immediately</strong> — users must click the link in their email. This ensures only engaged users consume trial days, and links that aren't clicked simply expire harmlessly after 7 days.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { key:'overview',      label:'Overview',      icon: BarChart2 },
@@ -2249,6 +2619,7 @@ const TABS = [
   { key:'transactions',  label:'Transactions',  icon: Receipt },
   { key:'support',       label:'Support',       icon: LifeBuoy },
   { key:'withdrawals',   label:'Withdrawals',   icon: ArrowDownCircle },
+  { key:'trial-grants',  label:'Trial Grants',  icon: Gift },
   { key:'broadcast',     label:'Broadcast',     icon: Mail },
   { key:'analytics',     label:'Analytics',     icon: Activity },
   { key:'audit',         label:'Audit Log',     icon: Shield },
@@ -2324,6 +2695,7 @@ export default function AdminDashboard() {
           {tab==='transactions'  && <TransactionsTab dispatch={dispatch} />}
           {tab==='support'       && <SupportTab dispatch={dispatch} />}
           {tab==='withdrawals'   && <WithdrawalsTab dispatch={dispatch} />}
+          {tab==='trial-grants'  && <TrialGrantsTab dispatch={dispatch} />}
           {tab==='broadcast'     && <BroadcastTab dispatch={dispatch} loading={loading} actionSuccess={actionSuccess} error={error} />}
           {tab==='analytics'     && <AnalyticsTab rev={rev} ua={ua} pa={pa} loading={loading} dispatch={dispatch} />}
           {tab==='audit'         && <AuditTab auditLogs={auditLogs} auditTotal={auditTotal} loading={loading} dispatch={dispatch} />}

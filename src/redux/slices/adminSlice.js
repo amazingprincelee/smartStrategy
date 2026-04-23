@@ -105,12 +105,25 @@ export const adminActivateUser = createAsyncThunk(
 );
 
 // ── New thunks ────────────────────────────────────────────────────────────────
+// Supports { userIds, days, note } for individuals or { all: true, days, note } for bulk
 export const adminGrantTrial = createAsyncThunk(
   'admin/grantTrial',
-  async ({ userId, days }, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      const res = await authAPI.post('/admin/grant-trial', { userId, days });
+      const res = await authAPI.post('/admin/grant-trial', payload);
       return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const adminSearchUsers = createAsyncThunk(
+  'admin/searchUsers',
+  async (query, { rejectWithValue }) => {
+    try {
+      const res = await authAPI.get(`/admin/users?search=${encodeURIComponent(query)}&limit=10`);
+      return res.data.data?.users || res.data.data || [];
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -285,7 +298,8 @@ const adminSlice = createSlice({
     transactionsTotal: 0,
     transactionStats:  null,
     transactionDetail: null,
-    loading:           { stats: false, users: false, subs: false, settings: false, action: false, analytics: false, audit: false, transactions: false },
+    trialSearchResults: [],
+    loading:           { stats: false, users: false, subs: false, settings: false, action: false, analytics: false, audit: false, transactions: false, trialSearch: false },
     error:             null,
     actionSuccess:     null,
   },
@@ -389,6 +403,11 @@ const adminSlice = createSlice({
 
     builder
       .addCase(fetchActiveAnnouncement.fulfilled, (state, action) => { state.announcement = action.payload; });
+
+    builder
+      .addCase(adminSearchUsers.pending,   (state) => { state.loading.trialSearch = true; })
+      .addCase(adminSearchUsers.fulfilled, (state, action) => { state.loading.trialSearch = false; state.trialSearchResults = action.payload; })
+      .addCase(adminSearchUsers.rejected,  (state) => { state.loading.trialSearch = false; state.trialSearchResults = []; });
 
     builder
       .addCase(fetchAdminTransactions.pending,   (state) => { state.loading.transactions = true; })
