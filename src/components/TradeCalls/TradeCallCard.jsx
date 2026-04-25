@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { TrendingUp, TrendingDown, Target, ShieldAlert, CheckCircle2, XCircle, Clock, BarChart2 } from 'lucide-react';
 
@@ -42,16 +43,34 @@ export default function TradeCallCard({ call, compact = false }) {
   const isLong     = call.direction === 'long';
   const isOpen     = call.status === 'open' || call.status === 'tp1_hit';
 
+  // Flash ring when call resolves in real-time while the card is visible
+  const [justResolved, setJustResolved] = useState(false);
+  const prevStatusRef = useRef(call.status);
+  useEffect(() => {
+    if (prevStatusRef.current !== call.status && (call.status === 'win' || call.status === 'loss')) {
+      setJustResolved(true);
+      const t = setTimeout(() => setJustResolved(false), 2500);
+      prevStatusRef.current = call.status;
+      return () => clearTimeout(t);
+    }
+    prevStatusRef.current = call.status;
+  }, [call.status]);
+
   // Profit % if live price available
   const livePnlPct = livePrice ? pctDiff(call.entryPrice, livePrice) : null;
   const isInProfit = livePnlPct !== null && (isLong ? parseFloat(livePnlPct) > 0 : parseFloat(livePnlPct) < 0);
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden border transition-all ${
+    <div className={`relative rounded-2xl overflow-hidden border transition-all duration-500 ${
       call.status === 'win'  ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 to-gray-900' :
       call.status === 'loss' ? 'border-red-500/30 bg-gradient-to-br from-red-950/40 to-gray-900' :
       isLong                 ? 'border-green-500/20 bg-gradient-to-br from-green-950/30 to-gray-900' :
                                'border-red-500/20 bg-gradient-to-br from-red-950/30 to-gray-900'
+    } ${justResolved
+      ? call.status === 'win'
+        ? 'ring-2 ring-emerald-400/70 ring-offset-1 ring-offset-gray-900'
+        : 'ring-2 ring-red-400/70 ring-offset-1 ring-offset-gray-900'
+      : ''
     }`}>
 
       {/* Direction accent bar */}
@@ -134,22 +153,46 @@ export default function TradeCallCard({ call, compact = false }) {
           </div>
         </div>
 
-        {/* ── Live price bar ── */}
-        {isOpen && livePrice && (
+        {/* ── Price bar: live when open, closing price when resolved ── */}
+        {isOpen ? (
+          livePrice ? (
+            <div className={`flex items-center justify-between py-2 px-3 rounded-xl mb-3 text-xs border ${
+              isInProfit
+                ? 'bg-emerald-500/10 border-emerald-500/20'
+                : 'bg-red-500/10 border-red-500/20'
+            }`}>
+              <span className="text-gray-400">Live Price</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-white">${fmt(livePrice)}</span>
+                <span className={isInProfit ? 'text-emerald-400' : 'text-red-400'}>
+                  {isInProfit ? '+' : ''}{livePnlPct}%
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between py-1.5 px-3 rounded-xl mb-3 text-xs border border-white/5 bg-white/2">
+              <span className="text-gray-600">Live Price</span>
+              <span className="text-gray-700 flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-gray-600 animate-pulse" />
+                Fetching…
+              </span>
+            </div>
+          )
+        ) : call.closingPrice ? (
           <div className={`flex items-center justify-between py-2 px-3 rounded-xl mb-3 text-xs border ${
-            isInProfit
+            call.status === 'win'
               ? 'bg-emerald-500/10 border-emerald-500/20'
               : 'bg-red-500/10 border-red-500/20'
           }`}>
-            <span className="text-gray-400">Live Price</span>
+            <span className="text-gray-400">Closed at</span>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-white">${fmt(livePrice)}</span>
-              <span className={isInProfit ? 'text-emerald-400' : 'text-red-400'}>
-                {isInProfit ? '+' : ''}{livePnlPct}%
+              <span className="font-bold text-white">${fmt(call.closingPrice)}</span>
+              <span className={`font-bold ${call.status === 'win' ? 'text-emerald-400' : 'text-red-400'}`}>
+                {call.status === 'win' ? '✓ Win' : '✗ Loss'}
               </span>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* ── R/R + footer ── */}
         <div className="flex items-center justify-between text-xs">

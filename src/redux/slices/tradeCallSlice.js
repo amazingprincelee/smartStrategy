@@ -83,10 +83,17 @@ const tradeCallSlice = createSlice({
       state.livePrices = { ...state.livePrices, ...action.payload };
     },
     resolveTradeCall(state, action) {
-      const { _id, status, tp1Hit, tp2Hit, closedAt, closingPrice } = action.payload;
+      const { _id, ...fields } = action.payload;
       const idx = state.calls.findIndex(c => c._id === _id);
       if (idx !== -1) {
-        state.calls[idx] = { ...state.calls[idx], status, tp1Hit, tp2Hit, closedAt, closingPrice };
+        // Only merge fields actually present in the payload — never overwrite with undefined
+        const patch = {};
+        if (fields.status       !== undefined) patch.status       = fields.status;
+        if (fields.tp1Hit       !== undefined) patch.tp1Hit       = fields.tp1Hit;
+        if (fields.tp2Hit       !== undefined) patch.tp2Hit       = fields.tp2Hit;
+        if (fields.closedAt     !== undefined) patch.closedAt     = fields.closedAt;
+        if (fields.closingPrice !== undefined) patch.closingPrice = fields.closingPrice;
+        state.calls[idx] = { ...state.calls[idx], ...patch };
       }
     },
     clearTradeCallMessages(state) {
